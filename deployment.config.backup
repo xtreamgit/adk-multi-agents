@@ -1,0 +1,27 @@
+#!/bin/bash
+# ADK RAG Agent Deployment Configuration
+# Generated on: Sun Oct  5 16:18:05 PDT 2025
+
+# Core Configuration
+export PROJECT_ID="adk-rag-hdtest5"
+export REGION="us-east4"
+export ORGANIZATION_DOMAIN="develom.com"
+export IAP_ADMIN_USER="hector@develom.com"
+export REPO="cloud-run-repo1"
+
+# Project Setup Configuration
+export ORGANIZATION_ID=""
+
+# Derived Configuration
+export PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
+export BACKEND_IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/backend:$(git rev-parse --short HEAD 2>/dev/null || echo 'manual')"
+export FRONTEND_IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/frontend:$(git rev-parse --short HEAD 2>/dev/null || echo 'manual')"
+
+# Display current configuration
+echo "Configuration loaded:"
+echo "  Project ID: $PROJECT_ID"
+echo "  Region: $REGION"
+echo "  Organization: $ORGANIZATION_DOMAIN"
+echo "  Admin User: $IAP_ADMIN_USER"
+echo "  Repository: $REPO"
+echo "  Organization ID: ${ORGANIZATION_ID:-'<not set>'}"

@@ -1,0 +1,2188 @@
+[3J[H[2J[0;35m
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║     ADK RAG AGENT - COMPLETE DEPLOYMENT PIPELINE              ║
+║                                                               ║
+║     Modular Cloud Run + Load Balancer + IAP                   ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+[0m
+[0;34mℹ️  Loading configuration from: ./deployment.config[0m
+Configuration loaded:
+  Project ID: adk-rag-tt
+  Region: us-east4
+  Organization: fedgovai.com
+  Admin User: hdejesus@fedgovai.com
+  Repository: cloud-run-repo1
+[0;34m📋 Deployment Configuration:[0m
+  Project ID: adk-rag-tt
+  Region: us-east4
+  Repository: cloud-run-repo1
+  Organization: fedgovai.com
+  Admin User: hdejesus@fedgovai.com
+
+[1;33m⚙️  Deployment Options:[0m
+  • Skip APIs: No
+  • Skip Cloud Run: No
+  • Skip Load Balancer: No
+  • Skip IAP: No
+  • Skip OAuth: No
+
+
+[0;34mℹ️  Starting deployment pipeline...[0m
+
+
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m📋 SECTION 1: Prerequisites & API Enablement[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mℹ️  Checking gcloud authentication...[0m
+[0;32m✅ gcloud authenticated[0m
+[0;34mℹ️  Checking application default credentials...[0m
+[0;32m✅ Application default credentials configured[0m
+[0;34mℹ️  Validating configuration...[0m
+[0;32m✅ Configuration validated[0m
+[0;34mℹ️  Checking secrets file...[0m
+[0;32m✅ Secrets loaded[0m
+[0;34mℹ️  Setting project context...[0m
+[0;32m✅ Project set to adk-rag-tt[0m
+[0;34mℹ️  Image tags configured: 2cee5fe[0m
+[0;34mℹ️  Enabling required Google Cloud APIs...[0m
+  ✓ run.googleapis.com already enabled
+  ✓ artifactregistry.googleapis.com already enabled
+  ✓ cloudbuild.googleapis.com already enabled
+  ✓ compute.googleapis.com already enabled
+  ✓ iap.googleapis.com already enabled
+  ✓ dns.googleapis.com already enabled
+  ✓ iam.googleapis.com already enabled
+  ✓ cloudresourcemanager.googleapis.com already enabled
+  ✓ cloudidentity.googleapis.com already enabled
+  ✓ aiplatform.googleapis.com already enabled
+  ✓ storage.googleapis.com already enabled
+  ✓ bigquery.googleapis.com already enabled
+[0;32m✅ All required APIs enabled[0m
+
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m📋 SECTION 2: Infrastructure Setup[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mℹ️  Setting up Artifact Registry...[0m
+[0;32m✅ Artifact Registry already exists[0m
+[0;34mℹ️  Creating service accounts...[0m
+  ✓ Backend service account exists
+  ✓ Frontend service account exists
+  ✓ RAG Agent service account exists
+  ✓ IAP Accessor service account exists
+[0;34mℹ️  Configuring IAM permissions...[0m
+  Granting Vertex AI permissions to RAG Agent SA...
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTK18X2Y=
+version: 1
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTK2kF2U=
+version: 1
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTK3Mw2M=
+version: 1
+  Granting basic permissions to Backend SA...
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTK35K2g=
+version: 1
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTK4fx6g=
+version: 1
+  Granting IAP permissions to IAP Accessor SA...
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTK5Rikg=
+version: 1
+[0;32m✅ IAM permissions configured[0m
+
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m📋 SECTION 3: Cloud Run Deployment[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mℹ️  Building backend container image...[0m
+---------------------------------------- REMOTE BUILD OUTPUT ----------------------------------------
+starting build "6a8f49eb-5540-4312-946b-2d4ca578f7c2"
+
+FETCHSOURCE
+Fetching storage object: gs://adk-rag-tt_cloudbuild/source/1760647459.417165-3d8fd1889de945ebae0657e9e9555e50.tgz#1760647460251270
+Copying gs://adk-rag-tt_cloudbuild/source/1760647459.417165-3d8fd1889de945ebae0657e9e9555e50.tgz#1760647460251270...
+/ [0 files][    0.0 B/ 49.8 KiB]                                                
+/ [1 files][ 49.8 KiB/ 49.8 KiB]                                                
+Operation completed over 1 objects/49.8 KiB.
+BUILD
+Already have image (with digest): gcr.io/cloud-builders/docker
+Sending build context to Docker daemon  245.8kB
+
+Step 1/22 : FROM python:3.11-slim
+3.11-slim: Pulling from library/python
+8c7716127147: Already exists
+c72c56726626: Pulling fs layer
+76d93c681ade: Pulling fs layer
+80061c640d63: Pulling fs layer
+80061c640d63: Verifying Checksum
+80061c640d63: Download complete
+c72c56726626: Verifying Checksum
+c72c56726626: Download complete
+76d93c681ade: Verifying Checksum
+76d93c681ade: Download complete
+c72c56726626: Pull complete
+76d93c681ade: Pull complete
+80061c640d63: Pull complete
+Digest: sha256:ff8533f48e12b705fc20d339fde2ec61d0b234dd9366bab3bc84d7b70a45c8c0
+Status: Downloaded newer image for python:3.11-slim
+ ---> 7bbe597de5c7
+Step 2/22 : WORKDIR /app
+ ---> Running in ae6cdecda925
+Removing intermediate container ae6cdecda925
+ ---> 8b85be01b435
+Step 3/22 : RUN apt-get update && apt-get install -y     gcc     g++     && rm -rf /var/lib/apt/lists/*
+ ---> Running in 417d21b82a99
+Hit:1 http://deb.debian.org/debian trixie InRelease
+Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9669 kB]
+Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [5412 B]
+Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [53.8 kB]
+Fetched 9819 kB in 1s (7231 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  binutils binutils-common binutils-x86-64-linux-gnu cpp cpp-14
+  cpp-14-x86-64-linux-gnu cpp-x86-64-linux-gnu g++-14 g++-14-x86-64-linux-gnu
+  g++-x86-64-linux-gnu gcc-14 gcc-14-x86-64-linux-gnu gcc-x86-64-linux-gnu
+  libasan8 libatomic1 libbinutils libc-dev-bin libc6-dev libcc1-0 libcrypt-dev
+  libctf-nobfd0 libctf0 libgcc-14-dev libgomp1 libgprofng0 libhwasan0 libisl23
+  libitm1 libjansson4 liblsan0 libmpc3 libmpfr6 libquadmath0 libsframe1
+  libstdc++-14-dev libtsan2 libubsan1 linux-libc-dev manpages manpages-dev
+  rpcsvc-proto
+Suggested packages:
+  binutils-doc gprofng-gui binutils-gold cpp-doc gcc-14-locales cpp-14-doc
+  g++-multilib g++-14-multilib gcc-14-doc gcc-multilib make autoconf automake
+  libtool flex bison gdb gcc-doc gcc-14-multilib gdb-x86-64-linux-gnu
+  libc-devtools glibc-doc libstdc++-14-doc man-browser
+The following NEW packages will be installed:
+  binutils binutils-common binutils-x86-64-linux-gnu cpp cpp-14
+  cpp-14-x86-64-linux-gnu cpp-x86-64-linux-gnu g++ g++-14
+  g++-14-x86-64-linux-gnu g++-x86-64-linux-gnu gcc gcc-14
+  gcc-14-x86-64-linux-gnu gcc-x86-64-linux-gnu libasan8 libatomic1 libbinutils
+  libc-dev-bin libc6-dev libcc1-0 libcrypt-dev libctf-nobfd0 libctf0
+  libgcc-14-dev libgomp1 libgprofng0 libhwasan0 libisl23 libitm1 libjansson4
+  liblsan0 libmpc3 libmpfr6 libquadmath0 libsframe1 libstdc++-14-dev libtsan2
+  libubsan1 linux-libc-dev manpages manpages-dev rpcsvc-proto
+0 upgraded, 43 newly installed, 0 to remove and 0 not upgraded.
+Need to get 74.8 MB of archives.
+After this operation, 283 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main amd64 manpages all 6.9.1-1 [1393 kB]
+Get:2 http://deb.debian.org/debian trixie/main amd64 libsframe1 amd64 2.44-3 [78.4 kB]
+Get:3 http://deb.debian.org/debian trixie/main amd64 binutils-common amd64 2.44-3 [2509 kB]
+Get:4 http://deb.debian.org/debian trixie/main amd64 libbinutils amd64 2.44-3 [534 kB]
+Get:5 http://deb.debian.org/debian trixie/main amd64 libgprofng0 amd64 2.44-3 [808 kB]
+Get:6 http://deb.debian.org/debian trixie/main amd64 libctf-nobfd0 amd64 2.44-3 [156 kB]
+Get:7 http://deb.debian.org/debian trixie/main amd64 libctf0 amd64 2.44-3 [88.6 kB]
+Get:8 http://deb.debian.org/debian trixie/main amd64 libjansson4 amd64 2.14-2+b3 [39.8 kB]
+Get:9 http://deb.debian.org/debian trixie/main amd64 binutils-x86-64-linux-gnu amd64 2.44-3 [1014 kB]
+Get:10 http://deb.debian.org/debian trixie/main amd64 binutils amd64 2.44-3 [265 kB]
+Get:11 http://deb.debian.org/debian trixie/main amd64 libisl23 amd64 0.27-1 [659 kB]
+Get:12 http://deb.debian.org/debian trixie/main amd64 libmpfr6 amd64 4.2.2-1 [729 kB]
+Get:13 http://deb.debian.org/debian trixie/main amd64 libmpc3 amd64 1.3.1-1+b3 [52.2 kB]
+Get:14 http://deb.debian.org/debian trixie/main amd64 cpp-14-x86-64-linux-gnu amd64 14.2.0-19 [11.0 MB]
+Get:15 http://deb.debian.org/debian trixie/main amd64 cpp-14 amd64 14.2.0-19 [1280 B]
+Get:16 http://deb.debian.org/debian trixie/main amd64 cpp-x86-64-linux-gnu amd64 4:14.2.0-1 [4840 B]
+Get:17 http://deb.debian.org/debian trixie/main amd64 cpp amd64 4:14.2.0-1 [1568 B]
+Get:18 http://deb.debian.org/debian trixie/main amd64 libcc1-0 amd64 14.2.0-19 [42.8 kB]
+Get:19 http://deb.debian.org/debian trixie/main amd64 libgomp1 amd64 14.2.0-19 [137 kB]
+Get:20 http://deb.debian.org/debian trixie/main amd64 libitm1 amd64 14.2.0-19 [26.0 kB]
+Get:21 http://deb.debian.org/debian trixie/main amd64 libatomic1 amd64 14.2.0-19 [9308 B]
+Get:22 http://deb.debian.org/debian trixie/main amd64 libasan8 amd64 14.2.0-19 [2725 kB]
+Get:23 http://deb.debian.org/debian trixie/main amd64 liblsan0 amd64 14.2.0-19 [1204 kB]
+Get:24 http://deb.debian.org/debian trixie/main amd64 libtsan2 amd64 14.2.0-19 [2460 kB]
+Get:25 http://deb.debian.org/debian trixie/main amd64 libubsan1 amd64 14.2.0-19 [1074 kB]
+Get:26 http://deb.debian.org/debian trixie/main amd64 libhwasan0 amd64 14.2.0-19 [1488 kB]
+Get:27 http://deb.debian.org/debian trixie/main amd64 libquadmath0 amd64 14.2.0-19 [145 kB]
+Get:28 http://deb.debian.org/debian trixie/main amd64 libgcc-14-dev amd64 14.2.0-19 [2672 kB]
+Get:29 http://deb.debian.org/debian trixie/main amd64 gcc-14-x86-64-linux-gnu amd64 14.2.0-19 [21.4 MB]
+Get:30 http://deb.debian.org/debian trixie/main amd64 gcc-14 amd64 14.2.0-19 [540 kB]
+Get:31 http://deb.debian.org/debian trixie/main amd64 gcc-x86-64-linux-gnu amd64 4:14.2.0-1 [1436 B]
+Get:32 http://deb.debian.org/debian trixie/main amd64 gcc amd64 4:14.2.0-1 [5136 B]
+Get:33 http://deb.debian.org/debian trixie/main amd64 libc-dev-bin amd64 2.41-12 [58.2 kB]
+Get:34 http://deb.debian.org/debian-security trixie-security/main amd64 linux-libc-dev all 6.12.48-1 [2671 kB]
+Get:35 http://deb.debian.org/debian trixie/main amd64 libcrypt-dev amd64 1:4.4.38-1 [119 kB]
+Get:36 http://deb.debian.org/debian trixie/main amd64 rpcsvc-proto amd64 1.4.3-1 [63.3 kB]
+Get:37 http://deb.debian.org/debian trixie/main amd64 libc6-dev amd64 2.41-12 [1991 kB]
+Get:38 http://deb.debian.org/debian trixie/main amd64 libstdc++-14-dev amd64 14.2.0-19 [2376 kB]
+Get:39 http://deb.debian.org/debian trixie/main amd64 g++-14-x86-64-linux-gnu amd64 14.2.0-19 [12.1 MB]
+Get:40 http://deb.debian.org/debian trixie/main amd64 g++-14 amd64 14.2.0-19 [22.5 kB]
+Get:41 http://deb.debian.org/debian trixie/main amd64 g++-x86-64-linux-gnu amd64 4:14.2.0-1 [1200 B]
+Get:42 http://deb.debian.org/debian trixie/main amd64 g++ amd64 4:14.2.0-1 [1344 B]
+Get:43 http://deb.debian.org/debian trixie/main amd64 manpages-dev all 6.9.1-1 [2122 kB]
+[91mdebconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+[0m[91mdebconf: unable to initialize frontend: Readline
+debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/x86_64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8, <STDIN> line 43.)
+debconf: falling back to frontend: Teletype
+[0m[91mdebconf: unable to initialize frontend: Teletype
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Noninteractive
+[0mFetched 74.8 MB in 1s (114 MB/s)
+Selecting previously unselected package manpages.
+(Reading database ... 
+(Reading database ... 5%
+(Reading database ... 10%
+(Reading database ... 15%
+(Reading database ... 20%
+(Reading database ... 25%
+(Reading database ... 30%
+(Reading database ... 35%
+(Reading database ... 40%
+(Reading database ... 45%
+(Reading database ... 50%
+(Reading database ... 55%
+(Reading database ... 60%
+(Reading database ... 65%
+(Reading database ... 70%
+(Reading database ... 75%
+(Reading database ... 80%
+(Reading database ... 85%
+(Reading database ... 90%
+(Reading database ... 95%
+(Reading database ... 100%
+(Reading database ... 5644 files and directories currently installed.)
+Preparing to unpack .../00-manpages_6.9.1-1_all.deb ...
+Unpacking manpages (6.9.1-1) ...
+Selecting previously unselected package libsframe1:amd64.
+Preparing to unpack .../01-libsframe1_2.44-3_amd64.deb ...
+Unpacking libsframe1:amd64 (2.44-3) ...
+Selecting previously unselected package binutils-common:amd64.
+Preparing to unpack .../02-binutils-common_2.44-3_amd64.deb ...
+Unpacking binutils-common:amd64 (2.44-3) ...
+Selecting previously unselected package libbinutils:amd64.
+Preparing to unpack .../03-libbinutils_2.44-3_amd64.deb ...
+Unpacking libbinutils:amd64 (2.44-3) ...
+Selecting previously unselected package libgprofng0:amd64.
+Preparing to unpack .../04-libgprofng0_2.44-3_amd64.deb ...
+Unpacking libgprofng0:amd64 (2.44-3) ...
+Selecting previously unselected package libctf-nobfd0:amd64.
+Preparing to unpack .../05-libctf-nobfd0_2.44-3_amd64.deb ...
+Unpacking libctf-nobfd0:amd64 (2.44-3) ...
+Selecting previously unselected package libctf0:amd64.
+Preparing to unpack .../06-libctf0_2.44-3_amd64.deb ...
+Unpacking libctf0:amd64 (2.44-3) ...
+Selecting previously unselected package libjansson4:amd64.
+Preparing to unpack .../07-libjansson4_2.14-2+b3_amd64.deb ...
+Unpacking libjansson4:amd64 (2.14-2+b3) ...
+Selecting previously unselected package binutils-x86-64-linux-gnu.
+Preparing to unpack .../08-binutils-x86-64-linux-gnu_2.44-3_amd64.deb ...
+Unpacking binutils-x86-64-linux-gnu (2.44-3) ...
+Selecting previously unselected package binutils.
+Preparing to unpack .../09-binutils_2.44-3_amd64.deb ...
+Unpacking binutils (2.44-3) ...
+Selecting previously unselected package libisl23:amd64.
+Preparing to unpack .../10-libisl23_0.27-1_amd64.deb ...
+Unpacking libisl23:amd64 (0.27-1) ...
+Selecting previously unselected package libmpfr6:amd64.
+Preparing to unpack .../11-libmpfr6_4.2.2-1_amd64.deb ...
+Unpacking libmpfr6:amd64 (4.2.2-1) ...
+Selecting previously unselected package libmpc3:amd64.
+Preparing to unpack .../12-libmpc3_1.3.1-1+b3_amd64.deb ...
+Unpacking libmpc3:amd64 (1.3.1-1+b3) ...
+Selecting previously unselected package cpp-14-x86-64-linux-gnu.
+Preparing to unpack .../13-cpp-14-x86-64-linux-gnu_14.2.0-19_amd64.deb ...
+Unpacking cpp-14-x86-64-linux-gnu (14.2.0-19) ...
+Selecting previously unselected package cpp-14.
+Preparing to unpack .../14-cpp-14_14.2.0-19_amd64.deb ...
+Unpacking cpp-14 (14.2.0-19) ...
+Selecting previously unselected package cpp-x86-64-linux-gnu.
+Preparing to unpack .../15-cpp-x86-64-linux-gnu_4%3a14.2.0-1_amd64.deb ...
+Unpacking cpp-x86-64-linux-gnu (4:14.2.0-1) ...
+Selecting previously unselected package cpp.
+Preparing to unpack .../16-cpp_4%3a14.2.0-1_amd64.deb ...
+Unpacking cpp (4:14.2.0-1) ...
+Selecting previously unselected package libcc1-0:amd64.
+Preparing to unpack .../17-libcc1-0_14.2.0-19_amd64.deb ...
+Unpacking libcc1-0:amd64 (14.2.0-19) ...
+Selecting previously unselected package libgomp1:amd64.
+Preparing to unpack .../18-libgomp1_14.2.0-19_amd64.deb ...
+Unpacking libgomp1:amd64 (14.2.0-19) ...
+Selecting previously unselected package libitm1:amd64.
+Preparing to unpack .../19-libitm1_14.2.0-19_amd64.deb ...
+Unpacking libitm1:amd64 (14.2.0-19) ...
+Selecting previously unselected package libatomic1:amd64.
+Preparing to unpack .../20-libatomic1_14.2.0-19_amd64.deb ...
+Unpacking libatomic1:amd64 (14.2.0-19) ...
+Selecting previously unselected package libasan8:amd64.
+Preparing to unpack .../21-libasan8_14.2.0-19_amd64.deb ...
+Unpacking libasan8:amd64 (14.2.0-19) ...
+Selecting previously unselected package liblsan0:amd64.
+Preparing to unpack .../22-liblsan0_14.2.0-19_amd64.deb ...
+Unpacking liblsan0:amd64 (14.2.0-19) ...
+Selecting previously unselected package libtsan2:amd64.
+Preparing to unpack .../23-libtsan2_14.2.0-19_amd64.deb ...
+Unpacking libtsan2:amd64 (14.2.0-19) ...
+Selecting previously unselected package libubsan1:amd64.
+Preparing to unpack .../24-libubsan1_14.2.0-19_amd64.deb ...
+Unpacking libubsan1:amd64 (14.2.0-19) ...
+Selecting previously unselected package libhwasan0:amd64.
+Preparing to unpack .../25-libhwasan0_14.2.0-19_amd64.deb ...
+Unpacking libhwasan0:amd64 (14.2.0-19) ...
+Selecting previously unselected package libquadmath0:amd64.
+Preparing to unpack .../26-libquadmath0_14.2.0-19_amd64.deb ...
+Unpacking libquadmath0:amd64 (14.2.0-19) ...
+Selecting previously unselected package libgcc-14-dev:amd64.
+Preparing to unpack .../27-libgcc-14-dev_14.2.0-19_amd64.deb ...
+Unpacking libgcc-14-dev:amd64 (14.2.0-19) ...
+Selecting previously unselected package gcc-14-x86-64-linux-gnu.
+Preparing to unpack .../28-gcc-14-x86-64-linux-gnu_14.2.0-19_amd64.deb ...
+Unpacking gcc-14-x86-64-linux-gnu (14.2.0-19) ...
+Selecting previously unselected package gcc-14.
+Preparing to unpack .../29-gcc-14_14.2.0-19_amd64.deb ...
+Unpacking gcc-14 (14.2.0-19) ...
+Selecting previously unselected package gcc-x86-64-linux-gnu.
+Preparing to unpack .../30-gcc-x86-64-linux-gnu_4%3a14.2.0-1_amd64.deb ...
+Unpacking gcc-x86-64-linux-gnu (4:14.2.0-1) ...
+Selecting previously unselected package gcc.
+Preparing to unpack .../31-gcc_4%3a14.2.0-1_amd64.deb ...
+Unpacking gcc (4:14.2.0-1) ...
+Selecting previously unselected package libc-dev-bin.
+Preparing to unpack .../32-libc-dev-bin_2.41-12_amd64.deb ...
+Unpacking libc-dev-bin (2.41-12) ...
+Selecting previously unselected package linux-libc-dev.
+Preparing to unpack .../33-linux-libc-dev_6.12.48-1_all.deb ...
+Unpacking linux-libc-dev (6.12.48-1) ...
+Selecting previously unselected package libcrypt-dev:amd64.
+Preparing to unpack .../34-libcrypt-dev_1%3a4.4.38-1_amd64.deb ...
+Unpacking libcrypt-dev:amd64 (1:4.4.38-1) ...
+Selecting previously unselected package rpcsvc-proto.
+Preparing to unpack .../35-rpcsvc-proto_1.4.3-1_amd64.deb ...
+Unpacking rpcsvc-proto (1.4.3-1) ...
+Selecting previously unselected package libc6-dev:amd64.
+Preparing to unpack .../36-libc6-dev_2.41-12_amd64.deb ...
+Unpacking libc6-dev:amd64 (2.41-12) ...
+Selecting previously unselected package libstdc++-14-dev:amd64.
+Preparing to unpack .../37-libstdc++-14-dev_14.2.0-19_amd64.deb ...
+Unpacking libstdc++-14-dev:amd64 (14.2.0-19) ...
+Selecting previously unselected package g++-14-x86-64-linux-gnu.
+Preparing to unpack .../38-g++-14-x86-64-linux-gnu_14.2.0-19_amd64.deb ...
+Unpacking g++-14-x86-64-linux-gnu (14.2.0-19) ...
+Selecting previously unselected package g++-14.
+Preparing to unpack .../39-g++-14_14.2.0-19_amd64.deb ...
+Unpacking g++-14 (14.2.0-19) ...
+Selecting previously unselected package g++-x86-64-linux-gnu.
+Preparing to unpack .../40-g++-x86-64-linux-gnu_4%3a14.2.0-1_amd64.deb ...
+Unpacking g++-x86-64-linux-gnu (4:14.2.0-1) ...
+Selecting previously unselected package g++.
+Preparing to unpack .../41-g++_4%3a14.2.0-1_amd64.deb ...
+Unpacking g++ (4:14.2.0-1) ...
+Selecting previously unselected package manpages-dev.
+Preparing to unpack .../42-manpages-dev_6.9.1-1_all.deb ...
+Unpacking manpages-dev (6.9.1-1) ...
+Setting up manpages (6.9.1-1) ...
+Setting up binutils-common:amd64 (2.44-3) ...
+Setting up linux-libc-dev (6.12.48-1) ...
+Setting up libctf-nobfd0:amd64 (2.44-3) ...
+Setting up libgomp1:amd64 (14.2.0-19) ...
+Setting up libsframe1:amd64 (2.44-3) ...
+Setting up libjansson4:amd64 (2.14-2+b3) ...
+Setting up rpcsvc-proto (1.4.3-1) ...
+Setting up libmpfr6:amd64 (4.2.2-1) ...
+Setting up libquadmath0:amd64 (14.2.0-19) ...
+Setting up libmpc3:amd64 (1.3.1-1+b3) ...
+Setting up libatomic1:amd64 (14.2.0-19) ...
+Setting up libubsan1:amd64 (14.2.0-19) ...
+Setting up libhwasan0:amd64 (14.2.0-19) ...
+Setting up libcrypt-dev:amd64 (1:4.4.38-1) ...
+Setting up libasan8:amd64 (14.2.0-19) ...
+Setting up libtsan2:amd64 (14.2.0-19) ...
+Setting up libbinutils:amd64 (2.44-3) ...
+Setting up libisl23:amd64 (0.27-1) ...
+Setting up libc-dev-bin (2.41-12) ...
+Setting up libcc1-0:amd64 (14.2.0-19) ...
+Setting up liblsan0:amd64 (14.2.0-19) ...
+Setting up libitm1:amd64 (14.2.0-19) ...
+Setting up libctf0:amd64 (2.44-3) ...
+Setting up manpages-dev (6.9.1-1) ...
+Setting up libgprofng0:amd64 (2.44-3) ...
+Setting up cpp-14-x86-64-linux-gnu (14.2.0-19) ...
+Setting up cpp-14 (14.2.0-19) ...
+Setting up libc6-dev:amd64 (2.41-12) ...
+Setting up libgcc-14-dev:amd64 (14.2.0-19) ...
+Setting up libstdc++-14-dev:amd64 (14.2.0-19) ...
+Setting up binutils-x86-64-linux-gnu (2.44-3) ...
+Setting up cpp-x86-64-linux-gnu (4:14.2.0-1) ...
+Setting up binutils (2.44-3) ...
+Setting up cpp (4:14.2.0-1) ...
+Setting up gcc-14-x86-64-linux-gnu (14.2.0-19) ...
+Setting up gcc-x86-64-linux-gnu (4:14.2.0-1) ...
+Setting up gcc-14 (14.2.0-19) ...
+Setting up g++-14-x86-64-linux-gnu (14.2.0-19) ...
+Setting up g++-x86-64-linux-gnu (4:14.2.0-1) ...
+Setting up g++-14 (14.2.0-19) ...
+Setting up gcc (4:14.2.0-1) ...
+Setting up g++ (4:14.2.0-1) ...
+update-alternatives: using /usr/bin/g++ to provide /usr/bin/c++ (c++) in auto mode
+Processing triggers for libc-bin (2.41-12) ...
+Removing intermediate container 417d21b82a99
+ ---> f06352f77aa9
+Step 4/22 : COPY requirements.txt .
+ ---> 78e7e8dc4414
+Step 5/22 : RUN pip install --upgrade pip
+ ---> Running in 57b34c5257a6
+Requirement already satisfied: pip in /usr/local/lib/python3.11/site-packages (24.0)
+Collecting pip
+  Downloading pip-25.2-py3-none-any.whl.metadata (4.7 kB)
+Downloading pip-25.2-py3-none-any.whl (1.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 25.8 MB/s eta 0:00:00
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 24.0
+    Uninstalling pip-24.0:
+      Successfully uninstalled pip-24.0
+Successfully installed pip-25.2
+[91mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+[0mRemoving intermediate container 57b34c5257a6
+ ---> 49bc54fee892
+Step 6/22 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Running in b2d872cf5174
+Collecting google-cloud-aiplatform==1.92.0 (from -r requirements.txt (line 1))
+  Downloading google_cloud_aiplatform-1.92.0-py2.py3-none-any.whl.metadata (35 kB)
+Collecting uvicorn==0.34.0 (from -r requirements.txt (line 2))
+  Downloading uvicorn-0.34.0-py3-none-any.whl.metadata (6.5 kB)
+Collecting PyMuPDF==1.24.1.0 (from -r requirements.txt (line 3))
+  Downloading PyMuPDF-1.24.1-cp311-none-manylinux2014_x86_64.whl.metadata (3.4 kB)
+Collecting google-cloud-storage==2.19.0 (from -r requirements.txt (line 4))
+  Downloading google_cloud_storage-2.19.0-py2.py3-none-any.whl.metadata (9.1 kB)
+Collecting google-genai==1.14.0 (from -r requirements.txt (line 5))
+  Downloading google_genai-1.14.0-py3-none-any.whl.metadata (33 kB)
+Collecting gitpython==3.1.40 (from -r requirements.txt (line 6))
+  Downloading GitPython-3.1.40-py3-none-any.whl.metadata (12 kB)
+Collecting google-adk==0.5.0 (from -r requirements.txt (line 7))
+  Downloading google_adk-0.5.0-py3-none-any.whl.metadata (9.7 kB)
+Collecting deprecated (from -r requirements.txt (line 8))
+  Downloading Deprecated-1.2.18-py2.py3-none-any.whl.metadata (5.7 kB)
+Collecting fastapi==0.115.0 (from -r requirements.txt (line 9))
+  Downloading fastapi-0.115.0-py3-none-any.whl.metadata (27 kB)
+Collecting python-multipart==0.0.12 (from -r requirements.txt (line 10))
+  Downloading python_multipart-0.0.12-py3-none-any.whl.metadata (1.9 kB)
+Collecting pydantic==2.9.0 (from -r requirements.txt (line 11))
+  Downloading pydantic-2.9.0-py3-none-any.whl.metadata (146 kB)
+Collecting passlib==1.7.4 (from passlib[bcrypt]==1.7.4->-r requirements.txt (line 12))
+  Downloading passlib-1.7.4-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting bcrypt==4.0.1 (from -r requirements.txt (line 13))
+  Downloading bcrypt-4.0.1-cp36-abi3-manylinux_2_28_x86_64.whl.metadata (9.0 kB)
+Collecting python-jose==3.3.0 (from python-jose[cryptography]==3.3.0->-r requirements.txt (line 14))
+  Downloading python_jose-3.3.0-py2.py3-none-any.whl.metadata (5.4 kB)
+Collecting pytest==7.4.3 (from -r requirements.txt (line 17))
+  Downloading pytest-7.4.3-py3-none-any.whl.metadata (7.9 kB)
+Collecting pytest-asyncio==0.21.1 (from -r requirements.txt (line 18))
+  Downloading pytest_asyncio-0.21.1-py3-none-any.whl.metadata (4.0 kB)
+Collecting pytest-mock==3.12.0 (from -r requirements.txt (line 19))
+  Downloading pytest_mock-3.12.0-py3-none-any.whl.metadata (3.8 kB)
+Collecting httpx<1.0.0,>=0.28.1 (from -r requirements.txt (line 20))
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting pytest-cov==4.1.0 (from -r requirements.txt (line 21))
+  Downloading pytest_cov-4.1.0-py3-none-any.whl.metadata (26 kB)
+Collecting google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3.0.0,>=1.34.1 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3.0.0,>=1.34.1->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading google_api_core-2.26.0-py3-none-any.whl.metadata (3.2 kB)
+Collecting google-auth<3.0.0,>=2.14.1 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading google_auth-2.41.1-py2.py3-none-any.whl.metadata (6.6 kB)
+Collecting proto-plus<2.0.0,>=1.22.3 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading proto_plus-1.26.1-py3-none-any.whl.metadata (2.2 kB)
+Collecting protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<7.0.0,>=3.20.2 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading protobuf-6.33.0-cp39-abi3-manylinux2014_x86_64.whl.metadata (593 bytes)
+Collecting packaging>=14.3 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting google-cloud-bigquery!=3.20.0,<4.0.0,>=1.15.0 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading google_cloud_bigquery-3.38.0-py3-none-any.whl.metadata (8.0 kB)
+Collecting google-cloud-resource-manager<3.0.0,>=1.3.3 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading google_cloud_resource_manager-1.14.2-py3-none-any.whl.metadata (9.6 kB)
+Collecting shapely<3.0.0 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading shapely-2.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (6.8 kB)
+Collecting typing-extensions (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting docstring-parser<1 (from google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading docstring_parser-0.17.0-py3-none-any.whl.metadata (3.5 kB)
+Collecting google-cloud-core<3.0dev,>=2.3.0 (from google-cloud-storage==2.19.0->-r requirements.txt (line 4))
+  Downloading google_cloud_core-2.4.3-py2.py3-none-any.whl.metadata (2.7 kB)
+Collecting google-resumable-media>=2.7.2 (from google-cloud-storage==2.19.0->-r requirements.txt (line 4))
+  Downloading google_resumable_media-2.7.2-py2.py3-none-any.whl.metadata (2.2 kB)
+Collecting requests<3.0.0dev,>=2.18.0 (from google-cloud-storage==2.19.0->-r requirements.txt (line 4))
+  Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+Collecting google-crc32c<2.0dev,>=1.0 (from google-cloud-storage==2.19.0->-r requirements.txt (line 4))
+  Downloading google_crc32c-1.7.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.3 kB)
+Collecting anyio<5.0.0,>=4.8.0 (from google-genai==1.14.0->-r requirements.txt (line 5))
+  Downloading anyio-4.11.0-py3-none-any.whl.metadata (4.1 kB)
+Collecting websockets<15.1.0,>=13.0.0 (from google-genai==1.14.0->-r requirements.txt (line 5))
+  Downloading websockets-15.0.1-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.8 kB)
+Collecting annotated-types>=0.4.0 (from pydantic==2.9.0->-r requirements.txt (line 11))
+  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.23.2 (from pydantic==2.9.0->-r requirements.txt (line 11))
+  Downloading pydantic_core-2.23.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+Collecting tzdata (from pydantic==2.9.0->-r requirements.txt (line 11))
+  Downloading tzdata-2025.2-py2.py3-none-any.whl.metadata (1.4 kB)
+Collecting click>=7.0 (from uvicorn==0.34.0->-r requirements.txt (line 2))
+  Downloading click-8.3.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting h11>=0.8 (from uvicorn==0.34.0->-r requirements.txt (line 2))
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting PyMuPDFb==1.24.1 (from PyMuPDF==1.24.1.0->-r requirements.txt (line 3))
+  Downloading PyMuPDFb-1.24.1-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.4 kB)
+Collecting gitdb<5,>=4.0.1 (from gitpython==3.1.40->-r requirements.txt (line 6))
+  Downloading gitdb-4.0.12-py3-none-any.whl.metadata (1.2 kB)
+Collecting authlib>=1.5.1 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading authlib-1.6.5-py2.py3-none-any.whl.metadata (9.8 kB)
+Collecting google-api-python-client>=2.157.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading google_api_python_client-2.184.0-py3-none-any.whl.metadata (7.0 kB)
+Collecting google-cloud-secret-manager>=2.22.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading google_cloud_secret_manager-2.25.0-py3-none-any.whl.metadata (9.8 kB)
+Collecting google-cloud-speech>=2.30.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading google_cloud_speech-2.33.0-py3-none-any.whl.metadata (9.6 kB)
+Collecting graphviz>=0.20.2 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading graphviz-0.21-py3-none-any.whl.metadata (12 kB)
+Collecting mcp>=1.5.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading mcp-1.18.0-py3-none-any.whl.metadata (80 kB)
+Collecting opentelemetry-api>=1.31.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading opentelemetry_api-1.38.0-py3-none-any.whl.metadata (1.5 kB)
+Collecting opentelemetry-exporter-gcp-trace>=1.9.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading opentelemetry_exporter_gcp_trace-1.10.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting opentelemetry-sdk>=1.31.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading opentelemetry_sdk-1.38.0-py3-none-any.whl.metadata (1.5 kB)
+Collecting python-dotenv>=1.0.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading python_dotenv-1.1.1-py3-none-any.whl.metadata (24 kB)
+Collecting PyYAML>=6.0.2 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting sqlalchemy>=2.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading sqlalchemy-2.0.44-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.5 kB)
+Collecting tzlocal>=5.3 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading tzlocal-5.3.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting starlette<0.39.0,>=0.37.2 (from fastapi==0.115.0->-r requirements.txt (line 9))
+  Downloading starlette-0.38.6-py3-none-any.whl.metadata (6.0 kB)
+Collecting ecdsa!=0.15 (from python-jose==3.3.0->python-jose[cryptography]==3.3.0->-r requirements.txt (line 14))
+  Downloading ecdsa-0.19.1-py2.py3-none-any.whl.metadata (29 kB)
+Collecting rsa (from python-jose==3.3.0->python-jose[cryptography]==3.3.0->-r requirements.txt (line 14))
+  Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+Collecting pyasn1 (from python-jose==3.3.0->python-jose[cryptography]==3.3.0->-r requirements.txt (line 14))
+  Downloading pyasn1-0.6.1-py3-none-any.whl.metadata (8.4 kB)
+Collecting iniconfig (from pytest==7.4.3->-r requirements.txt (line 17))
+  Downloading iniconfig-2.1.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting pluggy<2.0,>=0.12 (from pytest==7.4.3->-r requirements.txt (line 17))
+  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting coverage>=5.2.1 (from coverage[toml]>=5.2.1->pytest-cov==4.1.0->-r requirements.txt (line 21))
+  Downloading coverage-7.11.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (9.0 kB)
+Collecting cryptography>=3.4.0 (from python-jose[cryptography]==3.3.0->-r requirements.txt (line 14))
+  Downloading cryptography-46.0.3-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+Collecting certifi (from httpx<1.0.0,>=0.28.1->-r requirements.txt (line 20))
+  Downloading certifi-2025.10.5-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx<1.0.0,>=0.28.1->-r requirements.txt (line 20))
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting idna (from httpx<1.0.0,>=0.28.1->-r requirements.txt (line 20))
+  Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+Collecting sniffio>=1.1 (from anyio<5.0.0,>=4.8.0->google-genai==1.14.0->-r requirements.txt (line 5))
+  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting smmap<6,>=3.0.1 (from gitdb<5,>=4.0.1->gitpython==3.1.40->-r requirements.txt (line 6))
+  Downloading smmap-5.0.2-py3-none-any.whl.metadata (4.3 kB)
+Collecting googleapis-common-protos<2.0.0,>=1.56.2 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3.0.0,>=1.34.1->google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3.0.0,>=1.34.1->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading googleapis_common_protos-1.70.0-py3-none-any.whl.metadata (9.3 kB)
+Collecting grpcio<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3.0.0,>=1.34.1->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading grpcio-1.75.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.7 kB)
+Collecting grpcio-status<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3.0.0,>=1.34.1->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading grpcio_status-1.75.1-py3-none-any.whl.metadata (1.1 kB)
+Collecting cachetools<7.0,>=2.0.0 (from google-auth<3.0.0,>=2.14.1->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading cachetools-6.2.1-py3-none-any.whl.metadata (5.5 kB)
+Collecting pyasn1-modules>=0.2.1 (from google-auth<3.0.0,>=2.14.1->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+Collecting python-dateutil<3.0.0,>=2.8.2 (from google-cloud-bigquery!=3.20.0,<4.0.0,>=1.15.0->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Collecting grpc-google-iam-v1<1.0.0,>=0.14.0 (from google-cloud-resource-manager<3.0.0,>=1.3.3->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading grpc_google_iam_v1-0.14.3-py3-none-any.whl.metadata (9.2 kB)
+Collecting six>=1.5 (from python-dateutil<3.0.0,>=2.8.2->google-cloud-bigquery!=3.20.0,<4.0.0,>=1.15.0->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting charset_normalizer<4,>=2 (from requests<3.0.0dev,>=2.18.0->google-cloud-storage==2.19.0->-r requirements.txt (line 4))
+  Downloading charset_normalizer-3.4.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (37 kB)
+Collecting urllib3<3,>=1.21.1 (from requests<3.0.0dev,>=2.18.0->google-cloud-storage==2.19.0->-r requirements.txt (line 4))
+  Downloading urllib3-2.5.0-py3-none-any.whl.metadata (6.5 kB)
+Collecting numpy>=1.21 (from shapely<3.0.0->google-cloud-aiplatform==1.92.0->-r requirements.txt (line 1))
+  Downloading numpy-2.3.4-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)
+Collecting wrapt<2,>=1.10 (from deprecated->-r requirements.txt (line 8))
+  Downloading wrapt-1.17.3-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.4 kB)
+Collecting cffi>=2.0.0 (from cryptography>=3.4.0->python-jose[cryptography]==3.3.0->-r requirements.txt (line 14))
+  Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography>=3.4.0->python-jose[cryptography]==3.3.0->-r requirements.txt (line 14))
+  Downloading pycparser-2.23-py3-none-any.whl.metadata (993 bytes)
+Collecting httplib2<1.0.0,>=0.19.0 (from google-api-python-client>=2.157.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading httplib2-0.31.0-py3-none-any.whl.metadata (2.2 kB)
+Collecting google-auth-httplib2<1.0.0,>=0.2.0 (from google-api-python-client>=2.157.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading google_auth_httplib2-0.2.0-py2.py3-none-any.whl.metadata (2.2 kB)
+Collecting uritemplate<5,>=3.0.1 (from google-api-python-client>=2.157.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading uritemplate-4.2.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting pyparsing<4,>=3.0.4 (from httplib2<1.0.0,>=0.19.0->google-api-python-client>=2.157.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading pyparsing-3.2.5-py3-none-any.whl.metadata (5.0 kB)
+Collecting httpx-sse>=0.4 (from mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading httpx_sse-0.4.3-py3-none-any.whl.metadata (9.7 kB)
+Collecting jsonschema>=4.20.0 (from mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading jsonschema-4.25.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting pydantic-settings>=2.5.2 (from mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading pydantic_settings-2.11.0-py3-none-any.whl.metadata (3.4 kB)
+INFO: pip is looking at multiple versions of mcp to determine which version is compatible with other requirements. This could take a while.
+Collecting mcp>=1.5.0 (from google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading mcp-1.17.0-py3-none-any.whl.metadata (80 kB)
+  Downloading mcp-1.16.0-py3-none-any.whl.metadata (80 kB)
+  Downloading mcp-1.15.0-py3-none-any.whl.metadata (80 kB)
+  Downloading mcp-1.14.1-py3-none-any.whl.metadata (75 kB)
+  Downloading mcp-1.14.0-py3-none-any.whl.metadata (75 kB)
+  Downloading mcp-1.13.1-py3-none-any.whl.metadata (74 kB)
+  Downloading mcp-1.13.0-py3-none-any.whl.metadata (68 kB)
+INFO: pip is still looking at multiple versions of mcp to determine which version is compatible with other requirements. This could take a while.
+  Downloading mcp-1.12.4-py3-none-any.whl.metadata (68 kB)
+Collecting sse-starlette>=1.6.1 (from mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading sse_starlette-3.0.2-py3-none-any.whl.metadata (11 kB)
+Collecting attrs>=22.2.0 (from jsonschema>=4.20.0->mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading attrs-25.4.0-py3-none-any.whl.metadata (10 kB)
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.20.0->mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+Collecting referencing>=0.28.4 (from jsonschema>=4.20.0->mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+Collecting rpds-py>=0.7.1 (from jsonschema>=4.20.0->mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading rpds_py-0.27.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.2 kB)
+Collecting importlib-metadata<8.8.0,>=6.0 (from opentelemetry-api>=1.31.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading importlib_metadata-8.7.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting zipp>=3.20 (from importlib-metadata<8.8.0,>=6.0->opentelemetry-api>=1.31.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading zipp-3.23.0-py3-none-any.whl.metadata (3.6 kB)
+Collecting google-cloud-trace~=1.1 (from opentelemetry-exporter-gcp-trace>=1.9.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading google_cloud_trace-1.16.2-py3-none-any.whl.metadata (9.7 kB)
+Collecting opentelemetry-resourcedetector-gcp==1.*,>=1.5.0dev0 (from opentelemetry-exporter-gcp-trace>=1.9.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading opentelemetry_resourcedetector_gcp-1.10.0a0-py3-none-any.whl.metadata (3.2 kB)
+Collecting opentelemetry-semantic-conventions==0.59b0 (from opentelemetry-sdk>=1.31.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading opentelemetry_semantic_conventions-0.59b0-py3-none-any.whl.metadata (2.4 kB)
+Collecting typing-inspection>=0.4.0 (from pydantic-settings>=2.5.2->mcp>=1.5.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting greenlet>=1 (from sqlalchemy>=2.0->google-adk==0.5.0->-r requirements.txt (line 7))
+  Downloading greenlet-3.2.4-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (4.1 kB)
+Downloading google_cloud_aiplatform-1.92.0-py2.py3-none-any.whl (7.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 168.0 MB/s  0:00:00
+Downloading google_cloud_storage-2.19.0-py2.py3-none-any.whl (131 kB)
+Downloading google_genai-1.14.0-py3-none-any.whl (168 kB)
+Downloading pydantic-2.9.0-py3-none-any.whl (434 kB)
+Downloading uvicorn-0.34.0-py3-none-any.whl (62 kB)
+Downloading PyMuPDF-1.24.1-cp311-none-manylinux2014_x86_64.whl (3.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.9/3.9 MB 219.4 MB/s  0:00:00
+Downloading GitPython-3.1.40-py3-none-any.whl (190 kB)
+Downloading google_adk-0.5.0-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 142.7 MB/s  0:00:00
+Downloading fastapi-0.115.0-py3-none-any.whl (94 kB)
+Downloading python_multipart-0.0.12-py3-none-any.whl (23 kB)
+Downloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 525.6/525.6 kB 521.1 MB/s  0:00:00
+Downloading bcrypt-4.0.1-cp36-abi3-manylinux_2_28_x86_64.whl (593 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 593.7/593.7 kB 492.9 MB/s  0:00:00
+Downloading python_jose-3.3.0-py2.py3-none-any.whl (33 kB)
+Downloading pytest-7.4.3-py3-none-any.whl (325 kB)
+Downloading pytest_asyncio-0.21.1-py3-none-any.whl (13 kB)
+Downloading pytest_mock-3.12.0-py3-none-any.whl (9.8 kB)
+Downloading pytest_cov-4.1.0-py3-none-any.whl (21 kB)
+Downloading pydantic_core-2.23.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 43.7 MB/s  0:00:00
+Downloading PyMuPDFb-1.24.1-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (30.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 30.8/30.8 MB 167.3 MB/s  0:00:00
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+Downloading anyio-4.11.0-py3-none-any.whl (109 kB)
+Downloading docstring_parser-0.17.0-py3-none-any.whl (36 kB)
+Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)
+Downloading google_api_core-2.26.0-py3-none-any.whl (162 kB)
+Downloading google_auth-2.41.1-py2.py3-none-any.whl (221 kB)
+Downloading cachetools-6.2.1-py3-none-any.whl (11 kB)
+Downloading google_cloud_bigquery-3.38.0-py3-none-any.whl (259 kB)
+Downloading google_cloud_core-2.4.3-py2.py3-none-any.whl (29 kB)
+Downloading google_cloud_resource_manager-1.14.2-py3-none-any.whl (394 kB)
+Downloading google_crc32c-1.7.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (32 kB)
+Downloading google_resumable_media-2.7.2-py2.py3-none-any.whl (81 kB)
+Downloading googleapis_common_protos-1.70.0-py3-none-any.whl (294 kB)
+Downloading grpc_google_iam_v1-0.14.3-py3-none-any.whl (32 kB)
+Downloading grpcio-1.75.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (6.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.5/6.5 MB 295.8 MB/s  0:00:00
+Downloading grpcio_status-1.75.1-py3-none-any.whl (14 kB)
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+Downloading proto_plus-1.26.1-py3-none-any.whl (50 kB)
+Downloading protobuf-6.33.0-cp39-abi3-manylinux2014_x86_64.whl (323 kB)
+Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+Downloading charset_normalizer-3.4.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (151 kB)
+Downloading idna-3.11-py3-none-any.whl (71 kB)
+Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+Downloading shapely-2.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.1/3.1 MB 127.6 MB/s  0:00:00
+Downloading smmap-5.0.2-py3-none-any.whl (24 kB)
+Downloading starlette-0.38.6-py3-none-any.whl (71 kB)
+Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+Downloading urllib3-2.5.0-py3-none-any.whl (129 kB)
+Downloading websockets-15.0.1-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (182 kB)
+Downloading Deprecated-1.2.18-py2.py3-none-any.whl (10.0 kB)
+Downloading wrapt-1.17.3-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (82 kB)
+Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Downloading authlib-1.6.5-py2.py3-none-any.whl (243 kB)
+Downloading certifi-2025.10.5-py3-none-any.whl (163 kB)
+Downloading click-8.3.0-py3-none-any.whl (107 kB)
+Downloading coverage-7.11.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (248 kB)
+Downloading cryptography-46.0.3-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 318.6 MB/s  0:00:00
+Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)
+Downloading ecdsa-0.19.1-py2.py3-none-any.whl (150 kB)
+Downloading google_api_python_client-2.184.0-py3-none-any.whl (14.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.3/14.3 MB 252.6 MB/s  0:00:00
+Downloading google_auth_httplib2-0.2.0-py2.py3-none-any.whl (9.3 kB)
+Downloading httplib2-0.31.0-py3-none-any.whl (91 kB)
+Downloading pyparsing-3.2.5-py3-none-any.whl (113 kB)
+Downloading uritemplate-4.2.0-py3-none-any.whl (11 kB)
+Downloading google_cloud_secret_manager-2.25.0-py3-none-any.whl (218 kB)
+Downloading google_cloud_speech-2.33.0-py3-none-any.whl (335 kB)
+Downloading graphviz-0.21-py3-none-any.whl (47 kB)
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading mcp-1.12.4-py3-none-any.whl (160 kB)
+Downloading httpx_sse-0.4.3-py3-none-any.whl (9.0 kB)
+Downloading jsonschema-4.25.1-py3-none-any.whl (90 kB)
+Downloading attrs-25.4.0-py3-none-any.whl (67 kB)
+Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+Downloading numpy-2.3.4-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 295.0 MB/s  0:00:00
+Downloading opentelemetry_api-1.38.0-py3-none-any.whl (65 kB)
+Downloading importlib_metadata-8.7.0-py3-none-any.whl (27 kB)
+Downloading opentelemetry_exporter_gcp_trace-1.10.0-py3-none-any.whl (14 kB)
+Downloading google_cloud_trace-1.16.2-py3-none-any.whl (103 kB)
+Downloading opentelemetry_resourcedetector_gcp-1.10.0a0-py3-none-any.whl (18 kB)
+Downloading opentelemetry_sdk-1.38.0-py3-none-any.whl (132 kB)
+Downloading opentelemetry_semantic_conventions-0.59b0-py3-none-any.whl (207 kB)
+Downloading packaging-25.0-py3-none-any.whl (66 kB)
+Downloading pyasn1-0.6.1-py3-none-any.whl (83 kB)
+Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+Downloading pydantic_settings-2.11.0-py3-none-any.whl (48 kB)
+Downloading python_dotenv-1.1.1-py3-none-any.whl (20 kB)
+Downloading pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (806 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 806.6/806.6 kB 228.3 MB/s  0:00:00
+Downloading referencing-0.37.0-py3-none-any.whl (26 kB)
+Downloading rpds_py-0.27.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (384 kB)
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+Downloading sqlalchemy-2.0.44-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 313.8 MB/s  0:00:00
+Downloading greenlet-3.2.4-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (587 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 587.7/587.7 kB 283.5 MB/s  0:00:00
+Downloading sse_starlette-3.0.2-py3-none-any.whl (11 kB)
+Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Downloading tzlocal-5.3.1-py3-none-any.whl (18 kB)
+Downloading zipp-3.23.0-py3-none-any.whl (10 kB)
+Downloading iniconfig-2.1.0-py3-none-any.whl (6.0 kB)
+Downloading pycparser-2.23-py3-none-any.whl (118 kB)
+Downloading tzdata-2025.2-py2.py3-none-any.whl (347 kB)
+Installing collected packages: passlib, zipp, wrapt, websockets, urllib3, uritemplate, tzlocal, tzdata, typing-extensions, sniffio, smmap, six, rpds-py, PyYAML, python-multipart, python-dotenv, pyparsing, PyMuPDFb, pycparser, pyasn1, protobuf, pluggy, packaging, numpy, iniconfig, idna, httpx-sse, h11, greenlet, graphviz, google-crc32c, docstring-parser, coverage, click, charset_normalizer, certifi, cachetools, bcrypt, attrs, annotated-types, uvicorn, typing-inspection, sqlalchemy, shapely, rsa, requests, referencing, python-dateutil, pytest, PyMuPDF, pydantic-core, pyasn1-modules, proto-plus, importlib-metadata, httplib2, httpcore, grpcio, googleapis-common-protos, google-resumable-media, gitdb, ecdsa, deprecated, cffi, anyio, starlette, sse-starlette, python-jose, pytest-mock, pytest-cov, pytest-asyncio, pydantic, opentelemetry-api, jsonschema-specifications, httpx, grpcio-status, google-auth, gitpython, cryptography, pydantic-settings, opentelemetry-semantic-conventions, jsonschema, grpc-google-iam-v1, google-genai, google-auth-httplib2, google-api-core, fastapi, authlib, opentelemetry-sdk, mcp, google-cloud-core, google-api-python-client, opentelemetry-resourcedetector-gcp, google-cloud-trace, google-cloud-storage, google-cloud-speech, google-cloud-secret-manager, google-cloud-resource-manager, google-cloud-bigquery, opentelemetry-exporter-gcp-trace, google-cloud-aiplatform, google-adk
+
+Successfully installed PyMuPDF-1.24.1 PyMuPDFb-1.24.1 PyYAML-6.0.3 annotated-types-0.7.0 anyio-4.11.0 attrs-25.4.0 authlib-1.6.5 bcrypt-4.0.1 cachetools-6.2.1 certifi-2025.10.5 cffi-2.0.0 charset_normalizer-3.4.4 click-8.3.0 coverage-7.11.0 cryptography-46.0.3 deprecated-1.2.18 docstring-parser-0.17.0 ecdsa-0.19.1 fastapi-0.115.0 gitdb-4.0.12 gitpython-3.1.40 google-adk-0.5.0 google-api-core-2.26.0 google-api-python-client-2.184.0 google-auth-2.41.1 google-auth-httplib2-0.2.0 google-cloud-aiplatform-1.92.0 google-cloud-bigquery-3.38.0 google-cloud-core-2.4.3 google-cloud-resource-manager-1.14.2 google-cloud-secret-manager-2.25.0 google-cloud-speech-2.33.0 google-cloud-storage-2.19.0 google-cloud-trace-1.16.2 google-crc32c-1.7.1 google-genai-1.14.0 google-resumable-media-2.7.2 googleapis-common-protos-1.70.0 graphviz-0.21 greenlet-3.2.4 grpc-google-iam-v1-0.14.3 grpcio-1.75.1 grpcio-status-1.75.1 h11-0.16.0 httpcore-1.0.9 httplib2-0.31.0 httpx-0.28.1 httpx-sse-0.4.3 idna-3.11 importlib-metadata-8.7.0 iniconfig-2.1.0 jsonschema-4.25.1 jsonschema-specifications-2025.9.1 mcp-1.12.4 numpy-2.3.4 opentelemetry-api-1.38.0 opentelemetry-exporter-gcp-trace-1.10.0 opentelemetry-resourcedetector-gcp-1.10.0a0 opentelemetry-sdk-1.38.0 opentelemetry-semantic-conventions-0.59b0 packaging-25.0 passlib-1.7.4 pluggy-1.6.0 proto-plus-1.26.1 protobuf-6.33.0 pyasn1-0.6.1 pyasn1-modules-0.4.2 pycparser-2.23 pydantic-2.9.0 pydantic-core-2.23.2 pydantic-settings-2.11.0 pyparsing-3.2.5 pytest-7.4.3 pytest-asyncio-0.21.1 pytest-cov-4.1.0 pytest-mock-3.12.0 python-dateutil-2.9.0.post0 python-dotenv-1.1.1 python-jose-3.3.0 python-multipart-0.0.12 referencing-0.37.0 requests-2.32.5 rpds-py-0.27.1 rsa-4.9.1 shapely-2.1.2 six-1.17.0 smmap-5.0.2 sniffio-1.3.1 sqlalchemy-2.0.44 sse-starlette-3.0.2 starlette-0.38.6 typing-extensions-4.15.0 typing-inspection-0.4.2 tzdata-2025.2 tzlocal-5.3.1 uritemplate-4.2.0 urllib3-2.5.0 uvicorn-0.34.0 websockets-15.0.1 wrapt-1.17.3 zipp-3.23.0
+[91mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[0mRemoving intermediate container b2d872cf5174
+ ---> 2f6b24ab8724
+Step 7/22 : COPY src/ ./src/
+ ---> 6ebdd5455ced
+Step 8/22 : COPY config/ ./config/
+ ---> 13850af163a0
+Step 9/22 : RUN mkdir -p /app/data
+ ---> Running in e59fac111789
+Removing intermediate container e59fac111789
+ ---> b2ef59c015a1
+Step 10/22 : ENV PYTHONPATH=/app
+ ---> Running in ad4e6fab55ff
+Removing intermediate container ad4e6fab55ff
+ ---> a263b4287972
+Step 11/22 : ENV DATABASE_PATH=/app/data/users.db
+ ---> Running in ba7cbbbbc35d
+Removing intermediate container ba7cbbbbc35d
+ ---> 8c5782dca096
+Step 12/22 : ENV LOG_LEVEL=INFO
+ ---> Running in d16117713ac7
+Removing intermediate container d16117713ac7
+ ---> c7c172d05550
+Step 13/22 : ENV ENVIRONMENT=production
+ ---> Running in 608601eee42b
+Removing intermediate container 608601eee42b
+ ---> 11f64828c59a
+Step 14/22 : ENV PROJECT_ID=adk-rag-hdtest6
+ ---> Running in c2b8886c90d8
+Removing intermediate container c2b8886c90d8
+ ---> c9002d6ce478
+Step 15/22 : ENV GOOGLE_CLOUD_LOCATION=us-east4
+ ---> Running in 445bb13a199e
+Removing intermediate container 445bb13a199e
+ ---> 83450a503ec8
+Step 16/22 : ENV GOOGLE_GENAI_USE_VERTEXAI=true
+ ---> Running in dcd4d6571b29
+Removing intermediate container dcd4d6571b29
+ ---> e739ea7fa5d8
+Step 17/22 : ENV VERTEXAI_PROJECT=adk-rag-hdtest6
+ ---> Running in 7f808a8c44c4
+Removing intermediate container 7f808a8c44c4
+ ---> fb8ffaf21947
+Step 18/22 : ENV VERTEXAI_LOCATION=us-east4
+ ---> Running in 00497a494605
+Removing intermediate container 00497a494605
+ ---> ab9202f13f67
+Step 19/22 : ENV ACCOUNT_ENV=develom
+ ---> Running in 7bf84fb76a02
+Removing intermediate container 7bf84fb76a02
+ ---> cae5839b9062
+Step 20/22 : EXPOSE 8080
+ ---> Running in a2d6634d9d45
+Removing intermediate container a2d6634d9d45
+ ---> 6b25155ef101
+Step 21/22 : HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3     CMD curl -f http://localhost:${PORT:-8000}/ || exit 1
+ ---> Running in 651366af21ab
+Removing intermediate container 651366af21ab
+ ---> 0353662eee21
+Step 22/22 : CMD ["python", "src/api/server.py"]
+ ---> Running in b6f40e059707
+Removing intermediate container b6f40e059707
+ ---> 664e957ed359
+Successfully built 664e957ed359
+Successfully tagged us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/backend:2cee5fe
+PUSH
+Pushing us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/backend:2cee5fe
+The push refers to repository [us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/backend]
+f69a37429ab7: Preparing
+17782270ff05: Preparing
+d7ba011c97ba: Preparing
+dccaad5b33b7: Preparing
+6fa7c03c98e0: Preparing
+700d4ebfe384: Preparing
+901130d82c57: Preparing
+c2399483cd67: Preparing
+b2738b04de4b: Preparing
+dba5cbed1e08: Preparing
+c9cf0647c388: Preparing
+1d46119d249f: Preparing
+700d4ebfe384: Waiting
+901130d82c57: Waiting
+c2399483cd67: Waiting
+b2738b04de4b: Waiting
+dba5cbed1e08: Waiting
+c9cf0647c388: Waiting
+1d46119d249f: Waiting
+f69a37429ab7: Pushed
+17782270ff05: Pushed
+d7ba011c97ba: Pushed
+6fa7c03c98e0: Pushed
+700d4ebfe384: Pushed
+b2738b04de4b: Layer already exists
+c2399483cd67: Pushed
+dba5cbed1e08: Layer already exists
+c9cf0647c388: Layer already exists
+1d46119d249f: Pushed
+901130d82c57: Pushed
+dccaad5b33b7: Pushed
+2cee5fe: digest: sha256:cb048630f47e5c41e823e75f169b0cc126c91a5c15fcdd82d2e6c8982435cb8b size: 2835
+DONE
+-----------------------------------------------------------------------------------------------------
+ID                                    CREATE_TIME                DURATION  SOURCE                                                                                    IMAGES                                                              STATUS
+6a8f49eb-5540-4312-946b-2d4ca578f7c2  2025-10-16T20:44:20+00:00  1M60S     gs://adk-rag-tt_cloudbuild/source/1760647459.417165-3d8fd1889de945ebae0657e9e9555e50.tgz  us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/backend:2cee5fe  SUCCESS
+[0;32m✅ Backend image built: us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/backend:2cee5fe[0m
+[0;34mℹ️  Deploying backend to Cloud Run...[0m
+[0;32m✅ Backend deployed: https://backend-kwdro2r7vq-uk.a.run.app[0m
+[0;34mℹ️  Building frontend container image (initial)...[0m
+---------------------------------------- REMOTE BUILD OUTPUT ----------------------------------------
+starting build "d309d3c5-b972-4158-b442-918be986e40b"
+
+FETCHSOURCE
+Fetching storage object: gs://adk-rag-tt_cloudbuild/source/1760647628.163245-a4c98effac484f49a4e241c884a964ad.tgz#1760647629547825
+Copying gs://adk-rag-tt_cloudbuild/source/1760647628.163245-a4c98effac484f49a4e241c884a964ad.tgz#1760647629547825...
+/ [0 files][    0.0 B/  1.8 MiB]                                                
+/ [1 files][  1.8 MiB/  1.8 MiB]                                                
+Operation completed over 1 objects/1.8 MiB.
+BUILD
+Starting Step #0
+Step #0: Already have image (with digest): gcr.io/cloud-builders/docker
+Step #0: Sending build context to Docker daemon  2.552MB
+
+Step #0: Step 1/30 : FROM node:18-alpine AS base
+Step #0: 18-alpine: Pulling from library/node
+Step #0: f18232174bc9: Pulling fs layer
+Step #0: dd71dde834b5: Pulling fs layer
+Step #0: 1e5a4c89cee5: Pulling fs layer
+Step #0: 25ff2da83641: Pulling fs layer
+Step #0: 25ff2da83641: Waiting
+Step #0: f18232174bc9: Verifying Checksum
+Step #0: f18232174bc9: Download complete
+Step #0: 1e5a4c89cee5: Verifying Checksum
+Step #0: 1e5a4c89cee5: Download complete
+Step #0: 25ff2da83641: Verifying Checksum
+Step #0: 25ff2da83641: Download complete
+Step #0: f18232174bc9: Pull complete
+Step #0: dd71dde834b5: Verifying Checksum
+Step #0: dd71dde834b5: Download complete
+Step #0: dd71dde834b5: Pull complete
+Step #0: 1e5a4c89cee5: Pull complete
+Step #0: 25ff2da83641: Pull complete
+Step #0: Digest: sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+Step #0: Status: Downloaded newer image for node:18-alpine
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 2/30 : FROM base AS deps
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 3/30 : RUN apk add --no-cache libc6-compat
+Step #0:  ---> Running in 8a3caee908fb
+Step #0: fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+Step #0: fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+Step #0: (1/3) Installing musl-obstack (1.2.3-r2)
+Step #0: (2/3) Installing libucontext (1.3.2-r0)
+Step #0: (3/3) Installing gcompat (1.1.0-r4)
+Step #0: OK: 10 MiB in 20 packages
+Step #0: Removing intermediate container 8a3caee908fb
+Step #0:  ---> 2ba08102a2ef
+Step #0: Step 4/30 : WORKDIR /app
+Step #0:  ---> Running in e2741142d779
+Step #0: Removing intermediate container e2741142d779
+Step #0:  ---> 4ab6e823b3d6
+Step #0: Step 5/30 : COPY package.json package-lock.json* ./
+Step #0:  ---> 8708c29a2c10
+Step #0: Step 6/30 : RUN npm install
+Step #0:  ---> Running in ad2436da6180
+Step #0: 
+Step #0: added 495 packages, and audited 496 packages in 20s
+Step #0: 
+Step #0: 241 packages are looking for funding
+Step #0:   run `npm fund` for details
+Step #0: 
+Step #0: 1 moderate severity vulnerability
+Step #0: 
+Step #0: To address all issues, run:
+Step #0:   npm audit fix --force
+Step #0: 
+Step #0: Run `npm audit` for details.
+Step #0: [91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.6.2
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+Step #0: npm notice To update run: npm install -g npm@11.6.2
+Step #0: npm notice
+Step #0: [0mRemoving intermediate container ad2436da6180
+Step #0:  ---> e021e0916f65
+Step #0: Step 7/30 : FROM base AS builder
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 8/30 : WORKDIR /app
+Step #0:  ---> Running in 0f64d3cf0540
+Step #0: Removing intermediate container 0f64d3cf0540
+Step #0:  ---> 91d1f67bbeb4
+Step #0: Step 9/30 : COPY --from=deps /app/node_modules ./node_modules
+Step #0:  ---> f71bc040e21f
+Step #0: Step 10/30 : COPY . .
+Step #0:  ---> a431bd4c719c
+Step #0: Step 11/30 : ENV NEXT_TELEMETRY_DISABLED 1
+Step #0:  ---> Running in 7e41a67a3254
+Step #0: Removing intermediate container 7e41a67a3254
+Step #0:  ---> 11c0abd130f6
+Step #0: Step 12/30 : ARG NEXT_PUBLIC_BACKEND_URL
+Step #0:  ---> Running in 5f45343aeb6b
+Step #0: Removing intermediate container 5f45343aeb6b
+Step #0:  ---> a06ea7744e0c
+Step #0: Step 13/30 : ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+Step #0:  ---> Running in a4169079cb43
+Step #0: Removing intermediate container a4169079cb43
+Step #0:  ---> 8c0ba254f051
+Step #0: Step 14/30 : RUN npm run build
+Step #0:  ---> Running in e67fe6d05d79
+Step #0: 
+Step #0: > frontend@0.1.0 build
+Step #0: > next build
+Step #0: 
+Step #0:    ▲ Next.js 15.4.6
+Step #0: 
+Step #0:    Creating an optimized production build ...
+Step #0:  ✓ Compiled successfully in 22.0s
+Step #0:    Skipping linting
+Step #0:    Checking validity of types ...
+Step #0:    Collecting page data ...
+Step #0:    Generating static pages (0/7) ...
+Step #0:    Generating static pages (1/7) 
+Step #0:    Generating static pages (3/7) 
+Step #0:    Generating static pages (5/7) 
+Step #0:  ✓ Generating static pages (7/7)
+Step #0:    Finalizing page optimization ...
+Step #0:    Collecting build traces ...
+Step #0: 
+Step #0: Route (app)                                 Size  First Load JS
+Step #0: ┌ ○ /                                      55 kB         155 kB
+Step #0: ├ ○ /_not-found                            992 B         101 kB
+Step #0: ├ ○ /admin                               2.55 kB         102 kB
+Step #0: └ ○ /admin/sessions                      6.07 kB         106 kB
+Step #0: + First Load JS shared by all            99.6 kB
+Step #0:   ├ chunks/4bd1b696-cf72ae8a39fa05aa.js  54.1 kB
+Step #0:   ├ chunks/964-7a34cadcb7695cec.js       43.5 kB
+Step #0:   └ other shared chunks (total)          1.93 kB
+Step #0: 
+Step #0: 
+Step #0: ○  (Static)  prerendered as static content
+Step #0: 
+Step #0: [91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.6.2
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+Step #0: npm notice To update run: npm install -g npm@11.6.2
+Step #0: npm notice
+Step #0: [0mRemoving intermediate container e67fe6d05d79
+Step #0:  ---> ffc0975534a6
+Step #0: Step 15/30 : FROM base AS runner
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 16/30 : WORKDIR /app
+Step #0:  ---> Using cache
+Step #0:  ---> 91d1f67bbeb4
+Step #0: Step 17/30 : ENV NODE_ENV production
+Step #0:  ---> Running in 83512e00f67d
+Step #0: Removing intermediate container 83512e00f67d
+Step #0:  ---> 911975c6c82b
+Step #0: Step 18/30 : ENV NEXT_TELEMETRY_DISABLED 1
+Step #0:  ---> Running in 2f80fa2b3330
+Step #0: Removing intermediate container 2f80fa2b3330
+Step #0:  ---> d2be6d9343a4
+Step #0: Step 19/30 : RUN addgroup --system --gid 1001 nodejs
+Step #0:  ---> Running in e55daf7b5abb
+Step #0: Removing intermediate container e55daf7b5abb
+Step #0:  ---> 48a1c9997cff
+Step #0: Step 20/30 : RUN adduser --system --uid 1001 nextjs
+Step #0:  ---> Running in 74f1d30f6aeb
+Step #0: Removing intermediate container 74f1d30f6aeb
+Step #0:  ---> 22a3ad77220b
+Step #0: Step 21/30 : COPY --from=builder /app/public ./public
+Step #0:  ---> 108634395ccd
+Step #0: Step 22/30 : RUN mkdir .next
+Step #0:  ---> Running in 3b7d4d72dbfc
+Step #0: Removing intermediate container 3b7d4d72dbfc
+Step #0:  ---> feb8a8c5286d
+Step #0: Step 23/30 : RUN chown nextjs:nodejs .next
+Step #0:  ---> Running in 2af50bd58f11
+Step #0: Removing intermediate container 2af50bd58f11
+Step #0:  ---> 186d6293d680
+Step #0: Step 24/30 : COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+Step #0:  ---> 7761cfe9919f
+Step #0: Step 25/30 : COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+Step #0:  ---> 5ae4288c857f
+Step #0: Step 26/30 : USER nextjs
+Step #0:  ---> Running in f42facfcf4b3
+Step #0: Removing intermediate container f42facfcf4b3
+Step #0:  ---> 6332feb8d14c
+Step #0: Step 27/30 : EXPOSE 3000
+Step #0:  ---> Running in 897971eada8b
+Step #0: Removing intermediate container 897971eada8b
+Step #0:  ---> ca0fc4873c48
+Step #0: Step 28/30 : ENV PORT 3000
+Step #0:  ---> Running in 6b22a98747fb
+Step #0: Removing intermediate container 6b22a98747fb
+Step #0:  ---> 8d8118883f07
+Step #0: Step 29/30 : ENV HOSTNAME "0.0.0.0"
+Step #0:  ---> Running in e0ed561fa4fa
+Step #0: Removing intermediate container e0ed561fa4fa
+Step #0:  ---> 2c417f5f18da
+Step #0: Step 30/30 : CMD ["node", "server.js"]
+Step #0:  ---> Running in c013d77d4437
+Step #0: Removing intermediate container c013d77d4437
+Step #0:  ---> 4fe0e5090ce6
+Step #0: Successfully built 4fe0e5090ce6
+Step #0: Successfully tagged us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend:2cee5fe
+Finished Step #0
+Starting Step #1
+Step #1: Already have image (with digest): gcr.io/cloud-builders/docker
+Step #1: The push refers to repository [us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend]
+Step #1: e2d74a168a3c: Preparing
+Step #1: 05db330dc381: Preparing
+Step #1: f5c30484e476: Preparing
+Step #1: f9af0372167a: Preparing
+Step #1: 8e19e4a916ec: Preparing
+Step #1: 0f132eb92a00: Preparing
+Step #1: 650653991eb1: Preparing
+Step #1: f4f36982a61c: Preparing
+Step #1: 82140d9a70a7: Preparing
+Step #1: f3b40b0cdb1c: Preparing
+Step #1: 0b1f26057bd0: Preparing
+Step #1: 08000c18d16d: Preparing
+Step #1: f4f36982a61c: Waiting
+Step #1: 82140d9a70a7: Waiting
+Step #1: f3b40b0cdb1c: Waiting
+Step #1: 0b1f26057bd0: Waiting
+Step #1: 08000c18d16d: Waiting
+Step #1: 650653991eb1: Waiting
+Step #1: 0f132eb92a00: Waiting
+Step #1: f5c30484e476: Pushed
+Step #1: f9af0372167a: Pushed
+Step #1: e2d74a168a3c: Pushed
+Step #1: 8e19e4a916ec: Pushed
+Step #1: 82140d9a70a7: Layer already exists
+Step #1: 0f132eb92a00: Pushed
+Step #1: f3b40b0cdb1c: Layer already exists
+Step #1: 650653991eb1: Pushed
+Step #1: f4f36982a61c: Pushed
+Step #1: 08000c18d16d: Layer already exists
+Step #1: 0b1f26057bd0: Layer already exists
+Step #1: 05db330dc381: Pushed
+Step #1: 2cee5fe: digest: sha256:6d4660f916ea9a42590a1705da2df1b98ca26f858fdbcdb50bf8b38f7a7a4399 size: 2827
+Finished Step #1
+PUSH
+Pushing us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend:2cee5fe
+The push refers to repository [us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend]
+e2d74a168a3c: Preparing
+05db330dc381: Preparing
+f5c30484e476: Preparing
+f9af0372167a: Preparing
+8e19e4a916ec: Preparing
+0f132eb92a00: Preparing
+650653991eb1: Preparing
+f4f36982a61c: Preparing
+82140d9a70a7: Preparing
+f3b40b0cdb1c: Preparing
+0b1f26057bd0: Preparing
+08000c18d16d: Preparing
+82140d9a70a7: Waiting
+f3b40b0cdb1c: Waiting
+0b1f26057bd0: Waiting
+08000c18d16d: Waiting
+0f132eb92a00: Waiting
+650653991eb1: Waiting
+f4f36982a61c: Waiting
+f9af0372167a: Layer already exists
+8e19e4a916ec: Layer already exists
+e2d74a168a3c: Layer already exists
+05db330dc381: Layer already exists
+f5c30484e476: Layer already exists
+650653991eb1: Layer already exists
+82140d9a70a7: Layer already exists
+f4f36982a61c: Layer already exists
+0f132eb92a00: Layer already exists
+f3b40b0cdb1c: Layer already exists
+0b1f26057bd0: Layer already exists
+08000c18d16d: Layer already exists
+2cee5fe: digest: sha256:6d4660f916ea9a42590a1705da2df1b98ca26f858fdbcdb50bf8b38f7a7a4399 size: 2827
+DONE
+-----------------------------------------------------------------------------------------------------
+ID                                    CREATE_TIME                DURATION  SOURCE                                                                                    IMAGES                                                               STATUS
+d309d3c5-b972-4158-b442-918be986e40b  2025-10-16T20:47:10+00:00  2M43S     gs://adk-rag-tt_cloudbuild/source/1760647628.163245-a4c98effac484f49a4e241c884a964ad.tgz  us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend:2cee5fe  SUCCESS
+[0;32m✅ Frontend image built: us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend:2cee5fe[0m
+[0;34mℹ️  Deploying frontend to Cloud Run...[0m
+[0;32m✅ Frontend deployed: https://frontend-kwdro2r7vq-uk.a.run.app[0m
+
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m📋 SECTION 4: OAuth Configuration[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mℹ️  Project Number: 259141441339[0m
+[0;34mℹ️  Checking OAuth consent screen configuration...[0m
+[0;32m✅ OAuth brand exists: 259141441339[0m
+
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m📋 SECTION 5: Load Balancer Setup[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mℹ️  Creating static IP address...[0m
+[1;33m⚠️  Static IP already exists[0m
+[0;34mℹ️  Load Balancer URL: https://34.149.125.180.nip.io[0m
+[0;34mℹ️  Creating SSL certificate...[0m
+[1;33m⚠️  SSL certificate already exists[0m
+[0;34mℹ️  SSL Certificate Status: ACTIVE[0m
+[0;34mℹ️  Creating Network Endpoint Groups...[0m
+  ✓ Frontend NEG exists
+  ✓ Backend NEG exists
+[0;32m✅ Network Endpoint Groups configured[0m
+[0;34mℹ️  Creating backend services...[0m
+  ✓ Frontend backend service exists
+  ✓ Backend backend service exists
+[0;32m✅ Backend services configured[0m
+[0;34mℹ️  Creating URL map for routing...[0m
+[1;33m⚠️  URL map already exists[0m
+[0;34mℹ️  Configuring path-based routing (/api/* → backend)...[0m
+[1;33m⚠️  Path matcher may already exist[0m
+[0;32m✅ URL map configured (/ → frontend, /api/* → backend)[0m
+[0;34mℹ️  Creating HTTPS proxy...[0m
+[1;33m⚠️  HTTPS proxy already exists[0m
+[0;34mℹ️  Creating forwarding rule...[0m
+[1;33m⚠️  Forwarding rule already exists[0m
+[0;32m✅ Load Balancer infrastructure complete[0m
+
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m📋 SECTION 6: IAP Configuration[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mℹ️  Creating OAuth client with Load Balancer redirect URIs...[0m
+Load Balancer URL: https://34.149.125.180.nip.io
+Required redirect URIs:
+  - https://34.149.125.180.nip.io
+  - https://34.149.125.180.nip.io/_gcp_gatekeeper/authenticate
+
+[0;34mℹ️  Checking for existing OAuth clients...[0m
+[1;33m⚠️  Found existing OAuth clients. Cleaning up...[0m
+  Deleting: projects/259141441339/brands/259141441339/identityAwareProxyClients/259141441339-4l44kaqj2qd43vdjfpjg7kedje41insh.apps.googleusercontent.com
+[0;34mℹ️  Creating new OAuth client...[0m
+[0;32m✅ OAuth client created[0m
+  Client ID: 259141441339-kq7bs8f3e69255kdkc6hmmmc00jrpm0b.apps.googleusercontent.com
+
+[0;31m🚨 MANUAL STEP REQUIRED:[0m
+[1;33mAdd redirect URIs in Google Cloud Console:[0m
+
+1. Go to: https://console.cloud.google.com/apis/credentials?project=adk-rag-tt
+2. Click on: Load Balancer IAP Client (259141441339-kq7bs8f3e69255kdkc6hmmmc00jrpm0b.apps.googleusercontent.com)
+3. Add these redirect URIs:
+[0;36m   ➤ https://34.149.125.180.nip.io[0m
+[0;36m   ➤ https://34.149.125.180.nip.io/_gcp_gatekeeper/authenticate[0m
+4. Click SAVE
+
+[0;34mℹ️  Creating IAP service account...[0m
+[0;34mℹ️  IAP Service Account: service-259141441339@gcp-sa-iap.iam.gserviceaccount.com[0m
+[0;34mℹ️  Granting IAP service account permissions...[0m
+bindings:
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-iap.iam.gserviceaccount.com
+  role: roles/run.invoker
+etag: BwZBTMyIXqE=
+version: 1
+bindings:
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-iap.iam.gserviceaccount.com
+  role: roles/run.invoker
+etag: BwZBTMy34cA=
+version: 1
+[0;32m✅ IAP service account configured[0m
+[0;34mℹ️  Enabling IAP on backend services...[0m
+Using OAuth Client ID: 259141441339-kq7bs8f3e69255kdkc6hmmmc00jrpm0b.apps.googleusercontent.com
+  Enabling IAP on frontend backend service...
+  Enabling IAP on backend backend service...
+[0;32m✅ IAP enabled on backend services[0m
+[0;34mℹ️  Configuring IAP access permissions...[0m
+  Granting access to hdejesus@fedgovai.com...
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTNEr7Qo=
+version: 1
+  Granting access to fedgovai.com domain...
+bindings:
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.admin
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-aiplatform.iam.gserviceaccount.com
+  role: roles/aiplatform.serviceAgent
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  role: roles/artifactregistry.serviceAgent
+- members:
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/bigquery.admin
+- members:
+  - user:techy@fedgovai.com
+  role: roles/billing.projectManager
+- members:
+  - serviceAccount:259141441339@cloudbuild.gserviceaccount.com
+  role: roles/cloudbuild.builds.builder
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/cloudbuild.builds.editor
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  role: roles/cloudbuild.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@compute-system.iam.gserviceaccount.com
+  role: roles/compute.serviceAgent
+- members:
+  - serviceAccount:service-259141441339@containerregistry.iam.gserviceaccount.com
+  role: roles/containerregistry.ServiceAgent
+- members:
+  - serviceAccount:259141441339@cloudservices.gserviceaccount.com
+  role: roles/editor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/iam.serviceAccountCreator
+- members:
+  - domain:fedgovai.com
+  - serviceAccount:iap-accessor@adk-rag-tt.iam.gserviceaccount.com
+  - user:hdejesus@fedgovai.com
+  role: roles/iap.httpsResourceAccessor
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/logging.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/owner
+- members:
+  - serviceAccount:service-259141441339@gcp-sa-pubsub.iam.gserviceaccount.com
+  role: roles/pubsub.serviceAgent
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/resourcemanager.organizationAdmin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.admin
+- members:
+  - user:hdejesus@fedgovai.com
+  role: roles/run.builder
+- members:
+  - serviceAccount:service-259141441339@serverless-robot-prod.iam.gserviceaccount.com
+  role: roles/run.serviceAgent
+- members:
+  - serviceAccount:259141441339-compute@developer.gserviceaccount.com
+  - serviceAccount:adk-rag-agent-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.admin
+- members:
+  - serviceAccount:backend-sa@adk-rag-tt.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+etag: BwZBTNFW85c=
+version: 1
+[0;32m✅ IAP access permissions configured[0m
+
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m📋 SECTION 7: Finalization & CORS Configuration[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mℹ️  Updating backend CORS configuration...[0m
+[0;34mℹ️  Applying CORS breakthrough fix...[0m
+[0;32m✅ CORS configured[0m
+[0;34mℹ️  Rebuilding frontend with Load Balancer URL...[0m
+Building with NEXT_PUBLIC_BACKEND_URL=https://34.149.125.180.nip.io
+---------------------------------------- REMOTE BUILD OUTPUT ----------------------------------------
+starting build "1a6e2558-5462-46f0-a763-ddadcad1de16"
+
+FETCHSOURCE
+Fetching storage object: gs://adk-rag-tt_cloudbuild/source/1760648070.447395-0aa7d3eb658e4607984e90d87f77e285.tgz#1760648072816121
+Copying gs://adk-rag-tt_cloudbuild/source/1760648070.447395-0aa7d3eb658e4607984e90d87f77e285.tgz#1760648072816121...
+/ [0 files][    0.0 B/  1.8 MiB]                                                
+/ [1 files][  1.8 MiB/  1.8 MiB]                                                
+Operation completed over 1 objects/1.8 MiB.
+BUILD
+Starting Step #0
+Step #0: Already have image (with digest): gcr.io/cloud-builders/docker
+Step #0: Sending build context to Docker daemon  2.552MB
+
+Step #0: Step 1/30 : FROM node:18-alpine AS base
+Step #0: 18-alpine: Pulling from library/node
+Step #0: f18232174bc9: Pulling fs layer
+Step #0: dd71dde834b5: Pulling fs layer
+Step #0: 1e5a4c89cee5: Pulling fs layer
+Step #0: 25ff2da83641: Pulling fs layer
+Step #0: 25ff2da83641: Waiting
+Step #0: 1e5a4c89cee5: Verifying Checksum
+Step #0: 1e5a4c89cee5: Download complete
+Step #0: f18232174bc9: Verifying Checksum
+Step #0: f18232174bc9: Download complete
+Step #0: 25ff2da83641: Verifying Checksum
+Step #0: 25ff2da83641: Download complete
+Step #0: f18232174bc9: Pull complete
+Step #0: dd71dde834b5: Verifying Checksum
+Step #0: dd71dde834b5: Download complete
+Step #0: dd71dde834b5: Pull complete
+Step #0: 1e5a4c89cee5: Pull complete
+Step #0: 25ff2da83641: Pull complete
+Step #0: Digest: sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+Step #0: Status: Downloaded newer image for node:18-alpine
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 2/30 : FROM base AS deps
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 3/30 : RUN apk add --no-cache libc6-compat
+Step #0:  ---> Running in 467c55bb971b
+Step #0: fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+Step #0: fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+Step #0: (1/3) Installing musl-obstack (1.2.3-r2)
+Step #0: (2/3) Installing libucontext (1.3.2-r0)
+Step #0: (3/3) Installing gcompat (1.1.0-r4)
+Step #0: OK: 10 MiB in 20 packages
+Step #0: Removing intermediate container 467c55bb971b
+Step #0:  ---> 1b9551f4ac0a
+Step #0: Step 4/30 : WORKDIR /app
+Step #0:  ---> Running in 741e19008b5c
+Step #0: Removing intermediate container 741e19008b5c
+Step #0:  ---> 819fca2ad2c5
+Step #0: Step 5/30 : COPY package.json package-lock.json* ./
+Step #0:  ---> 953824983197
+Step #0: Step 6/30 : RUN npm install
+Step #0:  ---> Running in 83e556c5f5d1
+Step #0: 
+Step #0: added 495 packages, and audited 496 packages in 24s
+Step #0: 
+Step #0: 241 packages are looking for funding
+Step #0:   run `npm fund` for details
+Step #0: 
+Step #0: 1 moderate severity vulnerability
+Step #0: 
+Step #0: To address all issues, run:
+Step #0:   npm audit fix --force
+Step #0: 
+Step #0: Run `npm audit` for details.
+Step #0: [91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.6.2
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+Step #0: npm notice To update run: npm install -g npm@11.6.2
+Step #0: npm notice
+Step #0: [0mRemoving intermediate container 83e556c5f5d1
+Step #0:  ---> 0f8780fce078
+Step #0: Step 7/30 : FROM base AS builder
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 8/30 : WORKDIR /app
+Step #0:  ---> Running in 21b7594ccf34
+Step #0: Removing intermediate container 21b7594ccf34
+Step #0:  ---> dc67e03ca878
+Step #0: Step 9/30 : COPY --from=deps /app/node_modules ./node_modules
+Step #0:  ---> 2649a42019f8
+Step #0: Step 10/30 : COPY . .
+Step #0:  ---> 4114bd140563
+Step #0: Step 11/30 : ENV NEXT_TELEMETRY_DISABLED 1
+Step #0:  ---> Running in 5b8aa9900627
+Step #0: Removing intermediate container 5b8aa9900627
+Step #0:  ---> a33d384d1575
+Step #0: Step 12/30 : ARG NEXT_PUBLIC_BACKEND_URL
+Step #0:  ---> Running in 554fb5b6b78b
+Step #0: Removing intermediate container 554fb5b6b78b
+Step #0:  ---> 766a26acbd23
+Step #0: Step 13/30 : ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+Step #0:  ---> Running in 849e893ad5d6
+Step #0: Removing intermediate container 849e893ad5d6
+Step #0:  ---> e7172fa80840
+Step #0: Step 14/30 : RUN npm run build
+Step #0:  ---> Running in 0c7942a1a5cf
+Step #0: 
+Step #0: > frontend@0.1.0 build
+Step #0: > next build
+Step #0:
+Step #0:    ▲ Next.js 15.4.6
+Step #0: 
+Step #0:    Creating an optimized production build ...
+Step #0:  ✓ Compiled successfully in 25.0s
+Step #0:    Skipping linting
+Step #0:    Checking validity of types ...
+Step #0:    Collecting page data ...
+Step #0:    Generating static pages (0/7) ...
+Step #0:    Generating static pages (1/7) 
+Step #0:    Generating static pages (3/7) 
+Step #0:    Generating static pages (5/7) 
+Step #0:  ✓ Generating static pages (7/7)
+Step #0:    Finalizing page optimization ...
+Step #0:    Collecting build traces ...
+Step #0: 
+Step #0: Route (app)                                 Size  First Load JS
+Step #0: ┌ ○ /                                      55 kB         155 kB
+Step #0: ├ ○ /_not-found                            992 B         101 kB
+Step #0: ├ ○ /admin                               2.54 kB         102 kB
+Step #0: └ ○ /admin/sessions                      6.06 kB         106 kB
+Step #0: + First Load JS shared by all            99.6 kB
+Step #0:   ├ chunks/4bd1b696-cf72ae8a39fa05aa.js  54.1 kB
+Step #0:   ├ chunks/964-7a34cadcb7695cec.js       43.5 kB
+Step #0:   └ other shared chunks (total)          1.93 kB
+Step #0: 
+Step #0: 
+Step #0: ○  (Static)  prerendered as static content
+Step #0: 
+Step #0: [91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.6.2
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+Step #0: npm notice To update run: npm install -g npm@11.6.2
+Step #0: npm notice
+Step #0: [0mRemoving intermediate container 0c7942a1a5cf
+Step #0:  ---> cc632c7acab4
+Step #0: Step 15/30 : FROM base AS runner
+Step #0:  ---> ee77c6cd7c18
+Step #0: Step 16/30 : WORKDIR /app
+Step #0:  ---> Using cache
+Step #0:  ---> dc67e03ca878
+Step #0: Step 17/30 : ENV NODE_ENV production
+Step #0:  ---> Running in 17a9efeea96f
+Step #0: Removing intermediate container 17a9efeea96f
+Step #0:  ---> 707e9e998b9d
+Step #0: Step 18/30 : ENV NEXT_TELEMETRY_DISABLED 1
+Step #0:  ---> Running in 41b15e71f92e
+Step #0: Removing intermediate container 41b15e71f92e
+Step #0:  ---> 6b8596fcc9c3
+Step #0: Step 19/30 : RUN addgroup --system --gid 1001 nodejs
+Step #0:  ---> Running in eaf9356710db
+Step #0: Removing intermediate container eaf9356710db
+Step #0:  ---> 16cf5e0e60d3
+Step #0: Step 20/30 : RUN adduser --system --uid 1001 nextjs
+Step #0:  ---> Running in 65c58353c5d4
+Step #0: Removing intermediate container 65c58353c5d4
+Step #0:  ---> 8b2f7383aa1f
+Step #0: Step 21/30 : COPY --from=builder /app/public ./public
+Step #0:  ---> 46ae42814ec0
+Step #0: Step 22/30 : RUN mkdir .next
+Step #0:  ---> Running in 64bb5c426e94
+Step #0: Removing intermediate container 64bb5c426e94
+Step #0:  ---> e9c4ffaabe48
+Step #0: Step 23/30 : RUN chown nextjs:nodejs .next
+Step #0:  ---> Running in 638becaba557
+Step #0: Removing intermediate container 638becaba557
+Step #0:  ---> ac73e5f80d40
+Step #0: Step 24/30 : COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+Step #0:  ---> aa6597dac9f0
+Step #0: Step 25/30 : COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+Step #0:  ---> 26b5aa308843
+Step #0: Step 26/30 : USER nextjs
+Step #0:  ---> Running in 0d69164ade51
+Step #0: Removing intermediate container 0d69164ade51
+Step #0:  ---> 7d031fdc38ca
+Step #0: Step 27/30 : EXPOSE 3000
+Step #0:  ---> Running in 2dd8992ac994
+Step #0: Removing intermediate container 2dd8992ac994
+Step #0:  ---> 7f657f1648e5
+Step #0: Step 28/30 : ENV PORT 3000
+Step #0:  ---> Running in 243566c09406
+Step #0: Removing intermediate container 243566c09406
+Step #0:  ---> 19cc67383e0b
+Step #0: Step 29/30 : ENV HOSTNAME "0.0.0.0"
+Step #0:  ---> Running in abb4a1fa6e0e
+Step #0: Removing intermediate container abb4a1fa6e0e
+Step #0:  ---> a871cc7050f5
+Step #0: Step 30/30 : CMD ["node", "server.js"]
+Step #0:  ---> Running in 9bba1abf544d
+Step #0: Removing intermediate container 9bba1abf544d
+Step #0:  ---> e274628703d5
+Step #0: Successfully built e274628703d5
+Step #0: Successfully tagged us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend:2cee5fe-lb
+Finished Step #0
+Starting Step #1
+Step #1: Already have image (with digest): gcr.io/cloud-builders/docker
+Step #1: The push refers to repository [us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend]
+Step #1: 21ea49ba14bf: Preparing
+Step #1: 05687cc421fe: Preparing
+Step #1: aa87f6ddebbc: Preparing
+Step #1: 107840dad5b0: Preparing
+Step #1: 16b06a316f91: Preparing
+Step #1: b3cd3c24df41: Preparing
+Step #1: 3e1a4f08ae9c: Preparing
+Step #1: f992945d651d: Preparing
+Step #1: 82140d9a70a7: Preparing
+Step #1: f3b40b0cdb1c: Preparing
+Step #1: 0b1f26057bd0: Preparing
+Step #1: 08000c18d16d: Preparing
+Step #1: f992945d651d: Waiting
+Step #1: 82140d9a70a7: Waiting
+Step #1: f3b40b0cdb1c: Waiting
+Step #1: 0b1f26057bd0: Waiting
+Step #1: 08000c18d16d: Waiting
+Step #1: b3cd3c24df41: Waiting
+Step #1: 3e1a4f08ae9c: Waiting
+Step #1: aa87f6ddebbc: Pushed
+Step #1: 21ea49ba14bf: Pushed
+Step #1: 16b06a316f91: Pushed
+Step #1: 107840dad5b0: Pushed
+Step #1: 82140d9a70a7: Layer already exists
+Step #1: f3b40b0cdb1c: Layer already exists
+Step #1: b3cd3c24df41: Pushed
+Step #1: 0b1f26057bd0: Layer already exists
+Step #1: f992945d651d: Pushed
+Step #1: 08000c18d16d: Layer already exists
+Step #1: 3e1a4f08ae9c: Pushed
+Step #1: 05687cc421fe: Pushed
+Step #1: 2cee5fe-lb: digest: sha256:f1bea4be58580b8e6bbccae68a83d6ea30799471d14ade596ee49b3f179a6c0c size: 2827
+Finished Step #1
+PUSH
+Pushing us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend:2cee5fe-lb
+The push refers to repository [us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend]
+21ea49ba14bf: Preparing
+05687cc421fe: Preparing
+aa87f6ddebbc: Preparing
+107840dad5b0: Preparing
+16b06a316f91: Preparing
+b3cd3c24df41: Preparing
+3e1a4f08ae9c: Preparing
+f992945d651d: Preparing
+82140d9a70a7: Preparing
+f3b40b0cdb1c: Preparing
+0b1f26057bd0: Preparing
+08000c18d16d: Preparing
+b3cd3c24df41: Waiting
+3e1a4f08ae9c: Waiting
+f992945d651d: Waiting
+82140d9a70a7: Waiting
+f3b40b0cdb1c: Waiting
+0b1f26057bd0: Waiting
+08000c18d16d: Waiting
+107840dad5b0: Layer already exists
+21ea49ba14bf: Layer already exists
+16b06a316f91: Layer already exists
+aa87f6ddebbc: Layer already exists
+05687cc421fe: Layer already exists
+b3cd3c24df41: Layer already exists
+f992945d651d: Layer already exists
+82140d9a70a7: Layer already exists
+3e1a4f08ae9c: Layer already exists
+f3b40b0cdb1c: Layer already exists
+0b1f26057bd0: Layer already exists
+08000c18d16d: Layer already exists
+2cee5fe-lb: digest: sha256:f1bea4be58580b8e6bbccae68a83d6ea30799471d14ade596ee49b3f179a6c0c size: 2827
+DONE
+-----------------------------------------------------------------------------------------------------
+ID                                    CREATE_TIME                DURATION  SOURCE                                                                                    IMAGES                                                                  STATUS
+1a6e2558-5462-46f0-a763-ddadcad1de16  2025-10-16T20:54:33+00:00  2M53S     gs://adk-rag-tt_cloudbuild/source/1760648070.447395-0aa7d3eb658e4607984e90d87f77e285.tgz  us-east4-docker.pkg.dev/adk-rag-tt/cloud-run-repo1/frontend:2cee5fe-lb  SUCCESS
+[0;34mℹ️  Redeploying frontend with Load Balancer URL...[0m
+[0;32m✅ Frontend rebuilt and redeployed[0m
+[0;34mℹ️  Validating deployment...[0m
+  SSL Certificate: ACTIVE
+  Frontend IAP: True
+  Backend IAP: True
+[0;32m✅ Validation complete[0m
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m🎉 DEPLOYMENT COMPLETE![0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;34m📋 Deployment Details:[0m
+  Project ID: adk-rag-tt
+  Region: us-east4
+  Static IP: 34.149.125.180
+  Load Balancer URL: https://34.149.125.180.nip.io
+  OAuth Client ID: 259141441339-kq7bs8f3e69255kdkc6hmmmc00jrpm0b.apps.googleusercontent.com
+  IAP Service Account: service-259141441339@gcp-sa-iap.iam.gserviceaccount.com
+
+[0;34m🏗️  Architecture:[0m
+  Internet → HTTPS Load Balancer (SSL + IAP) → Cloud Run Services
+  ├── "/" → Frontend service
+  └── "/api/*" → Backend service
+
+[0;34m🔐 Security Features:[0m
+  ✅ External HTTPS Load Balancer with SSL
+  ✅ Identity-Aware Proxy (IAP) with Google OAuth
+  ✅ OAuth consent screen flow
+  ✅ Domain-restricted access (@fedgovai.com)
+  ✅ CORS configured
+  ✅ Two-layer authentication (IAP + Application JWT)
+
+[0;34m🌐 Access Instructions:[0m
+1. Wait 2-3 minutes for configuration propagation
+2. Clear browser cache
+3. Open: https://34.149.125.180.nip.io
+4. Expected flow:
+   → Google OAuth login
+   → Sign in with @fedgovai.com account
+   → OAuth consent (if first time)
+   → RAG application
+
+[0;34m🔧 Useful Commands:[0m
+# Check SSL status
+gcloud compute ssl-certificates describe rag-agent-ssl-cert --global
+
+# Check IAP status
+gcloud compute backend-services describe frontend-backend-service --global
+
+# View logs
+gcloud logs read --service=backend --region=us-east4 --limit=50
+
+# Run validation
+./infrastructure/validate-security.sh

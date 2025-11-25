@@ -1,0 +1,271 @@
+@startuml ADK RAG Agent - Deployment Pipeline
+
+!theme plain
+skinparam activityStyle awesome
+
+title ADK RAG Agent - Deployment Pipeline Architecture
+
+|Configuration|
+start
+
+:Read **deployment.config**;
+note right
+    PROJECT_ID=adk-rag-tt
+    REGION=us-east4
+    ACCOUNT_ENV=tt
+    ORGANIZATION_DOMAIN=fedgovai.com
+    IAP_ADMIN_USER=hdejesus@fedgovai.com
+    REPO=cloud-run-repo1
+end note
+
+|Deployment Script|
+:**deploy-all.sh**
+Master orchestration script;
+
+|Prerequisites|
+:**lib/prerequisites.sh**
+Validate & Setup;
+
+:Check gcloud authentication;
+:Verify project access;
+:Enable required APIs;
+note right
+    • run.googleapis.com
+    • compute.googleapis.com
+    • iap.googleapis.com
+    • artifactregistry.googleapis.com
+    • cloudbuild.googleapis.com
+    • aiplatform.googleapis.com
+    • storage.googleapis.com
+end note
+
+|Infrastructure|
+:**lib/infrastructure.sh**
+Setup Foundation;
+
+:Create Artifact Registry repository;
+note right
+    us-east4-docker.pkg.dev/
+    adk-rag-tt/cloud-run-repo1
+end note
+
+:Create Service Accounts;
+note right
+    • backend-sa
+    • frontend-sa
+    • adk-rag-agent-sa
+    • iap-accessor
+end note
+
+:Grant IAM Permissions;
+note right
+    adk-rag-agent-sa:
+    • roles/aiplatform.admin
+    • roles/storage.admin
+    • roles/run.invoker
+end note
+
+:Generate SECRET_KEY;
+
+|Cloud Run Deployment|
+:**lib/cloudrun.sh**
+Deploy Services;
+
+fork
+    :Build Backend Image;
+    note right
+        gcloud builds submit
+        backend/cloudbuild.yaml
+    end note
+    
+    :Deploy Backend Service;
+    note right
+        Environment Variables:
+        • PROJECT_ID=adk-rag-tt
+        • GOOGLE_CLOUD_LOCATION=us-east4
+        • VERTEXAI_PROJECT=adk-rag-tt
+        • VERTEXAI_LOCATION=us-east4
+        • **ACCOUNT_ENV=tt** ← Multi-account
+        • SECRET_KEY=xxx
+        • DATABASE_PATH=/app/data/users.db
+        • LOG_LEVEL=INFO
+        • ENVIRONMENT=production
+    end note
+fork again
+    :Build Frontend Image (initial);
+    note right
+        Next.js with placeholder URL
+    end note
+    
+    :Deploy Frontend Service;
+endfork
+
+|OAuth Setup|
+:**lib/oauth.sh**
+Configure Authentication;
+
+:Check OAuth Consent Screen exists;
+
+if (Consent Screen exists?) then (yes)
+    :Use existing consent screen;
+else (no)
+    :Manual setup required;
+    note right
+        User must configure
+        OAuth consent screen
+        in GCP Console
+    end note
+    stop
+endif
+
+:Create OAuth Client for IAP;
+note right
+    Redirect URIs:
+    https://*.nip.io/_gcp_gatekeeper/authenticate
+end note
+
+|Load Balancer|
+:**lib/loadbalancer.sh**
+Setup HTTPS Entry Point;
+
+:Reserve Static IP;
+note right
+    Global static IP
+    e.g., 34.149.125.180
+end note
+
+:Create SSL Certificate;
+note right
+    Managed certificate for:
+    34.149.125.180.nip.io
+end note
+
+:Create NEG (Network Endpoint Groups);
+note right
+    • Frontend NEG → frontend service
+    • Backend NEG → backend service
+end note
+
+:Create Backend Services;
+note right
+    • frontend-backend-service
+    • backend-backend-service
+end note
+
+:Create URL Map;
+note right
+    Path routing:
+    / → frontend-backend-service
+    /api/* → backend-backend-service
+end note
+
+:Create Target HTTPS Proxy;
+:Create Forwarding Rule;
+note right
+    Static IP → Target Proxy
+    Port 443 → Load Balancer
+end note
+
+|IAP Configuration|
+:**lib/iap.sh**
+Enable Security;
+
+:Enable IAP on Frontend Backend Service;
+note right
+    OAuth Client ID
+    OAuth Client Secret
+end note
+
+:Enable IAP on Backend Backend Service;
+
+:Grant IAP Access;
+note right
+    Grant to:
+    user:hdejesus@fedgovai.com
+    
+    Role:
+    roles/iap.httpsResourceAccessor
+end note
+
+|Finalization|
+:**lib/finalize.sh**
+CORS & Frontend Rebuild;
+
+:Update Backend with FRONTEND_URL;
+note right
+    FRONTEND_URL=https://34.149.125.180.nip.io
+    Uses --update-env-vars to preserve
+    existing environment variables
+end note
+
+:Apply CORS Fix;
+note right
+    Grant allUsers run.invoker
+    to backend for Load Balancer routing
+end note
+
+:Rebuild Frontend with Load Balancer URL;
+note right
+    NEXT_PUBLIC_BACKEND_URL=
+    https://34.149.125.180.nip.io
+end note
+
+:Redeploy Frontend Service;
+
+|Validation|
+:Validate SSL Certificate Status;
+if (SSL Status = ACTIVE?) then (yes)
+    :Certificate ready;
+else (no)
+    :Wait 10-15 minutes;
+    note right
+        SSL provisioning
+        can take time
+    end note
+endif
+
+:Validate IAP Status;
+:Verify Backend Configuration;
+note right
+    Check ACCOUNT_ENV value:
+    gcloud run services describe backend
+    | grep ACCOUNT_ENV
+    
+    Should return: tt
+end note
+
+|Completion|
+:Display Deployment Summary;
+note right
+    • Load Balancer URL
+    • SSL Status
+    • IAP Status
+    • Service URLs
+    • ACCOUNT_ENV verification
+    • Access instructions
+end note
+
+stop
+
+' ============================================================================
+' LEGEND
+' ============================================================================
+
+legend right
+    |= Component |= Purpose |
+    | prerequisites.sh | API enablement & authentication |
+    | infrastructure.sh | Service accounts & registry |
+    | cloudrun.sh | Build & deploy containers |
+    | oauth.sh | OAuth client creation |
+    | loadbalancer.sh | HTTPS Load Balancer setup |
+    | iap.sh | Identity-Aware Proxy |
+    | finalize.sh | CORS, frontend rebuild, verification |
+    
+    <b>Multi-Account Support:</b>
+    ACCOUNT_ENV determines which config to load:
+    • develom → config/develom/*
+    • usfs → config/usfs/*
+    • tt → config/tt/*
+endlegend
+
+@enduml

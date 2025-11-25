@@ -1,0 +1,104 @@
+[0;36m📄 Loading configuration from ./deployment.config[0m
+Configuration loaded:
+  Project ID: adk-rag-tt
+  Region: us-east4
+  Organization: fedgovai.com
+  Admin User: hdejesus@fedgovai.com
+  Repository: cloud-run-repo1
+
+[0;34m🔍 Security Validation for ADK RAG Agent[0m
+[0;36mProject: [1madk-rag-tt[0m
+[0;36mRegion: [1mus-east4[0m
+
+[1;33m📋 1. Checking GCP Project Configuration[0m
+[0;32m✅ Project configuration[0m
+[0;32m✅ GCloud authentication[0m
+
+[1;33m📋 2. Checking Required APIs[0m
+[0;32m✅ run.googleapis.com enabled[0m
+[0;32m✅ iap.googleapis.com enabled[0m
+[0;32m✅ compute.googleapis.com enabled[0m
+[0;32m✅ artifactregistry.googleapis.com enabled[0m
+
+[1;33m📋 3. Checking Cloud Run Services[0m
+[0;32m✅ Backend service exists[0m
+  Backend URL: https://backend-kwdro2r7vq-uk.a.run.app
+[0;32m✅ Frontend service exists[0m
+  Frontend URL: https://frontend-kwdro2r7vq-uk.a.run.app
+
+[1;33m📋 4. Checking OAuth Configuration[0m
+[0;32m✅ OAuth brand exists (ID: 259141441339, Project Number: 259141441339)[0m
+[0;32m✅ OAuth client exists[0m
+  Client ID: 259141441339-p83h5g42ktovkscfdf3hibkd3ss8j497.apps.googleusercontent.com
+  Total OAuth clients:        1
+
+[1;33m📋 5. Checking Cloud Run Authentication Configuration[0m
+[0;32m✅ Backend requires authentication (no allUsers access)[0m
+[0;32m✅ Frontend requires authentication (no allUsers access)[0m
+
+[1;33m📋 6. Checking Cloud Run Access Permissions[0m
+[0;32m✅ Backend: IAP service agent present (service-259141441339@gcp-sa-iap.iam.gserviceaccount.com)[0m
+[0;32m✅ Backend: No allUsers binding[0m
+[0;32m✅ Backend: No allAuthenticatedUsers binding[0m
+[0;32m✅ Backend: No domain bindings[0m
+[0;32m✅ Frontend: IAP service agent present (service-259141441339@gcp-sa-iap.iam.gserviceaccount.com)[0m
+[0;32m✅ Frontend: No allUsers binding[0m
+[0;32m✅ Frontend: No allAuthenticatedUsers binding[0m
+[0;32m✅ Frontend: No domain bindings[0m
+
+[1;33m📋 7. Testing HTTP Security[0m
+  Testing Frontend authentication requirement... [0;32m✅ (HTTP 404 - ingress restriction blocking direct access)[0m
+  Testing Backend API authentication requirement... [0;32m✅ (HTTP 404 - ingress restriction blocking direct access)[0m
+
+[1;33m📋 8. Checking Service Account Permissions[0m
+[0;32m✅ Backend service account exists[0m
+[0;32m✅ Backend service account has IAM bindings[0m
+
+[1;33m📋 9. Security Configuration Summary[0m
+Current Cloud Run Access List:
+Backend Service:
+  - ['serviceAccount:service-259141441339@gcp-sa-iap.iam.gserviceaccount.com']
+Frontend Service:
+  - ['serviceAccount:service-259141441339@gcp-sa-iap.iam.gserviceaccount.com']
+
+[0;34m📋 10. Manual Testing Checklist[0m
+
+To complete validation, manually test the following:
+
+1. 🌐 Open Frontend URL in incognito browser:
+   https://frontend-kwdro2r7vq-uk.a.run.app
+
+2. 🔐 Verify Google OAuth redirect occurs
+   - Should redirect to accounts.google.com
+   - Should show 'Sign in with Google' page
+
+3. 👤 Test with @fedgovai.com account:
+   - Sign in with hdejesus@fedgovai.com
+   - Should successfully authenticate
+   - Should reach RAG application
+
+4. 🚫 Test with non-fedgovai.com account:
+   - Try signing in with personal Gmail
+   - Should be denied access
+
+5. 💬 Test Application Features:
+   - Create account in RAG application
+   - Send test message to RAG agent
+   - Verify corpus listing works
+
+6. 🔒 Test Direct API Access:
+   - Try accessing: https://backend-kwdro2r7vq-uk.a.run.app/api/sessions
+   - Should redirect to OAuth (not show JSON)
+
+[0;32m✅ Security validation complete![0m
+
+[0;34m🔧 Quick Fix Commands:[0m
+
+# Add user to IAP access:
+gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=frontend --region=us-east4 --member='user:newuser@develom.com' --role='roles/iap.httpsResourceAccessor'
+
+# Check IAP settings:
+gcloud iap web get-iam-policy --resource-type=cloud-run --service=frontend --region=us-east4 --format=json
+
+# View service logs:
+gcloud logging read 'resource.type=cloud_run_service AND resource.labels.service_name=backend AND resource.labels.region=us-east4' --limit=20 --format=json

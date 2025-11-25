@@ -1,0 +1,8 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_BACKEND_IMAGE}', '.']
+    dir: '.'
+images:
+  - '${_BACKEND_IMAGE}'
+substitutions:
+  _BACKEND_IMAGE: 'us-east4-docker.pkg.dev/adk-rag-hdtest5/cloud-run-repo1/backend:latest'

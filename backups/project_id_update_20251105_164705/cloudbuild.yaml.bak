@@ -1,0 +1,10 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_BACKEND_IMAGE}', '.']
+    dir: '.'
+images:
+  - '${_BACKEND_IMAGE}'
+substitutions:
+  # Default image path - override with --substitutions during build
+  # Example: gcloud builds submit --substitutions=_BACKEND_IMAGE=us-east4-docker.pkg.dev/PROJECT/REPO/backend:TAG
+  _BACKEND_IMAGE: 'us-central1-docker.pkg.dev/your-project-id/cloud-run-repo1/backend:latest'
