@@ -267,16 +267,33 @@ As we implement this plan, we should track progress (e.g., via todos or issues) 
 - **In progress**
 - **Complete**
 
-Initial status:
+## Current Status (Updated 2025-12-08)
 
-1. Phase 0 – Baseline Verification: **In progress / assumed partially complete**
-2. Phase 1 – Define New Agent Configs: **Not started**
-3. Phase 2 – Refine Shared Tools and Corpus Usage: **Not started**
-4. Phase 3 – Per-Agent Service Accounts: **Not started**
-5. Phase 4 – Parameterize Cloud Run Backend Deployment: **Not started**
-6. Phase 5 – Deploy Second Backend Agent (Internal): **Not started**
-7. Phase 6 – Deploy Third Backend Agent (FedGov): **Not started**
-8. Phase 7 – IAP, LB, and Routing: **Not started**
-9. Phase 8 – Frontend Integration: **Not started**
-10. Phase 9 – IAM & Corpus Policies: **Not started**
-11. Phase 10 – Observability & Runbooks: **Not started**
+1. Phase 0 – Baseline Verification: **✅ COMPLETE**
+2. Phase 1 – Define New Agent Configs: **✅ COMPLETE** (agent1, agent2, agent3, develom, usfs, tt)
+3. Phase 2 – Refine Shared Tools and Corpus Usage: **✅ COMPLETE** (Agent logging implemented)
+4. Phase 3 – Per-Agent Service Accounts: **✅ COMPLETE** (4 agent SAs created)
+5. Phase 4 – Parameterize Cloud Run Backend Deployment: **✅ COMPLETE** (deploy_backend_service parameterized)
+6. Phase 5 – Deploy Second Backend Agent: **✅ COMPLETE** (backend-agent1 deployed)
+7. Phase 6 – Deploy Third Backend Agent: **✅ COMPLETE** (backend-agent2, backend-agent3 deployed)
+8. Phase 7 – IAP, LB, and Routing: **✅ COMPLETE** (Multi-agent path routing active)
+9. Phase 8 – Frontend Integration: **✅ COMPLETE** (Agent selector in UI)
+10. Phase 9 – IAM & Corpus Policies: **⚠️ PENDING** (Need fine-grained IAM)
+11. Phase 10 – Observability & Runbooks: **⚠️ PARTIAL** (Runbook exists, need dashboards)
+
+---
+
+## Implementation Notes
+
+### Phase 2 Completion Details (2025-12-08)
+- **Phase 2.1 Complete:** Added agent context logging to all 7 RAG tools
+- All tool operations now log with `[agentX]` prefix
+- Structured logging includes `extra={"agent": ...}` for queries
+- Deletion operations use WARNING level for audit trail
+- See `docs/PHASE-2-IMPLEMENTATION-SUMMARY.md` for details
+
+**Ready to deploy:** Backend code changes complete, awaiting deployment and testing
+
+### Remaining Work
+- **Phase 9:** Implement bucket-level IAM for corpus-specific access control
+- **Phase 10:** Create Cloud Monitoring dashboards with per-agent metrics

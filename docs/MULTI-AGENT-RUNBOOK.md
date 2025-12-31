@@ -1,11 +1,15 @@
-# Multi-Agent RAG Runbook
+# Multi-Agent RAG Deployment Runbook
 
-Project: `adk-rag-ma`
-Region: `us-east4`
+**Last Updated:** December 8, 2025, 11:56 PM PST  
+**Version:** 2.0  
+**Environment:** Production  
+**Architecture:** Single-Region (us-west1)
 
-This runbook summarizes how to operate and debug the multi-agent RAG deployment.
+> **📝 Note:** As of December 8, 2025, the application now uses a **single-region architecture** (us-west1 only). Previous multi-region deployment (us-west1, us-west2, us-east4) has been cleaned up to reduce costs and complexity. See `CLEANUP-SUMMARY.md` for details.
 
 ---
+
+## Table of Contents
 
 ## 1. Architecture Overview
 
@@ -24,6 +28,8 @@ This runbook summarizes how to operate and debug the multi-agent RAG deployment.
     - `/agent2/api/*` → `backend-agent2-backend-service` → `backend-agent2`
     - `/agent3/api/*` → `backend-agent3-backend-service` → `backend-agent3`
 - **IAP**: Enabled on all backend services using the IAP service account.
+- **Region**: All services deployed to `us-west1` (Vertex AI RAG supported)
+- **Vertex AI**: Configured to use `us-west1` location for RAG operations
 
 ---
 
@@ -33,9 +39,10 @@ This runbook summarizes how to operate and debug the multi-agent RAG deployment.
 
    ```bash
    export PROJECT_ID=adk-rag-ma
-   export REGION=us-east4
+   export REGION=us-west1
 
-   ./infrastructure/deploy-all.sh
+   # Use the new single-region deployment script
+   ./deploy-single-region.sh
    ```
 
 2. Wait a couple of minutes for LB/IAP propagation.
@@ -106,19 +113,19 @@ Tail recent logs for a specific backend service:
 
 ```bash
 # Default agent
-gcloud logs read --project=adk-rag-ma --region=us-east4 \
+gcloud logs read --project=adk-rag-ma --region=us-west1 \
   --service=backend --limit=50
 
 # Agent 1
-gcloud logs read --project=adk-rag-ma --region=us-east4 \
+gcloud logs read --project=adk-rag-ma --region=us-west1 \
   --service=backend-agent1 --limit=50
 
 # Agent 2
-gcloud logs read --project=adk-rag-ma --region=us-east4 \
+gcloud logs read --project=adk-rag-ma --region=us-west1 \
   --service=backend-agent2 --limit=50
 
 # Agent 3
-gcloud logs read --project=adk-rag-ma --region=us-east4 \
+gcloud logs read --project=adk-rag-ma --region=us-west1 \
   --service=backend-agent3 --limit=50
 ```
 

@@ -2,8 +2,13 @@
 Tool for deleting a Vertex AI RAG corpus when it's no longer needed.
 """
 
+import os
+import logging
+
 from google.adk.tools.tool_context import ToolContext
 from vertexai import rag
+
+logger = logging.getLogger(__name__)
 
 from .utils import check_corpus_exists, get_corpus_resource_name
 
@@ -26,6 +31,12 @@ def delete_corpus(
     Returns:
         dict: Status information about the deletion operation
     """
+    # Get agent context for logging
+    account_env = os.environ.get("ACCOUNT_ENV", "unknown")
+    
+    logger.warning(f"[{account_env}] DELETION REQUEST for corpus '{corpus_name}' (confirm={confirm})", 
+                   extra={"agent": account_env, "corpus": corpus_name, "action": "delete_corpus", "confirm": confirm})
+    
     # Check if corpus exists
     if not check_corpus_exists(corpus_name, tool_context):
         return {
@@ -54,12 +65,16 @@ def delete_corpus(
         if state_key in tool_context.state:
             tool_context.state[state_key] = False
 
+        logger.warning(f"[{account_env}] CORPUS DELETED: '{corpus_name}' (resource: {corpus_resource_name})", 
+                      extra={"agent": account_env, "corpus": corpus_name, "resource_name": corpus_resource_name})
         return {
             "status": "success",
             "message": f"Successfully deleted corpus '{corpus_name}'",
             "corpus_name": corpus_name,
         }
     except Exception as e:
+        logger.error(f"[{account_env}] Error deleting corpus '{corpus_name}': {str(e)}", 
+                    extra={"agent": account_env, "corpus": corpus_name, "error": str(e)})
         return {
             "status": "error",
             "message": f"Error deleting corpus: {str(e)}",

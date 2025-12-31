@@ -2,12 +2,16 @@
 Tool for creating a new Vertex AI RAG corpus.
 """
 
+import os
+import logging
 import re
 
 from google.adk.tools.tool_context import ToolContext
 import vertexai
 from vertexai import rag
 from ..config import PROJECT_ID, LOCATION
+
+logger = logging.getLogger(__name__)
 
 # Ensure vertexai is initialized for this module
 try:
@@ -40,8 +44,16 @@ def create_corpus(
     Returns:
         dict: Status information about the operation
     """
+    # Get agent context for logging
+    account_env = os.environ.get("ACCOUNT_ENV", "unknown")
+    
+    logger.info(f"[{account_env}] Attempting to create corpus '{corpus_name}'", 
+                extra={"agent": account_env, "corpus": corpus_name, "action": "create_corpus"})
+    
     # Check if corpus already exists
     if check_corpus_exists(corpus_name, tool_context):
+        logger.info(f"[{account_env}] Corpus '{corpus_name}' already exists", 
+                   extra={"agent": account_env, "corpus": corpus_name})
         return {
             "status": "info",
             "message": f"Corpus '{corpus_name}' already exists",
@@ -74,6 +86,8 @@ def create_corpus(
         # Set this as the current corpus
         tool_context.state["current_corpus"] = corpus_name
 
+        logger.info(f"[{account_env}] Successfully created corpus '{corpus_name}' with resource name: {rag_corpus.name}", 
+                   extra={"agent": account_env, "corpus": corpus_name, "resource_name": rag_corpus.name})
         return {
             "status": "success",
             "message": f"Successfully created corpus '{corpus_name}'",
@@ -83,6 +97,8 @@ def create_corpus(
         }
 
     except Exception as e:
+        logger.error(f"[{account_env}] Error creating corpus '{corpus_name}': {str(e)}", 
+                    extra={"agent": account_env, "corpus": corpus_name, "error": str(e)})
         return {
             "status": "error",
             "message": f"Error creating corpus: {str(e)}",

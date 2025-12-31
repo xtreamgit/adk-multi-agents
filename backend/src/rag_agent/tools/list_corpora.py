@@ -2,11 +2,15 @@
 Tool for listing all available Vertex AI RAG corpora.
 """
 
+import os
+import logging
 from typing import Dict, List, Union
 
 import vertexai
 from vertexai import rag
 from ..config import PROJECT_ID, LOCATION
+
+logger = logging.getLogger(__name__)
 
 # Ensure vertexai is initialized for this module
 try:
@@ -31,7 +35,11 @@ def list_corpora() -> dict:
             - create_time: When the corpus was created
             - update_time: When the corpus was last updated
     """
+    # Get agent context for logging
+    account_env = os.environ.get("ACCOUNT_ENV", "unknown")
+    
     try:
+        logger.info(f"[{account_env}] Listing all corpora", extra={"agent": account_env, "action": "list_corpora"})
         # Get the list of corpora
         corpora = rag.list_corpora()
 
@@ -51,12 +59,14 @@ def list_corpora() -> dict:
 
             corpus_info.append(corpus_data)
 
+        logger.info(f"[{account_env}] Found {len(corpus_info)} corpora", extra={"agent": account_env, "count": len(corpus_info)})
         return {
             "status": "success",
             "message": f"Found {len(corpus_info)} available corpora",
             "corpora": corpus_info,
         }
     except Exception as e:
+        logger.error(f"[{account_env}] Error listing corpora: {str(e)}", extra={"agent": account_env, "error": str(e)})
         return {
             "status": "error",
             "message": f"Error listing corpora: {str(e)}",

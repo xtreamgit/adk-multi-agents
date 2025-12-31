@@ -16,7 +16,7 @@ ACCOUNT_DESCRIPTION = "TechTrend Account"
 
 # Vertex AI settings
 PROJECT_ID = os.environ.get("PROJECT_ID", "adk-rag-tt")
-LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-east4")
+LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-west1")
 
 # RAG settings
 DEFAULT_CHUNK_SIZE = 512

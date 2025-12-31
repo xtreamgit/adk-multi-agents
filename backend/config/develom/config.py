@@ -2,7 +2,7 @@
 Configuration settings for the RAG Agent - DEVELOM Account
 Account: develom (root repository)
 Project: adk-rag-ma
-Region: us-east4
+Region: us-west1
 
 These settings are used by the various RAG tools.
 Vertex AI initialization is performed in the package's __init__.py
@@ -16,7 +16,7 @@ ACCOUNT_DESCRIPTION = "Develom Root Repository Account"
 
 # Vertex AI settings
 PROJECT_ID = os.environ.get("PROJECT_ID", "adk-rag-ma")
-LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-east4")
+LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-west1")
 
 # RAG settings
 DEFAULT_CHUNK_SIZE = 512

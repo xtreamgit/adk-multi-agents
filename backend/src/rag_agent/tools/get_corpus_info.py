@@ -2,8 +2,13 @@
 Tool for retrieving detailed information about a specific RAG corpus.
 """
 
+import os
+import logging
+
 from google.adk.tools.tool_context import ToolContext
 from vertexai import rag
+
+logger = logging.getLogger(__name__)
 
 from .utils import check_corpus_exists, get_corpus_resource_name
 
@@ -23,6 +28,12 @@ def get_corpus_info(
     Returns:
         dict: Information about the corpus and its files
     """
+    # Get agent context for logging
+    account_env = os.environ.get("ACCOUNT_ENV", "unknown")
+    
+    logger.info(f"[{account_env}] Getting info for corpus '{corpus_name}'", 
+                extra={"agent": account_env, "corpus": corpus_name, "action": "get_corpus_info"})
+    
     try:
         # Check if corpus exists
         if not check_corpus_exists(corpus_name, tool_context):
@@ -82,6 +93,8 @@ def get_corpus_info(
             pass
 
         # Basic corpus info
+        logger.info(f"[{account_env}] Retrieved info for corpus '{corpus_display_name}' - {len(file_details)} files", 
+                   extra={"agent": account_env, "corpus": corpus_name, "file_count": len(file_details)})
         return {
             "status": "success",
             "message": f"Successfully retrieved information for corpus '{corpus_display_name}'",
@@ -92,6 +105,8 @@ def get_corpus_info(
         }
 
     except Exception as e:
+        logger.error(f"[{account_env}] Error getting corpus information for '{corpus_name}': {str(e)}", 
+                    extra={"agent": account_env, "corpus": corpus_name, "error": str(e)})
         return {
             "status": "error",
             "message": f"Error getting corpus information: {str(e)}",

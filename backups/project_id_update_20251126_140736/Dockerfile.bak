@@ -46,7 +46,7 @@ ENV PROJECT_ID=adk-rag-ma
 ENV GOOGLE_CLOUD_LOCATION=us-west1
 ENV GOOGLE_GENAI_USE_VERTEXAI=true
 ENV VERTEXAI_PROJECT=adk-rag-ma
-ENV VERTEXAI_LOCATION=us-west1
+ENV VERTEXAI_LOCATION=us-east4
 ENV ACCOUNT_ENV=develom
 
 # Expose port (Cloud Run will set PORT env var)

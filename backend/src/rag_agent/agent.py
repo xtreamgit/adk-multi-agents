@@ -2,6 +2,7 @@ from google.adk.agents import Agent
 from google.adk.models import Gemini
 import os
 
+from . import config
 from .tools.add_data import add_data
 from .tools.create_corpus import create_corpus
 from .tools.delete_corpus import delete_corpus
@@ -13,12 +14,13 @@ from .tools.rag_query import rag_query
 
 # Set environment variables to force ADK to use Vertex AI
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
-os.environ["VERTEXAI_PROJECT"] = os.environ.get("PROJECT_ID", "adk-rag-ma")
-os.environ["VERTEXAI_LOCATION"] = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-east4")
+os.environ["VERTEXAI_PROJECT"] = config.PROJECT_ID
+os.environ["VERTEXAI_LOCATION"] = config.LOCATION
 
-# Configure Vertex AI model - relies on global vertexai.init() from __init__.py
-vertex_model = Gemini(model="gemini-2.5-flash")
+print(f"DEBUG agent.py: Using PROJECT_ID={config.PROJECT_ID}, LOCATION={config.LOCATION}")
 
+# Configure Vertex AI model - explicitly pass location to ensure correct regional endpoint
+vertex_model = Gemini(model="gemini-2.5-flash", location=config.LOCATION)
 root_agent = Agent(
     name="RagAgent",
     # Using Vertex AI Gemini 2.5 Flash for best performance with RAG operations

@@ -14,7 +14,7 @@ ACCOUNT_DESCRIPTION = "Generic Agent1 configuration"
 
 # Vertex AI settings (defaults; real values should come from env/Cloud Run)
 PROJECT_ID = os.environ.get("PROJECT_ID", "adk-rag-ma")
-LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-east4")
+LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-west1")
 
 # RAG settings
 DEFAULT_CHUNK_SIZE = 512

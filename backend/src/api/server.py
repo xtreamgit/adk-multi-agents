@@ -431,8 +431,53 @@ async def get_all_sessions(current_user: User = Depends(get_current_user)):
 
 @app.get("/")
 async def root():
-    """Health check endpoint."""
+    """Basic health check endpoint."""
     return {"message": "RAG Agent API is running"}
+
+@app.get("/api/health")
+async def health_check():
+    """Enhanced health check endpoint with region and deployment info."""
+    import platform
+    import subprocess
+    
+    # Get Cloud Run revision info
+    revision = os.getenv("K_REVISION", "unknown")
+    service = os.getenv("K_SERVICE", "unknown")
+    
+    # Get region info from metadata service (Cloud Run specific)
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "-H", "Metadata-Flavor: Google", 
+             "http://metadata.google.internal/computeMetadata/v1/instance/zone"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0 and result.stdout:
+            # Extract region from zone (e.g., projects/123/zones/us-west1-a -> us-west1)
+            zone_parts = result.stdout.strip().split('/')
+            if len(zone_parts) > 0:
+                zone = zone_parts[-1]
+                service_region = '-'.join(zone.split('-')[:-1])  # Remove zone suffix
+            else:
+                service_region = "unknown"
+        else:
+            service_region = "unknown"
+    except Exception:
+        service_region = "unknown"
+    
+    return {
+        "status": "healthy",
+        "service": service,
+        "revision": revision,
+        "service_region": service_region,
+        "vertexai_region": os.getenv("VERTEXAI_LOCATION", "unknown"),
+        "google_cloud_location": os.getenv("GOOGLE_CLOUD_LOCATION", "unknown"),
+        "account_env": os.getenv("ACCOUNT_ENV", "unknown"),
+        "root_path": os.getenv("ROOT_PATH", ""),
+        "project_id": os.getenv("PROJECT_ID", "unknown"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "python_version": platform.python_version(),
+        "agent_name": getattr(root_agent, 'name', 'unknown') if 'root_agent' in globals() else 'not_loaded'
+    }
 
 @app.post("/api/sessions", response_model=SessionInfo)
 async def create_session(user_profile: Optional[UserProfile] = None, current_user: User = Depends(get_current_user)):

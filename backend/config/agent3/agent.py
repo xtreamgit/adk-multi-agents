@@ -1,11 +1,13 @@
 """
-RAG Agent Configuration - AGENT3 Account
-Account: agent3
+RAG Agent Configuration
 """
 
 from google.adk.agents import Agent
 from google.adk.models import Gemini
 import os
+
+# Import config for this agent
+from . import config
 
 # Import tools (shared across all accounts)
 from src.rag_agent.tools.add_data import add_data
@@ -18,12 +20,13 @@ from src.rag_agent.tools.rag_query import rag_query
 
 # Set environment variables to force ADK to use Vertex AI
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
-os.environ["VERTEXAI_PROJECT"] = os.environ.get("PROJECT_ID", "adk-rag-hdtest6")
-os.environ["VERTEXAI_LOCATION"] = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-east4")
+os.environ["VERTEXAI_PROJECT"] = config.PROJECT_ID
+os.environ["VERTEXAI_LOCATION"] = config.LOCATION
 
-# Configure Vertex AI model - relies on global vertexai.init() from __init__.py
-vertex_model = Gemini(model="gemini-2.5-flash")
+print(f"DEBUG {config.ACCOUNT_NAME} agent.py: Using PROJECT_ID={config.PROJECT_ID}, LOCATION={config.LOCATION}")
 
+# Configure Vertex AI model - explicitly pass location to ensure correct regional endpoint
+vertex_model = Gemini(model="gemini-2.5-flash", location=config.LOCATION)
 root_agent = Agent(
     name="RagAgentAgent3",
     model=vertex_model,

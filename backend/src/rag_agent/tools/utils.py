@@ -2,6 +2,7 @@
 Utility functions for the RAG tools.
 """
 
+import os
 import logging
 import re
 
@@ -105,6 +106,8 @@ def check_corpus_exists(corpus_name: str, tool_context: ToolContext) -> bool:
     Returns:
         bool: True if the corpus exists, False otherwise
     """
+    account_env = os.environ.get("ACCOUNT_ENV", "unknown")
+    
     # Check state first if tool_context is provided
     if tool_context.state.get(f"corpus_exists_{corpus_name}"):
         return True
@@ -125,11 +128,16 @@ def check_corpus_exists(corpus_name: str, tool_context: ToolContext) -> bool:
                 # Also set this as the current corpus if no current corpus is set
                 if not tool_context.state.get("current_corpus"):
                     tool_context.state["current_corpus"] = corpus_name
+                logger.debug(f"[{account_env}] Corpus '{corpus_name}' exists", 
+                           extra={"agent": account_env, "corpus": corpus_name})
                 return True
 
+        logger.debug(f"[{account_env}] Corpus '{corpus_name}' not found", 
+                    extra={"agent": account_env, "corpus": corpus_name})
         return False
     except Exception as e:
-        logger.error(f"Error checking if corpus exists: {str(e)}")
+        logger.error(f"[{account_env}] Error checking if corpus exists: {str(e)}", 
+                    extra={"agent": account_env, "corpus": corpus_name, "error": str(e)})
         # If we can't check, assume it doesn't exist
         return False
 

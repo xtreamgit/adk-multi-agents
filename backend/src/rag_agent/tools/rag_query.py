@@ -44,7 +44,13 @@ def rag_query(
     Returns:
         dict: The query results and status
     """
+    # Get agent context for logging
+    import os
+    account_env = os.environ.get("ACCOUNT_ENV", "unknown")
+    
     try:
+        logging.info(f"[{account_env}] Querying corpus '{corpus_name}' with query: {query[:50]}...", 
+                    extra={"agent": account_env, "corpus": corpus_name, "action": "rag_query"})
 
         # Check if the corpus exists
         if not check_corpus_exists(corpus_name, tool_context):
@@ -96,6 +102,8 @@ def rag_query(
 
         # If we didn't find any results
         if not results:
+            logging.warning(f"[{account_env}] No results found in corpus '{corpus_name}'", 
+                          extra={"agent": account_env, "corpus": corpus_name, "results_count": 0})
             return {
                 "status": "warning",
                 "message": f"No results found in corpus '{corpus_name}' for query: '{query}'",
@@ -105,6 +113,8 @@ def rag_query(
                 "results_count": 0,
             }
 
+        logging.info(f"[{account_env}] Query successful - found {len(results)} results", 
+                    extra={"agent": account_env, "corpus": corpus_name, "results_count": len(results)})
         return {
             "status": "success",
             "message": f"Successfully queried corpus '{corpus_name}'",

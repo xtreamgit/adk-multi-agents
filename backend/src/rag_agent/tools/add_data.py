@@ -2,11 +2,15 @@
 Tool for adding new data sources to a Vertex AI RAG corpus.
 """
 
+import os
+import logging
 import re
 from typing import List
 
 from google.adk.tools.tool_context import ToolContext
 from vertexai import rag
+
+logger = logging.getLogger(__name__)
 
 from ..config import (
     DEFAULT_CHUNK_OVERLAP,
@@ -37,6 +41,12 @@ def add_data(
     Returns:
         dict: Information about the added data and status
     """
+    # Get agent context for logging
+    account_env = os.environ.get("ACCOUNT_ENV", "unknown")
+    
+    logger.info(f"[{account_env}] Adding {len(paths)} path(s) to corpus '{corpus_name}'", 
+                extra={"agent": account_env, "corpus": corpus_name, "path_count": len(paths), "action": "add_data"})
+    
     # Check if the corpus exists
     if not check_corpus_exists(corpus_name, tool_context):
         return {
@@ -137,6 +147,8 @@ def add_data(
         if conversions:
             conversion_msg = " (Converted Google Docs URLs to Drive format)"
 
+        logger.info(f"[{account_env}] Successfully added {import_result.imported_rag_files_count} file(s) to corpus '{corpus_name}'", 
+                   extra={"agent": account_env, "corpus": corpus_name, "files_added": import_result.imported_rag_files_count})
         return {
             "status": "success",
             "message": f"Successfully added {import_result.imported_rag_files_count} file(s) to corpus '{corpus_name}'{conversion_msg}",
@@ -148,6 +160,8 @@ def add_data(
         }
 
     except Exception as e:
+        logger.error(f"[{account_env}] Error adding data to corpus '{corpus_name}': {str(e)}", 
+                    extra={"agent": account_env, "corpus": corpus_name, "error": str(e)})
         return {
             "status": "error",
             "message": f"Error adding data to corpus: {str(e)}",
