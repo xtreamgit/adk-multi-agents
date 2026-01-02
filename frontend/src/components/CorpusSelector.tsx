@@ -150,25 +150,6 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
           })}
         </div>
 
-        {/* Selected corpora summary */}
-        {selectedCorpora.length > 0 && (
-          <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-700">
-              Selected: <span className="font-medium">{selectedCorpora.length} corpus{selectedCorpora.length !== 1 ? 'a' : ''}</span>
-            </p>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {selectedCorpora.map((corpusName) => {
-                const corpus = corpora.find(c => c.name === corpusName);
-                return (
-                  <span key={corpusName} className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
-                    {corpus?.display_name || corpusName}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {!loading && corpora.length === 0 && (
           <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-xs text-yellow-700">
