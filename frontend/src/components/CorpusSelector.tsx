@@ -128,6 +128,13 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
                       isSelected ? 'text-blue-900' : 'text-gray-900'
                     }`}>
                       {corpus.display_name}
+                      {corpus.document_count !== undefined && (
+                        <span className={`ml-2 text-xs font-normal ${
+                          isSelected ? 'text-blue-600' : 'text-gray-500'
+                        }`}>
+                          ({corpus.document_count})
+                        </span>
+                      )}
                     </p>
                     {corpus.description && (
                       <p className={`text-xs mt-0.5 ${

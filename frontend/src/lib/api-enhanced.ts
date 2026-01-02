@@ -62,6 +62,7 @@ export type Corpus = {
   has_access?: boolean;
   permission?: 'read' | 'write' | 'admin';
   is_active_in_session?: boolean;
+  document_count?: number;
 };
 
 export type Group = {

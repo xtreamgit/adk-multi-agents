@@ -3,16 +3,70 @@ Corpus service for managing corpora and user access.
 """
 
 import logging
-from typing import Optional, List
+import os
+from typing import Optional, List, Dict
 
 from database.repositories.corpus_repository import CorpusRepository
 from models.corpus import Corpus, CorpusCreate, CorpusUpdate, CorpusWithAccess
 
 logger = logging.getLogger(__name__)
 
+# Import Vertex AI for document count retrieval
+try:
+    import vertexai
+    from vertexai import rag
+    import google.auth
+    
+    # Get project and location from config
+    from config.config_loader import load_config
+    account = os.getenv('ACCOUNT_ENV', 'develom')
+    config = load_config(account)
+    PROJECT_ID = config.get('PROJECT_ID')
+    LOCATION = config.get('LOCATION')
+    
+    credentials, _ = google.auth.default()
+    vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
+    VERTEX_AI_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Vertex AI not available for document counts: {e}")
+    VERTEX_AI_AVAILABLE = False
+
 
 class CorpusService:
     """Service for corpus operations."""
+    
+    @staticmethod
+    def _get_document_count(corpus_name: str, vertex_corpus_id: Optional[str] = None) -> int:
+        """
+        Get document count for a corpus from Vertex AI.
+        
+        Args:
+            corpus_name: Display name of the corpus
+            vertex_corpus_id: Optional Vertex AI corpus resource ID
+            
+        Returns:
+            Number of documents in the corpus (0 if unavailable)
+        """
+        if not VERTEX_AI_AVAILABLE:
+            return 0
+            
+        try:
+            # If we have vertex_corpus_id, use it directly
+            if vertex_corpus_id:
+                files = rag.list_files(vertex_corpus_id)
+                return len(list(files))
+            
+            # Otherwise, find corpus by display name
+            corpora = rag.list_corpora()
+            for corpus in corpora:
+                if corpus.display_name == corpus_name:
+                    files = rag.list_files(corpus.name)
+                    return len(list(files))
+            
+            return 0
+        except Exception as e:
+            logger.debug(f"Could not fetch document count for corpus '{corpus_name}': {e}")
+            return 0
     
     @staticmethod
     def create_corpus(corpus_create: CorpusCreate) -> Corpus:
@@ -139,11 +193,18 @@ class CorpusService:
         
         corpora = []
         for corpus_data in corpora_dict:
+            # Fetch document count from Vertex AI
+            doc_count = CorpusService._get_document_count(
+                corpus_data.get('name', ''),
+                corpus_data.get('vertex_corpus_id')
+            )
+            
             corpus = CorpusWithAccess(
                 **{k: v for k, v in corpus_data.items() if k != 'permission'},
                 has_access=True,
                 permission=corpus_data.get('permission'),
-                is_active_in_session=(corpus_data['id'] in active_set)
+                is_active_in_session=(corpus_data['id'] in active_set),
+                document_count=doc_count
             )
             corpora.append(corpus)
         

@@ -35,6 +35,7 @@ class Corpus(CorpusBase):
     vertex_corpus_id: Optional[str] = None
     is_active: bool = True
     created_at: datetime
+    document_count: int = 0
 
     class Config:
         from_attributes = True
