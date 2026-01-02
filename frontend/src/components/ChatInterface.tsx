@@ -17,7 +17,7 @@ interface ChatInterfaceProps {
   onUpdateProfile: () => void;
   inputValue?: string;
   onInputChange?: (value: string) => void;
-  selectedCorpus?: string | null;
+  selectedCorpora?: string[];
   initialMessage?: string;
   shouldAutoSubmitInitial?: boolean;
   onNewChat?: () => void;
@@ -25,7 +25,7 @@ interface ChatInterfaceProps {
   isReturningToSession?: boolean;
 }
 
-export default function ChatInterface({ userProfile, onUpdateProfile, inputValue = '', onInputChange, selectedCorpus, initialMessage, shouldAutoSubmitInitial = false, onNewChat, sessionId, isReturningToSession = false }: ChatInterfaceProps) {
+export default function ChatInterface({ userProfile, onUpdateProfile, inputValue = '', onInputChange, selectedCorpora = [], initialMessage, shouldAutoSubmitInitial = false, onNewChat, sessionId, isReturningToSession = false }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [localInputValue, setLocalInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -113,10 +113,11 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
     setError(null);
 
     try {
-      // Include corpus context in the message if a corpus is selected
+      // Include corpus context in the message if corpora are selected
       let messageText = userMessage.text;
-      if (selectedCorpus) {
-        messageText = `[Using corpus: ${selectedCorpus}] ${userMessage.text}`;
+      if (selectedCorpora.length > 0) {
+        const corporaList = selectedCorpora.join(', ');
+        messageText = `[Using corpora: ${corporaList}] ${userMessage.text}`;
       }
       
       const agentMessage = await apiClient.sendMessage(messageText, userProfile);

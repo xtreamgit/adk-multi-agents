@@ -20,7 +20,7 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [chatInputValue, setChatInputValue] = useState('');
-  const [selectedCorpus, setSelectedCorpus] = useState<string | null>(null);
+  const [selectedCorpora, setSelectedCorpora] = useState<string[]>([]);
   const [showChatInterface, setShowChatInterface] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +32,7 @@ export default function Home() {
   const [savedChatState, setSavedChatState] = useState<{
     showChatInterface: boolean;
     chatInputValue: string;
-    selectedCorpus: string | null;
+    selectedCorpora: string[];
     sessionId: string | null;
   } | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<AgentKey>('default');
@@ -149,7 +149,7 @@ export default function Home() {
     makeGuest();
     setShowChatInterface(false);
     setChatInputValue('');
-    setSelectedCorpus(null);
+    setSelectedCorpora([]);
     setSessionId(null);
   };
 
@@ -161,7 +161,7 @@ export default function Home() {
     if (savedChatState && savedChatState.sessionId) {
       setShowChatInterface(savedChatState.showChatInterface);
       setChatInputValue(savedChatState.chatInputValue);
-      setSelectedCorpus(savedChatState.selectedCorpus);
+      setSelectedCorpora(savedChatState.selectedCorpora);
       setSessionId(savedChatState.sessionId);
       setIsReturningFromProfile(true);
       setSavedChatState(null);
@@ -174,7 +174,7 @@ export default function Home() {
       setSavedChatState({
         showChatInterface,
         chatInputValue,
-        selectedCorpus,
+        selectedCorpora,
         sessionId
       });
       setWasInChatBeforeProfile(true);
@@ -200,7 +200,7 @@ export default function Home() {
     if (savedChatState && savedChatState.sessionId) {
       setShowChatInterface(savedChatState.showChatInterface);
       setChatInputValue(savedChatState.chatInputValue);
-      setSelectedCorpus(savedChatState.selectedCorpus);
+      setSelectedCorpora(savedChatState.selectedCorpora);
       setSessionId(savedChatState.sessionId);
       setIsReturningFromProfile(true);
       setSavedChatState(null);
@@ -379,8 +379,8 @@ export default function Home() {
           {user && user.username !== 'guest' && (
             <div className="flex-1 p-4">
               <CorpusSelector 
-                selectedCorpus={selectedCorpus}
-                onCorpusSelect={setSelectedCorpus}
+                selectedCorpora={selectedCorpora}
+                onCorporaChange={setSelectedCorpora}
               />
             </div>
           )}
@@ -440,7 +440,7 @@ export default function Home() {
               onUpdateProfile={handleUpdateProfile}
               inputValue={chatInputValue}
               onInputChange={setChatInputValue}
-              selectedCorpus={selectedCorpus}
+              selectedCorpora={selectedCorpora}
               initialMessage={isReturningFromProfile ? '' : chatInputValue}
               shouldAutoSubmitInitial={shouldAutoSubmit && !isReturningFromProfile}
               onNewChat={handleNewChat}
@@ -514,8 +514,8 @@ export default function Home() {
         {user && user.username !== 'guest' && (
           <div className="flex-1 p-4">
             <CorpusSelector 
-              selectedCorpus={selectedCorpus}
-              onCorpusSelect={setSelectedCorpus}
+              selectedCorpora={selectedCorpora}
+              onCorporaChange={setSelectedCorpora}
             />
           </div>
         )}
@@ -578,9 +578,9 @@ export default function Home() {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-600">Hello, {user?.full_name || 'Guest'}!</span>
-            {selectedCorpus && (
+            {selectedCorpora.length > 0 && (
               <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                Corpus: {selectedCorpus}
+                Corpora: {selectedCorpora.length}
               </span>
             )}
             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">

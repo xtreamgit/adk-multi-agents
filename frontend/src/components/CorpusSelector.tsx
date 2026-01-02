@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import { apiClient, Corpus } from '../lib/api-enhanced';
 
 interface CorpusSelectorProps {
-  selectedCorpus: string | null;
-  onCorpusSelect: (corpus: string | null) => void;
+  selectedCorpora: string[];
+  onCorporaChange: (corpora: string[]) => void;
 }
 
-export default function CorpusSelector({ selectedCorpus, onCorpusSelect }: CorpusSelectorProps) {
+export default function CorpusSelector({ selectedCorpora, onCorporaChange }: CorpusSelectorProps) {
   const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +39,6 @@ export default function CorpusSelector({ selectedCorpus, onCorpusSelect }: Corpu
           a.display_name.toLowerCase().localeCompare(b.display_name.toLowerCase())
         );
         setCorpora(sortedCorpora);
-        
-        // Set default selection to first corpus if none selected
-        if (!selectedCorpus && sortedCorpora.length > 0) {
-          onCorpusSelect(sortedCorpora[0].name);
-        }
       } catch (err) {
         console.error('Failed to load corpora:', err);
         setError(err instanceof Error ? err.message : 'Failed to load corpora');
@@ -53,7 +48,7 @@ export default function CorpusSelector({ selectedCorpus, onCorpusSelect }: Corpu
     };
 
     loadCorpora();
-  }, [selectedCorpus, onCorpusSelect]);
+  }, []);
 
   // No longer needed with new API - removed unused function
 
@@ -88,25 +83,82 @@ export default function CorpusSelector({ selectedCorpus, onCorpusSelect }: Corpu
       </div>
 
       <div className="space-y-2">
-        <select
-          id="corpus-select"
-          value={selectedCorpus || ''}
-          onChange={(e) => onCorpusSelect(e.target.value || null)}
-          className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
-        >
-          <option value="">Select a corpus...</option>
-          {corpora.map((corpus) => (
-            <option key={corpus.id} value={corpus.name}>
-              {corpus.display_name}
-            </option>
-          ))}
-        </select>
+        {/* Multi-select corpus list */}
+        <div className="space-y-1">
+          {corpora.map((corpus) => {
+            const isSelected = selectedCorpora.includes(corpus.name);
+            return (
+              <div
+                key={corpus.id}
+                onClick={() => {
+                  if (isSelected) {
+                    onCorporaChange(selectedCorpora.filter(name => name !== corpus.name));
+                  } else {
+                    onCorporaChange([...selectedCorpora, corpus.name]);
+                  }
+                }}
+                className={`
+                  flex items-center p-3 rounded-lg border cursor-pointer transition-all
+                  ${
+                    isSelected
+                      ? 'bg-blue-50 border-blue-400 hover:bg-blue-100'
+                      : 'bg-white border-gray-300 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <div className="flex items-center flex-1">
+                  <div
+                    className={`
+                      w-5 h-5 mr-3 border-2 rounded flex items-center justify-center
+                      ${
+                        isSelected
+                          ? 'bg-blue-500 border-blue-500'
+                          : 'bg-white border-gray-400'
+                      }
+                    `}
+                  >
+                    {isSelected && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${
+                      isSelected ? 'text-blue-900' : 'text-gray-900'
+                    }`}>
+                      {corpus.display_name}
+                    </p>
+                    {corpus.description && (
+                      <p className={`text-xs mt-0.5 ${
+                        isSelected ? 'text-blue-600' : 'text-gray-500'
+                      }`}>
+                        {corpus.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
-        {selectedCorpus && (
-          <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-xs text-green-700">
-              Selected: <span className="font-medium">{selectedCorpus}</span>
+        {/* Selected corpora summary */}
+        {selectedCorpora.length > 0 && (
+          <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-700">
+              Selected: <span className="font-medium">{selectedCorpora.length} corpus{selectedCorpora.length !== 1 ? 'a' : ''}</span>
             </p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {selectedCorpora.map((corpusName) => {
+                const corpus = corpora.find(c => c.name === corpusName);
+                return (
+                  <span key={corpusName} className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                    {corpus?.display_name || corpusName}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         )}
 
