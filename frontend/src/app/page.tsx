@@ -6,7 +6,6 @@ import { AgentKey } from '../lib/api';
 import LoginForm from '../components/LoginForm';
 import ChatInterface from '../components/ChatInterface';
 import CorpusSelector from '../components/CorpusSelector';
-import AgentSwitcher from '../components/AgentSwitcher';
 import UserProfilePanel from '../components/UserProfilePanel';
 import Image from 'next/image';
 
@@ -386,16 +385,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Agent Switcher */}
-          {user && user.username !== 'guest' && (
-            <div className="px-4 py-2">
-              <AgentSwitcher 
-                sessionId={sessionId} 
-                onAgentChange={(agent) => setCurrentAgent(agent)}
-              />
-            </div>
-          )}
-
           {/* Chats Section */}
           <div className="p-4 border-t border-gray-200">
             <button className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
@@ -528,13 +517,6 @@ export default function Home() {
               selectedCorpus={selectedCorpus}
               onCorpusSelect={setSelectedCorpus}
             />
-          </div>
-        )}
-
-        {/* Agent Switcher */}
-        {user && user.username !== 'guest' && (
-          <div className="px-4 py-2">
-            <AgentSwitcher sessionId={sessionId} />
           </div>
         )}
 
