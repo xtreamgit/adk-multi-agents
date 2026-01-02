@@ -21,8 +21,8 @@ try:
     from config.config_loader import load_config
     account = os.getenv('ACCOUNT_ENV', 'develom')
     config = load_config(account)
-    PROJECT_ID = config.get('PROJECT_ID')
-    LOCATION = config.get('LOCATION')
+    PROJECT_ID = config.PROJECT_ID
+    LOCATION = config.LOCATION
     
     credentials, _ = google.auth.default()
     vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
