@@ -5,7 +5,6 @@ import { User, apiClient } from '../lib/api-enhanced';
 import { AgentKey } from '../lib/api';
 import LoginForm from '../components/LoginForm';
 import ChatInterface from '../components/ChatInterface';
-import CorpusSelector from '../components/CorpusSelector';
 import UserProfilePanel from '../components/UserProfilePanel';
 import Image from 'next/image';
 
@@ -375,16 +374,6 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Corpus Selector - Only show for authenticated users */}
-          {user && user.username !== 'guest' && (
-            <div className="flex-1 p-4">
-              <CorpusSelector 
-                selectedCorpora={selectedCorpora}
-                onCorporaChange={setSelectedCorpora}
-              />
-            </div>
-          )}
-
           {/* Chats Section */}
           <div className="p-4 border-t border-gray-200">
             <button className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
@@ -511,16 +500,6 @@ export default function Home() {
             <span>List Documents</span>
           </button>
         </div>
-
-        {/* Corpus Selector - Only show for authenticated users */}
-        {user && user.username !== 'guest' && (
-          <div className="flex-1 p-4">
-            <CorpusSelector 
-              selectedCorpora={selectedCorpora}
-              onCorporaChange={setSelectedCorpora}
-            />
-          </div>
-        )}
 
         {/* Chats Section */}
         <div className="p-4 border-t border-gray-200">
