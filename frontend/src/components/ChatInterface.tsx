@@ -178,7 +178,7 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
           <span className="text-sm text-gray-600">Hello, {user?.full_name || 'Guest'}!</span>
           {selectedCorpora.length > 0 && (
             <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-              Corpora: {selectedCorpora.length}
+              Corpus: {selectedCorpora.join(', ')}
             </span>
           )}
           <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">

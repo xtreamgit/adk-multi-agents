@@ -20,7 +20,7 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [chatInputValue, setChatInputValue] = useState('');
-  const [selectedCorpora, setSelectedCorpora] = useState<string[]>([]);
+  const [selectedCorpora, setSelectedCorpora] = useState<string[]>(['ai-books']);
   const [showChatInterface, setShowChatInterface] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -582,7 +582,7 @@ export default function Home() {
             <span className="text-sm text-gray-600">Hello, {user?.full_name || 'Guest'}!</span>
             {selectedCorpora.length > 0 && (
               <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                Corpora: {selectedCorpora.length}
+                Corpus: {selectedCorpora.join(', ')}
               </span>
             )}
             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
