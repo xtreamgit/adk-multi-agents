@@ -23,6 +23,28 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
+# Import new modular API routes
+# Add src to path for proper imports
+import sys
+backend_src = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+if backend_src not in sys.path:
+    sys.path.insert(0, backend_src)
+
+try:
+    from api.routes import (
+        auth_router,
+        users_router,
+        groups_router,
+        agents_router,
+        corpora_router
+    )
+    NEW_ROUTES_AVAILABLE = True
+    print("✅ New API routes loaded successfully")
+except ImportError as e:
+    NEW_ROUTES_AVAILABLE = False
+    print(f"⚠️  New API routes not available: {e}")
+    print("   Run migrations and setup first: python src/database/migrations/run_migrations.py")
+
 # Configure logging based on environment
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=getattr(logging, LOG_LEVEL))
@@ -232,8 +254,12 @@ import sys
 import os
 
 # Add config directory to path
-config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config')
-sys.path.insert(0, config_path)
+backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+config_path = os.path.join(backend_root, 'config')
+if config_path not in sys.path:
+    sys.path.insert(0, config_path)
+if backend_root not in sys.path:
+    sys.path.insert(0, backend_root)
 
 from config_loader import load_agent, load_config
 
@@ -304,8 +330,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Authentication Endpoints
-@app.post("/api/auth/register", response_model=User)
+# ============================================================================
+# Register New Modular API Routes
+# ============================================================================
+if NEW_ROUTES_AVAILABLE:
+    app.include_router(auth_router)
+    app.include_router(users_router)
+    app.include_router(groups_router)
+    app.include_router(agents_router)
+    app.include_router(corpora_router)
+    
+    print("\n" + "="*70)
+    print("🚀 New API Routes Registered:")
+    print("  ✅ /api/auth/*        - Authentication (register, login, refresh)")
+    print("  ✅ /api/users/*       - User Management (profile, preferences)")
+    print("  ✅ /api/groups/*      - Groups & Roles (admin)")
+    print("  ✅ /api/agents/*      - Agent Management (switching, access)")
+    print("  ✅ /api/corpora/*     - Corpus Management (access, selection)")
+    print("="*70 + "\n")
+    
+    # Note: Old auth endpoints below are replaced by new routes
+    # The new routes provide enhanced functionality with RBAC
+else:
+    print("⚠️  Using legacy authentication endpoints")
+    print("   To enable new features, run: python src/database/migrations/run_migrations.py\n")
+
+# ============================================================================
+# Legacy Authentication Endpoints
+# NOTE: These endpoints are REPLACED by the new auth_router if available.
+# The new routes provide:
+#   - Enhanced user profiles with preferences
+#   - Role-based access control (RBAC)
+#   - Better error handling and validation
+# These are kept for backwards compatibility if new routes aren't loaded.
+# ============================================================================
+
+# Legacy endpoint - replaced by /api/auth/register in new routes
+@app.post("/api/auth/register-legacy", response_model=User, include_in_schema=not NEW_ROUTES_AVAILABLE)
 async def register_user(user_data: UserCreate):
     """Register a new user."""
     # Check if user already exists
@@ -319,7 +380,8 @@ async def register_user(user_data: UserCreate):
     # Return user without password
     return User(**{k: v for k, v in created_user.items() if k != "hashed_password"})
 
-@app.post("/api/auth/login", response_model=Token)
+# Legacy endpoint - replaced by /api/auth/login in new routes
+@app.post("/api/auth/login-legacy", response_model=Token, include_in_schema=not NEW_ROUTES_AVAILABLE)
 async def login_user(login_data: UserLogin):
     """Authenticate user and return JWT token."""
     # Check if user exists
@@ -341,7 +403,8 @@ async def login_user(login_data: UserLogin):
     user_info = User(**{k: v for k, v in user_data.items() if k != "hashed_password"})
     return Token(access_token=access_token, token_type="bearer", user=user_info)
 
-@app.get("/api/auth/verify", response_model=User)
+# Legacy endpoint - replaced by /api/auth/me in new routes
+@app.get("/api/auth/verify-legacy", response_model=User, include_in_schema=not NEW_ROUTES_AVAILABLE)
 async def verify_user_token(current_user: User = Depends(get_current_user)):
     """Verify JWT token and return user info."""
     return current_user
@@ -702,7 +765,8 @@ async def delete_session(session_id: str, current_user: User = Depends(get_curre
     del sessions[session_id]
     return {"message": "Session deleted successfully"}
 
-@app.get("/api/corpora")
+# Legacy endpoint - replaced by /api/corpora/ in new routes (with enhanced access control)
+@app.get("/api/corpora-legacy", include_in_schema=not NEW_ROUTES_AVAILABLE)
 async def list_corpora(current_user: User = Depends(get_current_user)):
     """List all available corpora using the RAG agent."""
     try:
@@ -742,7 +806,8 @@ async def list_corpora(current_user: User = Depends(get_current_user)):
         print(f"CORPORA TRACEBACK: {traceback_details}")
         raise HTTPException(status_code=500, detail=error_details)
 
-@app.post("/api/corpora")
+# Legacy endpoint - replaced by /api/corpora/ in new routes (with enhanced access control)
+@app.post("/api/corpora-legacy", include_in_schema=not NEW_ROUTES_AVAILABLE)
 async def create_corpus(corpus_name: str, current_user: User = Depends(get_current_user)):
     """Create a new corpus using the RAG agent."""
     try:

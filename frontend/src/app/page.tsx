@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { UserProfile, User, apiClient, AgentKey } from '../lib/api';
+import { User, apiClient } from '../lib/api-enhanced';
+import { AgentKey } from '../lib/api';
 import LoginForm from '../components/LoginForm';
 import ChatInterface from '../components/ChatInterface';
 import CorpusSelector from '../components/CorpusSelector';
+import AgentSwitcher from '../components/AgentSwitcher';
+import UserProfilePanel from '../components/UserProfilePanel';
 import Image from 'next/image';
+
+// UserProfile type for legacy compatibility
+type UserProfile = {
+  name: string;
+  preferences?: string;
+};
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -20,6 +29,7 @@ export default function Home() {
   const [isReturningFromProfile, setIsReturningFromProfile] = useState(false);
   const [shouldAutoSubmit, setShouldAutoSubmit] = useState(false);
   const [isLoadingExistingSession, setIsLoadingExistingSession] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [savedChatState, setSavedChatState] = useState<{
     showChatInterface: boolean;
     chatInputValue: string;
@@ -29,13 +39,17 @@ export default function Home() {
   const [selectedAgent, setSelectedAgent] = useState<AgentKey>('default');
 
   const makeGuest = () => {
-    const guest = {
+    const guest: User = {
+      id: 0,
       username: 'guest',
-      full_name: 'Guest',
       email: 'guest@example.com',
+      full_name: 'Guest User',
+      is_active: true,
+      default_agent_id: null,
       created_at: new Date().toISOString(),
-      last_login: undefined,
-    } as User;
+      updated_at: new Date().toISOString(),
+      last_login: null,
+    };
     setUser(guest);
     setUserProfile({ name: guest.full_name, preferences: '' });
   };
@@ -89,13 +103,17 @@ export default function Home() {
     apiClient.setAgent(agent);
   };
 
-  const handleLoginSuccess = (userData: User) => {
-    setUser(userData);
-    // Create a basic user profile from user data
-    setUserProfile({
-      name: userData.full_name,
-      preferences: ''
-    });
+  const handleLoginSuccess = async (loggedInUser: User) => {
+    setUser(loggedInUser);
+    setShowLogin(false);
+    
+    // Create session immediately after login
+    try {
+      const session = await apiClient.createSession();
+      setSessionId(session.session_id);
+    } catch (error) {
+      console.error('Failed to create session after login:', error);
+    }
   };
 
   const handleLogout = () => {
@@ -208,53 +226,46 @@ export default function Home() {
     );
   }
 
+  // Show login form
+  if (showLogin) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <LoginForm onLoginSuccess={handleLoginSuccess} />
+          <button
+            onClick={() => setShowLogin(false)}
+            className="mt-4 w-full text-center text-sm text-gray-600 hover:text-gray-800"
+          >
+            Continue as Guest
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Show profile setup if user wants to edit profile
   if (showProfileSetup) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Update Profile
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Display Name
-              </label>
-              <input
-                type="text"
-                value={userProfile?.name || ''}
-                onChange={(e) => setUserProfile(prev => prev ? {...prev, name: e.target.value} : {name: e.target.value, preferences: ''})}
-                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Enter your display name"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Preferences (Optional)
-              </label>
-              <textarea
-                value={userProfile?.preferences || ''}
-                onChange={(e) => setUserProfile(prev => prev ? {...prev, preferences: e.target.value} : {name: '', preferences: e.target.value})}
-                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Tell us about your preferences..."
-                rows={3}
-              />
-            </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={handleCancelEdit}
-                className="flex-1 py-3 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => userProfile && handleProfileSubmit(userProfile)}
-                className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Save Changes
-              </button>
-            </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-2xl">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              User Profile
+            </h2>
+            <button
+              onClick={handleCancelEdit}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="p-6">
+            <UserProfilePanel onProfileUpdate={() => {
+              // Refresh user data after profile update
+              setShowProfileSetup(false);
+            }} />
           </div>
         </div>
       </div>
@@ -318,28 +329,22 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Corpus Selector */}
-          <div className="flex-1 p-4">
-            <CorpusSelector 
-              selectedCorpus={selectedCorpus}
-              onCorpusSelect={setSelectedCorpus}
-            />
-          </div>
+          {/* Corpus Selector - Only show for authenticated users */}
+          {user && user.username !== 'guest' && (
+            <div className="flex-1 p-4">
+              <CorpusSelector 
+                selectedCorpus={selectedCorpus}
+                onCorpusSelect={setSelectedCorpus}
+              />
+            </div>
+          )}
 
-          {/* Agent Selector */}
-          <div className="px-3 py-2 bg-gray-50 rounded-lg border">
-            <div className="text-xs text-gray-500 mb-1">Agent:</div>
-            <select
-              value={selectedAgent}
-              onChange={(e) => handleAgentChange(e.target.value as AgentKey)}
-              className="w-full text-xs p-1 border border-gray-300 rounded"
-            >
-              <option value="default">Default</option>
-              <option value="agent1">Agent 1</option>
-              <option value="agent2">Agent 2</option>
-              <option value="agent3">Agent 3</option>
-            </select>
-          </div>
+          {/* Agent Switcher */}
+          {user && user.username !== 'guest' && (
+            <div className="px-4 py-2">
+              <AgentSwitcher sessionId={sessionId} />
+            </div>
+          )}
 
           {/* Chats Section */}
           <div className="p-4 border-t border-gray-200">
@@ -353,24 +358,38 @@ export default function Home() {
 
           {/* Profile Section */}
           <div className="p-4 border-t border-gray-200 bg-green-600 text-white">
-            <button 
-              onClick={handleUpdateProfile}
-              className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors mb-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="font-medium">Profile</span>
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <span className="font-medium">Logout</span>
-            </button>
+            {user && user.username === 'guest' ? (
+              <button 
+                onClick={() => setShowLogin(true)}
+                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                <span className="font-medium">Login</span>
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={handleUpdateProfile}
+                  className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors mb-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span className="font-medium">Profile</span>
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="font-medium">Logout</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
         
@@ -452,28 +471,22 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Corpus Selector */}
-        <div className="flex-1 p-4">
-          <CorpusSelector 
-            selectedCorpus={selectedCorpus}
-            onCorpusSelect={setSelectedCorpus}
-          />
-        </div>
+        {/* Corpus Selector - Only show for authenticated users */}
+        {user && user.username !== 'guest' && (
+          <div className="flex-1 p-4">
+            <CorpusSelector 
+              selectedCorpus={selectedCorpus}
+              onCorpusSelect={setSelectedCorpus}
+            />
+          </div>
+        )}
 
-        {/* Agent Selector */}
-        <div className="px-3 py-2 bg-gray-50 rounded-lg border">
-          <div className="text-xs text-gray-500 mb-1">Agent:</div>
-          <select
-            value={selectedAgent}
-            onChange={(e) => handleAgentChange(e.target.value as AgentKey)}
-            className="w-full text-xs p-1 border border-gray-300 rounded"
-          >
-            <option value="default">Default</option>
-            <option value="agent1">Agent 1</option>
-            <option value="agent2">Agent 2</option>
-            <option value="agent3">Agent 3</option>
-          </select>
-        </div>
+        {/* Agent Switcher */}
+        {user && user.username !== 'guest' && (
+          <div className="px-4 py-2">
+            <AgentSwitcher sessionId={sessionId} />
+          </div>
+        )}
 
         {/* Chats Section */}
         <div className="p-4 border-t border-gray-200">
@@ -487,24 +500,38 @@ export default function Home() {
 
         {/* Profile Section */}
         <div className="p-4 border-t border-gray-200 bg-green-600 text-white">
-          <button 
-            onClick={handleUpdateProfile}
-            className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors mb-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="font-medium">Profile</span>
-          </button>
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="font-medium">Logout</span>
-          </button>
+          {user && user.username === 'guest' ? (
+            <button 
+              onClick={() => setShowLogin(true)}
+              className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              <span className="font-medium">Login</span>
+            </button>
+          ) : (
+            <>
+              <button 
+                onClick={handleUpdateProfile}
+                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors mb-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="font-medium">Profile</span>
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span className="font-medium">Logout</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
       

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { apiClient } from '../lib/api';
+import { apiClient, Corpus } from '../lib/api-enhanced';
 
 interface CorpusSelectorProps {
   selectedCorpus: string | null;
@@ -9,26 +9,40 @@ interface CorpusSelectorProps {
 }
 
 export default function CorpusSelector({ selectedCorpus, onCorpusSelect }: CorpusSelectorProps) {
-  const [corpora, setCorpora] = useState<string[]>([]);
+  const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadCorpora = async () => {
+      // Don't try to load if not authenticated
+      if (!apiClient.isAuthenticated()) {
+        setLoading(false);
+        setError('Please log in to view corpora');
+        return;
+      }
+
       try {
         setLoading(true);
-        const response = await apiClient.listCorpora();
+        const response = await apiClient.getMyCorpora();
         
-        // Parse the response text to extract corpus names
-        const corpusNames = parseCorpusResponse(response);
+        // Deduplicate by ID (backend may return duplicates)
+        const uniqueCorpora = response.reduce((acc, corpus) => {
+          if (!acc.find(c => c.id === corpus.id)) {
+            acc.push(corpus);
+          }
+          return acc;
+        }, [] as typeof response);
         
-        // Sort corpora alphabetically
-        const sortedCorpora = corpusNames.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        // Sort corpora alphabetically by display name
+        const sortedCorpora = uniqueCorpora.sort((a, b) => 
+          a.display_name.toLowerCase().localeCompare(b.display_name.toLowerCase())
+        );
         setCorpora(sortedCorpora);
         
         // Set default selection to first corpus if none selected
         if (!selectedCorpus && sortedCorpora.length > 0) {
-          onCorpusSelect(sortedCorpora[0]);
+          onCorpusSelect(sortedCorpora[0].name);
         }
       } catch (err) {
         console.error('Failed to load corpora:', err);
@@ -41,38 +55,7 @@ export default function CorpusSelector({ selectedCorpus, onCorpusSelect }: Corpu
     loadCorpora();
   }, [selectedCorpus, onCorpusSelect]);
 
-  const parseCorpusResponse = (response: string): string[] => {
-    // Extract corpus names from the response text
-    // Expected format includes bold formatting: "**security** (resource_name: `...`), **ai** (resource_name: `...`)"
-    const corpusNames: string[] = [];
-    
-    // Look for bold corpus names in the format **corpus_name**
-    const boldMatches = response.match(/\*\*([^*]+)\*\*/g);
-    if (boldMatches) {
-      for (const match of boldMatches) {
-        const corpusName = match.replace(/\*\*/g, '').trim();
-        if (corpusName && !corpusName.toLowerCase().includes('corpus')) {
-          corpusNames.push(corpusName);
-        }
-      }
-    }
-    
-    // Fallback: Look for lines that start with "* " (bullet points) for simpler format
-    if (corpusNames.length === 0) {
-      const lines = response.split('\n');
-      for (const line of lines) {
-        const match = line.match(/^\s*\*\s+(.+)$/);
-        if (match && match[1]) {
-          const corpusName = match[1].trim();
-          if (corpusName && !corpusName.toLowerCase().includes('corpus')) {
-            corpusNames.push(corpusName);
-          }
-        }
-      }
-    }
-    
-    return [...new Set(corpusNames)]; // Remove duplicates
-  };
+  // No longer needed with new API - removed unused function
 
   if (loading) {
     return (
@@ -113,8 +96,8 @@ export default function CorpusSelector({ selectedCorpus, onCorpusSelect }: Corpu
         >
           <option value="">Select a corpus...</option>
           {corpora.map((corpus) => (
-            <option key={corpus} value={corpus}>
-              {corpus}
+            <option key={corpus.id} value={corpus.name}>
+              {corpus.display_name}
             </option>
           ))}
         </select>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { User, apiClient } from '../lib/api';
+import { User, apiClient } from '../lib/api-enhanced';
 import Image from 'next/image';
 
 interface LoginFormProps {

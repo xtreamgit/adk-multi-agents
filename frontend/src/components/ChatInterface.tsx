@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Message, UserProfile, apiClient } from '../lib/api';
+import { Message, apiClient } from '../lib/api-enhanced';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Image from 'next/image';
+
+// UserProfile type for legacy compatibility
+type UserProfile = {
+  name: string;
+  preferences?: string;
+};
 
 interface ChatInterfaceProps {
   userProfile: UserProfile;
