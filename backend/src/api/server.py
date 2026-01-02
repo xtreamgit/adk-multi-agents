@@ -30,6 +30,16 @@ backend_src = os.path.join(os.path.dirname(os.path.dirname(__file__)))
 if backend_src not in sys.path:
     sys.path.insert(0, backend_src)
 
+# Import agent manager for dynamic agent loading (after path setup)
+try:
+    from services.agent_manager import AgentManager
+    AGENT_MANAGER_AVAILABLE = True
+    print("✅ AgentManager imported successfully")
+except ImportError as e:
+    AGENT_MANAGER_AVAILABLE = False
+    print(f"⚠️  AgentManager not available: {e}")
+    print("   Using static agent loading instead")
+
 try:
     from api.routes import (
         auth_router,
@@ -68,7 +78,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 # Database configuration
-DATABASE_PATH = os.getenv("DATABASE_PATH", "users.db")
+DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "users.db"))
 
 # Database setup and management
 def init_database():
@@ -119,7 +129,7 @@ def get_user_from_db(username: str) -> Optional[Dict]:
     """Get user from database by username."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT id, username, email, full_name, hashed_password, created_at, last_login FROM users WHERE username = ?", (username,))
         row = cursor.fetchone()
         if row:
             return dict(row)
@@ -186,6 +196,7 @@ class SessionInfo(BaseModel):
     last_activity: datetime
 
 class User(BaseModel):
+    id: int
     username: str
     full_name: str
     email: str
@@ -235,14 +246,25 @@ def verify_token(token: str) -> Optional[str]:
     except JWTError:
         return None
 
-async def get_current_user() -> User:
-    now = datetime.now(timezone.utc).isoformat()
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
+    """Get current authenticated user from token."""
+    token = credentials.credentials
+    username = verify_token(token)
+    
+    if username is None:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    
+    user_data = get_user_from_db(username)
+    if user_data is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    
     return User(
-        username="guest",
-        full_name="Guest",
-        email="guest@example.com",
-        created_at=now,
-        last_login=None,
+        id=user_data["id"],
+        username=user_data["username"],
+        full_name=user_data["full_name"],
+        email=user_data["email"],
+        created_at=user_data["created_at"],
+        last_login=user_data.get("last_login"),
     )
 
 # In-memory session storage (in production, use Redis or database)
@@ -293,11 +315,29 @@ logging.info(
     },
 )
 
-# Now load agent (it will use the config values set above)
-agent_module = load_agent(account_env)
-root_agent = agent_module.root_agent
-
-print(f"✅ Loaded agent: {root_agent.name} with {len(root_agent.tools)} tools")
+# Initialize AgentManager for dynamic agent loading
+if AGENT_MANAGER_AVAILABLE:
+    agent_manager = AgentManager(
+        project_id=effective_project,
+        location=effective_location
+    )
+    print(f"✅ AgentManager initialized for dynamic agent loading")
+    # Load default agent for backward compatibility and health checks
+    try:
+        root_agent, _ = agent_manager.get_agent_by_id(1)  # Default agent
+        print(f"✅ Loaded default agent: {root_agent.name} with {len(root_agent.tools)} tools")
+    except Exception as e:
+        print(f"⚠️  Could not load default agent: {e}")
+        print("   Falling back to static agent loading")
+        agent_module = load_agent(account_env)
+        root_agent = agent_module.root_agent
+        agent_manager = None
+else:
+    # Fallback to static agent loading
+    agent_module = load_agent(account_env)
+    root_agent = agent_module.root_agent
+    print(f"✅ Loaded static agent: {root_agent.name} with {len(root_agent.tools)} tools")
+    agent_manager = None
 
 session_service = InMemorySessionService()
 runner = Runner(agent=root_agent, app_name="rag_agent_api", session_service=session_service)
@@ -544,11 +584,26 @@ async def health_check():
 
 @app.post("/api/sessions", response_model=SessionInfo)
 async def create_session(user_profile: Optional[UserProfile] = None, current_user: User = Depends(get_current_user)):
-    """Create a new user session."""
+    """Create a new user session with agent selection."""
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
     try:
+        # Get user's default agent if AgentManager available
+        agent_id = None
+        agent_name = None
+        agent_display_name = None
+        
+        if agent_manager:
+            try:
+                _, agent_data = agent_manager.get_agent_for_user(current_user.id)
+                agent_id = agent_data['id']
+                agent_name = agent_data['name']
+                agent_display_name = agent_data['display_name']
+                logging.info(f"Assigned agent {agent_name} (id={agent_id}) to session {session_id}")
+            except Exception as e:
+                logging.warning(f"Could not assign agent to session: {e}. Using default.")
+        
         # Create ADK session
         session_service.create_session(
             app_name="rag_agent_api",
@@ -556,11 +611,15 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
             session_id=session_id,
         )
 
-        # Store session information
+        # Store session information with agent details
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": user_profile.model_dump() if user_profile else None,
             "username": current_user.username,
+            "user_id": current_user.id,
+            "agent_id": agent_id,
+            "agent_name": agent_name,
+            "agent_display_name": agent_display_name,
             "created_at": now,
             "last_activity": now,
             "chat_history": [],
@@ -572,6 +631,8 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
                 "session_id": session_id,
                 "account_env": account_env,
                 "username": current_user.username,
+                "agent_id": agent_id,
+                "agent_name": agent_name,
             },
         )
 
@@ -653,6 +714,22 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     if session_id not in sessions:
         # Create a new session if it doesn't exist (handles server restarts)
         now = datetime.now()
+        
+        # Get user's default agent if AgentManager available
+        agent_id = None
+        agent_name = None
+        agent_display_name = None
+        
+        if agent_manager:
+            try:
+                _, agent_data = agent_manager.get_agent_for_user(current_user.id)
+                agent_id = agent_data['id']
+                agent_name = agent_data['name']
+                agent_display_name = agent_data['display_name']
+                logging.info(f"Assigned agent {agent_name} (id={agent_id}) to session {session_id}")
+            except Exception as e:
+                logging.warning(f"Could not assign agent to session: {e}. Using default.")
+        
         session_service.create_session(
             app_name="rag_agent_api", 
             user_id="api_user", 
@@ -662,6 +739,10 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
             "session_id": session_id,
             "user_profile": None,
             "username": current_user.username,
+            "user_id": current_user.id,
+            "agent_id": agent_id,
+            "agent_name": agent_name,
+            "agent_display_name": agent_display_name,
             "created_at": now,
             "last_activity": now,
             "chat_history": []
@@ -690,6 +771,26 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     full_message = user_context + chat_message.message
     
     try:
+        # Get the agent for this session
+        session_agent = root_agent  # Default
+        agent_id = sessions[session_id].get("agent_id")
+        
+        logging.info(f"Chat endpoint - session {session_id}: agent_id={agent_id}, agent_manager={'available' if agent_manager else 'not available'}")
+        
+        if agent_manager and agent_id:
+            try:
+                session_agent, agent_data = agent_manager.get_agent_by_id(agent_id)
+                logging.info(f"Loaded agent '{agent_data['name']}' with {len(session_agent.tools)} tools for session {session_id}")
+            except Exception as e:
+                logging.error(f"Could not load session agent: {e}. Using default.", exc_info=True)
+        
+        # Create a runner with the session-specific agent
+        session_runner = Runner(
+            agent=session_agent,
+            app_name="rag_agent_api",
+            session_service=session_service
+        )
+        
         # Ensure ADK session exists - only create if it doesn't exist
         try:
             session_service.get_session(
@@ -713,7 +814,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         
         # Run the agent and collect response
         response_text = ""
-        async for event in runner.run_async(
+        async for event in session_runner.run_async(
             user_id="api_user", 
             session_id=session_id, 
             new_message=user_content

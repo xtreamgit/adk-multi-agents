@@ -27,8 +27,16 @@ export default function AgentSwitcher({ sessionId, onAgentChange }: AgentSwitche
       const defaultAgent = myAgents.find(a => a.is_default);
       if (defaultAgent) {
         setSelectedAgent(defaultAgent);
+        // Notify parent component of the default agent
+        if (onAgentChange) {
+          onAgentChange(defaultAgent);
+        }
       } else if (myAgents.length > 0) {
         setSelectedAgent(myAgents[0]);
+        // Notify parent component
+        if (onAgentChange) {
+          onAgentChange(myAgents[0]);
+        }
       }
     } catch (err: any) {
       console.error('Failed to load agents:', err);

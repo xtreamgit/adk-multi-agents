@@ -37,6 +37,7 @@ export default function Home() {
     sessionId: string | null;
   } | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<AgentKey>('default');
+  const [currentAgent, setCurrentAgent] = useState<{id: number, name: string, display_name: string} | null>(null);
 
   const makeGuest = () => {
     const guest: User = {
@@ -74,6 +75,17 @@ export default function Home() {
             setShowChatInterface(true);
             setIsLoadingExistingSession(true); // This ensures chat history is loaded
           }
+          
+          // Load user's agents to get the current agent
+          try {
+            const myAgents = await apiClient.getMyAgents();
+            const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
+            if (defaultAgent) {
+              setCurrentAgent(defaultAgent);
+            }
+          } catch (err) {
+            console.error('Failed to load user agents:', err);
+          }
         } else {
           // No token present: operate as guest by default
           makeGuest();
@@ -107,10 +119,26 @@ export default function Home() {
     setUser(loggedInUser);
     setShowLogin(false);
     
+    // Load user's agents to get the current agent
+    try {
+      const myAgents = await apiClient.getMyAgents();
+      const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
+      if (defaultAgent) {
+        setCurrentAgent(defaultAgent);
+        console.log('Loaded agent after login:', defaultAgent.display_name);
+      }
+    } catch (err) {
+      console.error('Failed to load user agents after login:', err);
+    }
+    
     // Create session immediately after login
     try {
       const session = await apiClient.createSession();
       setSessionId(session.session_id);
+      console.log('Session created after login:', session.session_id);
+      
+      // Session is ready - user can now start chatting
+      // Don't auto-show chat interface, let user start when ready
     } catch (error) {
       console.error('Failed to create session after login:', error);
     }
@@ -180,35 +208,54 @@ export default function Home() {
     }
   };
 
-  const handleStartChat = () => {
+  const handleStartChat = async () => {
     if (chatInputValue.trim()) {
+      // Ensure we have a session before starting chat
+      if (!sessionId) {
+        try {
+          const session = await apiClient.createSession();
+          setSessionId(session.session_id);
+          console.log('Session created before starting chat:', session.session_id);
+        } catch (error) {
+          console.error('Failed to create session before chat:', error);
+          return;
+        }
+      }
+      
       setShouldAutoSubmit(true);
       setShowChatInterface(true);
     }
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     setShowChatInterface(false);
     setChatInputValue('');
     setIsReturningFromProfile(false);
     setIsLoadingExistingSession(false);
     setShouldAutoSubmit(false);
-    // Reset API client session for fresh chat
-    import('../lib/api').then(({ apiClient }) => {
+    
+    // Create a new session for the new chat
+    try {
+      // Reset the old session first
       apiClient.resetSession();
+      
+      // Create a new session
+      const session = await apiClient.createSession();
+      setSessionId(session.session_id);
+      console.log('New session created for new chat:', session.session_id);
+    } catch (error) {
+      console.error('Failed to create new session:', error);
       setSessionId(null);
-    });
+    }
   };
 
   // Poll for session ID updates
   useEffect(() => {
     const interval = setInterval(() => {
-      import('../lib/api').then(({ apiClient }) => {
-        const currentSessionId = apiClient.getSessionId();
-        if (currentSessionId !== sessionId) {
-          setSessionId(currentSessionId);
-        }
-      });
+      const currentSessionId = apiClient.getSessionId();
+      if (currentSessionId !== sessionId) {
+        setSessionId(currentSessionId);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -300,7 +347,7 @@ export default function Home() {
             <div className="px-3 py-2 bg-gray-50 rounded-lg border">
               <div className="text-xs text-gray-500 mb-1">Session ID:</div>
               <div className="text-xs font-mono text-gray-700 break-all">
-                {sessionId || 'No active session'}
+                {sessionId ? sessionId.slice(-4) : 'No active session'}
               </div>
             </div>
             
@@ -342,7 +389,10 @@ export default function Home() {
           {/* Agent Switcher */}
           {user && user.username !== 'guest' && (
             <div className="px-4 py-2">
-              <AgentSwitcher sessionId={sessionId} />
+              <AgentSwitcher 
+                sessionId={sessionId} 
+                onAgentChange={(agent) => setCurrentAgent(agent)}
+              />
             </div>
           )}
 
@@ -442,7 +492,7 @@ export default function Home() {
           <div className="px-3 py-2 bg-gray-50 rounded-lg border">
             <div className="text-xs text-gray-500 mb-1">Session ID:</div>
             <div className="text-xs font-mono text-gray-700 break-all">
-              {sessionId || 'No active session'}
+              {sessionId ? sessionId.slice(-4) : 'No active session'}
             </div>
           </div>
             
@@ -552,7 +602,7 @@ export default function Home() {
               </span>
             )}
             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-              Agent: {selectedAgent}
+              Agent: {currentAgent?.display_name || 'default'}
             </span>
           </div>
         </header>

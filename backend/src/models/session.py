@@ -31,6 +31,8 @@ class SessionData(SessionBase):
     """Session model returned to clients."""
     id: int
     active_agent_id: Optional[int] = None
+    active_agent_name: Optional[str] = None
+    active_agent_display_name: Optional[str] = None
     active_corpora: Optional[List[int]] = None
     created_at: datetime
     last_activity: datetime
