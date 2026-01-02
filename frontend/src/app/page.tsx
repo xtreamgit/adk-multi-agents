@@ -446,6 +446,8 @@ export default function Home() {
               onNewChat={handleNewChat}
               sessionId={sessionId}
               isReturningToSession={isReturningFromProfile || isLoadingExistingSession}
+              user={user}
+              currentAgent={currentAgent}
             />
           )}
         </div>

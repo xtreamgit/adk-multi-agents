@@ -12,6 +12,14 @@ type UserProfile = {
   preferences?: string;
 };
 
+type User = {
+  full_name: string;
+};
+
+type Agent = {
+  display_name: string;
+};
+
 interface ChatInterfaceProps {
   userProfile: UserProfile;
   onUpdateProfile: () => void;
@@ -23,9 +31,11 @@ interface ChatInterfaceProps {
   onNewChat?: () => void;
   sessionId?: string | null;
   isReturningToSession?: boolean;
+  user?: User | null;
+  currentAgent?: Agent | null;
 }
 
-export default function ChatInterface({ userProfile, onUpdateProfile, inputValue = '', onInputChange, selectedCorpora = [], initialMessage, shouldAutoSubmitInitial = false, onNewChat, sessionId, isReturningToSession = false }: ChatInterfaceProps) {
+export default function ChatInterface({ userProfile, onUpdateProfile, inputValue = '', onInputChange, selectedCorpora = [], initialMessage, shouldAutoSubmitInitial = false, onNewChat, sessionId, isReturningToSession = false, user, currentAgent }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [localInputValue, setLocalInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -160,14 +170,21 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
       {/* Header */}
       <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <p className="text-lg font-bold text-gray-900">USFS RAG</p>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900"><strong>USFS Retrieval Augmented Generation (RAG)</strong></h2>
+          </div>
         </div>
-        <button
-          onClick={onUpdateProfile}
-          className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-        >
-          Edit Profile
-        </button>
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">Hello, {user?.full_name || 'Guest'}!</span>
+          {selectedCorpora.length > 0 && (
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              Corpora: {selectedCorpora.length}
+            </span>
+          )}
+          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+            Agent: {currentAgent?.display_name || 'default'}
+          </span>
+        </div>
       </header>
 
 
