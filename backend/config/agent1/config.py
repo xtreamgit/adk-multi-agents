@@ -32,4 +32,4 @@ CORPUS_TO_BUCKET_MAPPING = {
 
 # Account-specific settings
 ORGANIZATION_DOMAIN = os.environ.get("ORGANIZATION_DOMAIN", "develom.com")
-DEFAULT_CORPUS_NAME = os.environ.get("DEFAULT_CORPUS_NAME", "develom-general")
+DEFAULT_CORPUS_NAME = os.environ.get("DEFAULT_CORPUS_NAME", "ai-books")

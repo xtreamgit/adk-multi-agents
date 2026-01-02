@@ -70,18 +70,19 @@ ROLES = [
 ]
 
 # Default corpora
+# Note: Only reference existing corpora. Available: test-corpus, ai-books
 CORPORA = [
-    {
-        "name": "develom-general",
-        "display_name": "Develom General Knowledge",
-        "gcs_bucket": "develom-documents",
-        "description": "General knowledge base for Develom organization"
-    },
     {
         "name": "ai-books",
         "display_name": "AI Books Collection",
         "gcs_bucket": "ipad-book-collection",
         "description": "Collection of AI and technology books"
+    },
+    {
+        "name": "test-corpus",
+        "display_name": "Test Corpus",
+        "gcs_bucket": "test-bucket",
+        "description": "Test corpus for development"
     }
 ]
 
@@ -174,11 +175,11 @@ def seed_default_data():
     # Grant corpus access to groups
     logger.info("\n--- Granting Corpus Access ---")
     corpus_assignments = [
-        ("default-users", "develom-general", "read"),
-        ("develom-group", "develom-general", "write"),
-        ("develom-group", "ai-books", "read"),
-        ("admin-users", "develom-general", "admin"),
-        ("admin-users", "ai-books", "admin")
+        ("default-users", "ai-books", "read"),
+        ("develom-group", "ai-books", "write"),
+        ("develom-group", "test-corpus", "read"),
+        ("admin-users", "ai-books", "admin"),
+        ("admin-users", "test-corpus", "admin")
     ]
     
     for group_name, corpus_name, permission in corpus_assignments:
