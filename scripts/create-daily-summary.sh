@@ -22,6 +22,9 @@ TODAY=$(date +%Y-%m-%d)
 READABLE_DATE=$(date +"%B %d, %Y")  # e.g., "January 06, 2026"
 START_TIME=$(date +"%I:%M %p")      # e.g., "09:38 AM"
 
+# Date-based folder for today's documents
+DATE_FOLDER="$OUTPUT_DIR/$TODAY"
+
 # Output file
 OUTPUT_FILE="$OUTPUT_DIR/SESSION_SUMMARY_${TODAY}.md"
 
@@ -30,6 +33,18 @@ if [ ! -f "$TEMPLATE_FILE" ]; then
     echo -e "${YELLOW}Error: Template file not found at $TEMPLATE_FILE${NC}"
     exit 1
 fi
+
+# Create output directory if it doesn't exist
+mkdir -p "$OUTPUT_DIR"
+
+# Create date-based folder for today's documents
+if [ ! -d "$DATE_FOLDER" ]; then
+    mkdir -p "$DATE_FOLDER"
+    echo -e "${GREEN}📁 Created folder: $DATE_FOLDER${NC}"
+else
+    echo -e "${BLUE}📁 Using existing folder: $DATE_FOLDER${NC}"
+fi
+echo ""
 
 # Check if today's summary already exists
 if [ -f "$OUTPUT_FILE" ]; then
@@ -51,9 +66,6 @@ if [ -f "$OUTPUT_FILE" ]; then
         exit 0
     fi
 fi
-
-# Create output directory if it doesn't exist
-mkdir -p "$OUTPUT_DIR"
 
 # Copy template and replace placeholders
 echo -e "${BLUE}📝 Creating session summary for $READABLE_DATE...${NC}"
