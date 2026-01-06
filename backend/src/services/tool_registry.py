@@ -22,6 +22,7 @@ def register_tools():
     
     try:
         from rag_agent.tools.rag_query import rag_query
+        from rag_agent.tools.rag_multi_query import rag_multi_query
         from rag_agent.tools.list_corpora import list_corpora
         from rag_agent.tools.create_corpus import create_corpus
         from rag_agent.tools.add_data import add_data
@@ -31,6 +32,7 @@ def register_tools():
         
         TOOL_REGISTRY.update({
             "rag_query": rag_query,
+            "rag_multi_query": rag_multi_query,
             "list_corpora": list_corpora,
             "create_corpus": create_corpus,
             "add_data": add_data,
