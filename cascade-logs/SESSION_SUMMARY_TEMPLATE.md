@@ -2,31 +2,37 @@
 
 ## ⚠️ **Daily Startup Checklist**
 
-Before starting development, ensure the following are running:
+Run these commands each morning to begin your coding session:
 
-### 1. **Login to Google Cloud**
+### 1. **Create Session Summary**
+```bash
+start
+```
+Creates today's session summary file automatically (alias for create-daily-summary.sh).
+
+### 2. **Login to Google Cloud**
 ```bash
 gcloud auth application-default login
 ```
 Required for Vertex AI RAG access (document counts, corpus operations).
 
-### 2. **Start Backend Server**
+### 3. **Start Backend Server**
 ```bash
-cd backend
+cd ~/github.com/xtreamgit/adk-multi-agents/backend
 python -m uvicorn src.api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 - Server: `http://localhost:8000`
 - Keep terminal open or run in background
 
-### 3. **Start Frontend Development Server**
+### 4. **Start Frontend Development Server** (new terminal)
 ```bash
-cd frontend
+cd ~/github.com/xtreamgit/adk-multi-agents/frontend
 npm run dev
 ```
 - Frontend: `http://localhost:3000`
 - Keep terminal open
 
-### 4. **Verify Everything is Running**
+### 5. **Verify Everything is Running**
 ```bash
 # Backend health check
 curl http://localhost:8000/api/health
