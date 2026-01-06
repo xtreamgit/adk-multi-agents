@@ -5,6 +5,43 @@ This session focused on implementing a multi-select corpus selector UI, adding d
 
 ---
 
+## ⚠️ **IMPORTANT: Daily Startup Checklist**
+
+Before starting development each day, run these commands in order:
+
+### 1. **Login to Google Cloud**
+```bash
+gcloud auth application-default login
+```
+This is required for Vertex AI RAG access (document counts, corpus operations).
+
+### 2. **Start Backend Server**
+```bash
+cd backend
+python -m uvicorn src.api.server:app --host 0.0.0.0 --port 8000 --reload
+```
+- Server runs on: `http://localhost:8000`
+- Keep this terminal open (or run in background)
+
+### 3. **Start Frontend Development Server**
+```bash
+cd frontend
+npm run dev
+```
+- Frontend runs on: `http://localhost:3000`
+- Keep this terminal open
+
+### 4. **Verify Everything is Running**
+- Backend health: `curl http://localhost:8000/api/health`
+- Frontend: Open browser to `http://localhost:3000`
+
+**Common Issues:**
+- "Load failed" in console → Backend not running (see step 2)
+- "Connection refused" → Wrong port or server not started
+- Document counts show 0 → Not logged into Google Cloud (see step 1)
+
+---
+
 ## 🎯 Major Features Implemented
 
 ### 1. Multi-Select Corpus Selector with Checkbox UI
