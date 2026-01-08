@@ -24,6 +24,7 @@ export default function Home() {
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [chatInputValue, setChatInputValue] = useState('');
   const [selectedCorpora, setSelectedCorpora] = useState<string[]>([]);
+  const [isSavingCorpora, setIsSavingCorpora] = useState(false);
   const [showChatInterface, setShowChatInterface] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -221,6 +222,33 @@ export default function Home() {
     setShowWelcome(false);
   };
 
+  // Auto-save corpus selection to backend preferences
+  const handleCorporaChange = async (newCorpora: string[]) => {
+    setSelectedCorpora(newCorpora);
+    
+    // Don't save for guest users
+    if (!user || user.username === 'guest') {
+      return;
+    }
+    
+    // Auto-save to backend
+    if (!isSavingCorpora) {
+      setIsSavingCorpora(true);
+      try {
+        await apiClient.updateProfile({
+          preferences: {
+            selected_corpora: newCorpora
+          }
+        });
+        console.log('✅ Corpus selection saved:', newCorpora);
+      } catch (error) {
+        console.error('❌ Failed to save corpus selection:', error);
+      } finally {
+        setIsSavingCorpora(false);
+      }
+    }
+  };
+
   const handleNewChat = async () => {
     setShowChatInterface(false);
     setChatInputValue('');
@@ -378,7 +406,7 @@ export default function Home() {
           <div className="p-4 border-t border-gray-200 flex-1 overflow-y-auto">
             <CorpusSelector 
               selectedCorpora={selectedCorpora}
-              onCorporaChange={setSelectedCorpora}
+              onCorporaChange={handleCorporaChange}
             />
           </div>
 
@@ -514,7 +542,7 @@ export default function Home() {
         <div className="p-4 border-t border-gray-200 flex-1 overflow-y-auto">
           <CorpusSelector 
             selectedCorpora={selectedCorpora}
-            onCorporaChange={setSelectedCorpora}
+            onCorporaChange={handleCorporaChange}
           />
         </div>
 
