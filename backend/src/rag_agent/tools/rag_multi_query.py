@@ -7,7 +7,7 @@ this tool queries each corpus in parallel and merges the results with source att
 
 import asyncio
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from google.adk.tools.tool_context import ToolContext
 import vertexai
@@ -115,7 +115,7 @@ def rag_multi_query(
     corpus_names: List[str],
     query: str,
     tool_context: ToolContext,
-    top_k: int = None,
+    top_k: Optional[int] = None,
 ) -> dict:
     """
     Query multiple Vertex AI RAG corpora in parallel and merge results.
