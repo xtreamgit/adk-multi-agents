@@ -374,6 +374,14 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Corpus Selector */}
+          <div className="p-4 border-t border-gray-200 flex-1 overflow-y-auto">
+            <CorpusSelector 
+              selectedCorpora={selectedCorpora}
+              onCorporaChange={setSelectedCorpora}
+            />
+          </div>
+
           {/* Chats Section */}
           <div className="p-4 border-t border-gray-200">
             <button className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">

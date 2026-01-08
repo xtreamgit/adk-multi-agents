@@ -175,7 +175,8 @@ class CorpusService:
     
     @staticmethod
     def get_user_corpora(user_id: int, active_only: bool = True, 
-                        active_in_session: Optional[List[int]] = None) -> List[CorpusWithAccess]:
+                        active_in_session: Optional[List[int]] = None,
+                        validate_with_vertex: bool = True) -> List[CorpusWithAccess]:
         """
         Get all corpora a user has access to.
         
@@ -183,11 +184,33 @@ class CorpusService:
             user_id: User ID
             active_only: Only return active corpora
             active_in_session: List of corpus IDs that are active in the session
+            validate_with_vertex: If True, only return corpora that exist in Vertex AI
             
         Returns:
             List of CorpusWithAccess objects
         """
         corpora_dict = CorpusRepository.get_user_corpora(user_id, active_only=active_only)
+        
+        # Validate against Vertex AI if requested
+        if validate_with_vertex and VERTEX_AI_AVAILABLE:
+            try:
+                # Fetch corpus names from Vertex AI
+                vertex_corpora = list(rag.list_corpora())
+                vertex_corpus_names = {corpus.display_name for corpus in vertex_corpora}
+                
+                # Filter out corpora that don't exist in Vertex AI
+                before_count = len(corpora_dict)
+                corpora_dict = [
+                    c for c in corpora_dict 
+                    if c['display_name'] in vertex_corpus_names
+                ]
+                filtered_count = before_count - len(corpora_dict)
+                
+                if filtered_count > 0:
+                    logger.info(f"Filtered {filtered_count} corpus/corpora not found in Vertex AI")
+            except Exception as e:
+                logger.warning(f"Failed to validate corpora with Vertex AI: {e}")
+                # Continue with unvalidated list if Vertex AI check fails
         
         active_set = set(active_in_session) if active_in_session else set()
         
