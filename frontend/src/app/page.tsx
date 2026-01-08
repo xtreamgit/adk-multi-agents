@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { User, apiClient } from '../lib/api-enhanced';
 import { AgentKey } from '../lib/api';
 import LoginForm from '../components/LoginForm';
 import ChatInterface from '../components/ChatInterface';
 import UserProfilePanel from '../components/UserProfilePanel';
+import WelcomeModal from '../components/WelcomeModal';
 import Image from 'next/image';
 
 // UserProfile type for legacy compatibility
@@ -15,6 +17,7 @@ type UserProfile = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
@@ -36,24 +39,9 @@ export default function Home() {
   } | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<AgentKey>('default');
   const [currentAgent, setCurrentAgent] = useState<{id: number, name: string, display_name: string} | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
 
-  const makeGuest = () => {
-    const guest: User = {
-      id: 0,
-      username: 'guest',
-      email: 'guest@example.com',
-      full_name: 'Guest User',
-      is_active: true,
-      default_agent_id: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_login: null,
-    };
-    setUser(guest);
-    setUserProfile({ name: guest.full_name, preferences: '' });
-  };
-
-  // Check for existing authentication on component mount; if none, default to guest
+  // Check for existing authentication on component mount; redirect to landing if not authenticated
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -84,17 +72,23 @@ export default function Home() {
           } catch (err) {
             console.error('Failed to load user agents:', err);
           }
+          
+          // Check if this is first-time user (check localStorage)
+          const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+          if (!hasSeenWelcome) {
+            setShowWelcome(true);
+          }
+          
+          setIsLoading(false);
         } else {
-          // No token present: operate as guest by default
-          makeGuest();
+          // No token present: redirect to landing page
+          router.push('/landing');
         }
       } catch (error) {
         console.error('Auth verification failed:', error);
         apiClient.clearToken();
-        // Fall back to guest on verification failure
-        makeGuest();
-      } finally {
-        setIsLoading(false);
+        // Redirect to landing on verification failure
+        router.push('/landing');
       }
     };
 
@@ -106,7 +100,7 @@ export default function Home() {
     }
 
     checkAuth();
-  }, []);
+  }, [router]);
 
   const handleAgentChange = (agent: AgentKey) => {
     setSelectedAgent(agent);
@@ -144,12 +138,8 @@ export default function Home() {
 
   const handleLogout = () => {
     apiClient.logout();
-    // Keep user as guest instead of showing login
-    makeGuest();
-    setShowChatInterface(false);
-    setChatInputValue('');
-    setSelectedCorpora([]);
-    setSessionId(null);
+    // Redirect to landing page after logout
+    router.push('/landing');
   };
 
   const handleProfileSubmit = (profile: UserProfile) => {
@@ -223,6 +213,11 @@ export default function Home() {
       setShouldAutoSubmit(true);
       setShowChatInterface(true);
     }
+  };
+
+  const handleDismissWelcome = () => {
+    localStorage.setItem('hasSeenWelcome', 'true');
+    setShowWelcome(false);
   };
 
   const handleNewChat = async () => {
@@ -320,6 +315,10 @@ export default function Home() {
   // Show chat interface if user has started chatting
   if (showChatInterface) {
     return (
+      <>
+        {showWelcome && user && (
+          <WelcomeModal onDismiss={handleDismissWelcome} userName={user.full_name} />
+        )}
       <div className="flex h-screen bg-gray-50">
         {/* Left Sidebar - Navigation and Corpus Selector */}
         <div className="w-80 bg-gray-100 border-r border-gray-200 flex flex-col">
