@@ -123,14 +123,8 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
     setError(null);
 
     try {
-      // Include corpus context in the message if corpora are selected
-      let messageText = userMessage.text;
-      if (selectedCorpora.length > 0) {
-        const corporaList = selectedCorpora.join(', ');
-        messageText = `[Using corpora: ${corporaList}] ${userMessage.text}`;
-      }
-      
-      const agentMessage = await apiClient.sendMessage(messageText, userProfile);
+      // Send the message with selected corpora
+      const agentMessage = await apiClient.sendMessage(userMessage.text, userProfile, selectedCorpora);
       setMessages(prev => [...prev, agentMessage]);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';

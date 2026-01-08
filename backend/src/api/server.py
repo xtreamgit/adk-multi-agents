@@ -182,6 +182,7 @@ class UserProfile(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     user_profile: Optional[UserProfile] = None
+    corpora: Optional[List[str]] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -766,6 +767,12 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         if chat_message.user_profile.preferences:
             user_context += f"Preferences: {chat_message.user_profile.preferences}\n"
         user_context += "\n\n"
+    
+    # Add corpus context if corpora are specified
+    if chat_message.corpora and len(chat_message.corpora) > 0:
+        corpus_list = ", ".join(chat_message.corpora)
+        user_context += f"IMPORTANT: The user has selected the following corpora to search: [{corpus_list}]\n"
+        user_context += f"You MUST use the rag_multi_query tool with corpus_names=[{', '.join([f'\'{c}\'' for c in chat_message.corpora])}] to search across all these corpora.\n\n"
     
     # Combine user context with the message
     full_message = user_context + chat_message.message

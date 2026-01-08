@@ -462,7 +462,7 @@ class EnhancedApiClient {
     return sessionInfo;
   }
 
-  async sendMessage(text: string, userProfile?: any): Promise<Message> {
+  async sendMessage(text: string, userProfile?: any, selectedCorpora?: string[]): Promise<Message> {
     if (!this.sessionId) {
       await this.createSession(userProfile);
     }
@@ -473,6 +473,7 @@ class EnhancedApiClient {
       body: JSON.stringify({
         message: text,
         user_profile: userProfile,
+        corpora: selectedCorpora || [],
       }),
     });
 
