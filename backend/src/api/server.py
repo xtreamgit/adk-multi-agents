@@ -771,8 +771,12 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     # Add corpus context if corpora are specified
     if chat_message.corpora and len(chat_message.corpora) > 0:
         corpus_list = ", ".join(chat_message.corpora)
-        user_context += f"IMPORTANT: The user has selected the following corpora to search: [{corpus_list}]\n"
-        user_context += f"You MUST use the rag_multi_query tool with corpus_names=[{', '.join([f'\'{c}\'' for c in chat_message.corpora])}] to search across all these corpora.\n\n"
+        logging.info(f"[CORPUS DEBUG] User selected {len(chat_message.corpora)} corpora: {corpus_list}")
+        user_context += f"CRITICAL INSTRUCTION: The user has selected {len(chat_message.corpora)} corpora to search: {corpus_list}\n"
+        user_context += f"You MUST use the rag_multi_query tool (NOT rag_query) with these exact corpus names: {chat_message.corpora}\n"
+        user_context += f"Do NOT search only 'ai-books'. Search ALL of the user's selected corpora.\n\n"
+    else:
+        logging.info("[CORPUS DEBUG] No corpora specified in request")
     
     # Combine user context with the message
     full_message = user_context + chat_message.message
