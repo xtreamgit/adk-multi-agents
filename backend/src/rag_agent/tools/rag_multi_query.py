@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from typing import List, Dict, Any, Optional
-from google.adk import ToolContext
+from google.adk.tools.tool_context import ToolContext
 import vertexai
 from vertexai.preview import rag
 import os
