@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from typing import List, Dict, Any, Optional
-from adk import ToolContext
+from google.adk import ToolContext
 import vertexai
 from vertexai.preview import rag
 import os
@@ -60,40 +60,71 @@ def _query_single_corpus(
                 text=query,
                 rag_retrieval_config=rag_retrieval_config,
             )
-        
-        results = []
-        if hasattr(response, "contexts") and response.contexts:
-            for ctx_group in response.contexts.contexts:
-                result = {
-                    "source_uri": (
-                        ctx_group.source_uri if hasattr(ctx_group, "source_uri") else ""
-                    ),
-                    "source_name": (
-                        ctx_group.source_display_name
-                        if hasattr(ctx_group, "source_display_name")
-                        else ""
-                    ),
-                    "text": ctx_group.text if hasattr(ctx_group, "text") else "",
-                    "score": ctx_group.score if hasattr(ctx_group, "score") else 0.0,
-                    "corpus_source": corpus_name,
+            
+            # Success - extract results and return
+            results = []
+            if hasattr(response, "contexts") and response.contexts:
+                for ctx_group in response.contexts.contexts:
+                    result = {
+                        "source_uri": (
+                            ctx_group.source_uri if hasattr(ctx_group, "source_uri") else ""
+                        ),
+                        "source_name": (
+                            ctx_group.source_display_name
+                            if hasattr(ctx_group, "source_display_name")
+                            else ""
+                        ),
+                        "text": ctx_group.text if hasattr(ctx_group, "text") else "",
+                        "score": ctx_group.score if hasattr(ctx_group, "score") else 0.0,
+                        "corpus_source": corpus_name,
+                    }
+                    results.append(result)
+            
+            return {
+                "corpus_name": corpus_name,
+                "status": "success",
+                "results": results,
+                "error": None,
+            }
+            
+        except google_exceptions.ResourceExhausted as e:
+            # 429 RESOURCE_EXHAUSTED - retry with exponential backoff
+            if attempt < max_retries:
+                wait_time = (2 ** attempt) + (0.1 * attempt)  # Exponential backoff: 1s, 2.1s, 4.2s
+                logging.warning(
+                    f"Rate limit hit for corpus '{corpus_name}' (attempt {attempt + 1}/{max_retries + 1}). "
+                    f"Retrying in {wait_time:.1f}s..."
+                )
+                time.sleep(wait_time)
+                continue
+            else:
+                # Max retries exceeded
+                error_msg = f"Rate limit exceeded after {max_retries + 1} attempts: {str(e)}"
+                logging.error(f"Error querying corpus '{corpus_name}': {error_msg}")
+                return {
+                    "corpus_name": corpus_name,
+                    "status": "error",
+                    "results": [],
+                    "error": error_msg,
                 }
-                results.append(result)
         
-        return {
-            "corpus_name": corpus_name,
-            "status": "success",
-            "results": results,
-            "error": None,
-        }
-        
-    except Exception as e:
-        logging.error(f"Error querying corpus '{corpus_name}': {str(e)}")
-        return {
-            "corpus_name": corpus_name,
-            "status": "error",
-            "results": [],
-            "error": str(e),
-        }
+        except Exception as e:
+            # Other errors - don't retry
+            logging.error(f"Error querying corpus '{corpus_name}': {str(e)}")
+            return {
+                "corpus_name": corpus_name,
+                "status": "error",
+                "results": [],
+                "error": str(e),
+            }
+    
+    # Should never reach here, but just in case
+    return {
+        "corpus_name": corpus_name,
+        "status": "error",
+        "results": [],
+        "error": "Unknown error: max retries logic failed",
+    }
 
 
 async def _query_corpus_async(
