@@ -75,6 +75,17 @@ export default function Home() {
             console.error('Failed to load user agents:', err);
           }
           
+          // Load saved corpus preferences
+          try {
+            const profile = await apiClient.getMyProfile();
+            if (profile.profile?.preferences?.selected_corpora) {
+              setSelectedCorpora(profile.profile.preferences.selected_corpora);
+              console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
+            }
+          } catch (err) {
+            console.error('Failed to load corpus preferences:', err);
+          }
+          
           // Check if this is first-time user (check localStorage)
           const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
           if (!hasSeenWelcome) {
@@ -123,6 +134,17 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Failed to load user agents after login:', err);
+    }
+    
+    // Load saved corpus preferences
+    try {
+      const profile = await apiClient.getMyProfile();
+      if (profile.profile?.preferences?.selected_corpora) {
+        setSelectedCorpora(profile.profile.preferences.selected_corpora);
+        console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
+      }
+    } catch (err) {
+      console.error('Failed to load corpus preferences:', err);
     }
     
     // Create session immediately after login
