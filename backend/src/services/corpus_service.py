@@ -196,13 +196,14 @@ class CorpusService:
             try:
                 # Fetch corpus names from Vertex AI
                 vertex_corpora = list(rag.list_corpora())
+                # Use corpus.display_name from Vertex AI (which matches our 'name' field in DB)
                 vertex_corpus_names = {corpus.display_name for corpus in vertex_corpora}
                 
                 # Filter out corpora that don't exist in Vertex AI
                 before_count = len(corpora_dict)
                 corpora_dict = [
                     c for c in corpora_dict 
-                    if c['display_name'] in vertex_corpus_names
+                    if c['name'] in vertex_corpus_names  # Compare 'name' not 'display_name'
                 ]
                 filtered_count = before_count - len(corpora_dict)
                 
@@ -257,12 +258,13 @@ class CorpusService:
         if validate_with_vertex and VERTEX_AI_AVAILABLE:
             try:
                 vertex_corpora = list(rag.list_corpora())
+                # Use corpus.display_name from Vertex AI (which matches our 'name' field in DB)
                 vertex_corpus_names = {corpus.display_name for corpus in vertex_corpora}
                 
                 before_count = len(all_corpora_dict)
                 all_corpora_dict = [
                     c for c in all_corpora_dict 
-                    if c['display_name'] in vertex_corpus_names
+                    if c['name'] in vertex_corpus_names  # Compare 'name' not 'display_name'
                 ]
                 filtered_count = before_count - len(all_corpora_dict)
                 
