@@ -174,3 +174,56 @@ class UserService:
         if success:
             logger.info(f"User {user_id} removed from group {group_id}")
         return success
+    
+    @staticmethod
+    def save_corpus_selection(user_id: int, corpus_names: List[str]) -> Optional[UserProfile]:
+        """
+        Save user's selected corpora to preferences.
+        
+        Args:
+            user_id: User ID
+            corpus_names: List of corpus names to save
+            
+        Returns:
+            Updated UserProfile object or None if failed
+        """
+        # Get current profile
+        profile = UserService.get_user_profile(user_id)
+        if not profile:
+            # Create profile if it doesn't exist
+            UserRepository.create_profile(user_id)
+            profile = UserService.get_user_profile(user_id)
+        
+        # Update preferences with selected corpora
+        current_prefs = profile.preferences or {}
+        current_prefs['selected_corpora'] = corpus_names
+        
+        # Update profile
+        profile_update = UserProfileUpdate(preferences=current_prefs)
+        updated_profile = UserService.update_user_profile(user_id, profile_update)
+        
+        if updated_profile:
+            logger.info(f"Saved corpus selection for user {user_id}: {corpus_names}")
+        else:
+            logger.error(f"Failed to save corpus selection for user {user_id}")
+        
+        return updated_profile
+    
+    @staticmethod
+    def get_corpus_selection(user_id: int) -> List[str]:
+        """
+        Get user's saved corpus selection.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            List of corpus names (empty list if none saved)
+        """
+        profile = UserService.get_user_profile(user_id)
+        if not profile or not profile.preferences:
+            return []
+        
+        corpus_list = profile.preferences.get('selected_corpora', [])
+        logger.debug(f"Retrieved corpus selection for user {user_id}: {corpus_list}")
+        return corpus_list if isinstance(corpus_list, list) else []
