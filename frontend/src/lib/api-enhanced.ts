@@ -467,6 +467,8 @@ class EnhancedApiClient {
       await this.createSession(userProfile);
     }
 
+    console.log('[API DEBUG] Sending message with corpora:', selectedCorpora);
+    
     const response = await fetch(this.buildUrl(`/api/sessions/${this.sessionId}/chat`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
