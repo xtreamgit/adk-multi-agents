@@ -43,6 +43,17 @@ async def list_my_corpora(current_user: User = Depends(get_current_user)):
     return CorpusService.get_user_corpora(current_user.id, active_only=True)
 
 
+@router.get("/all-with-access", response_model=List[CorpusWithAccess])
+async def list_all_corpora_with_access(current_user: User = Depends(get_current_user)):
+    """
+    Get all active corpora with access information for current user.
+    
+    Returns all corpora regardless of access, with has_access flag indicating
+    whether the current user can use each corpus.
+    """
+    return CorpusService.get_all_corpora_with_user_access(current_user.id, active_only=True)
+
+
 @router.get("/all", response_model=List[Corpus])
 async def list_all_corpora(
     current_user: User = Depends(require_permission("manage:corpora"))

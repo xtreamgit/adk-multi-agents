@@ -234,6 +234,77 @@ class CorpusService:
         return corpora
     
     @staticmethod
+    def get_all_corpora_with_user_access(user_id: int, active_only: bool = True,
+                                        validate_with_vertex: bool = True) -> List[CorpusWithAccess]:
+        """
+        Get all corpora with access information for a specific user.
+        
+        Returns all corpora (not just accessible ones) with has_access flag
+        indicating whether the user can use each corpus.
+        
+        Args:
+            user_id: User ID
+            active_only: Only return active corpora
+            validate_with_vertex: If True, only return corpora that exist in Vertex AI
+            
+        Returns:
+            List of CorpusWithAccess objects with has_access flag for each
+        """
+        # Get all active corpora
+        all_corpora_dict = CorpusRepository.get_all(active_only=active_only)
+        
+        # Validate against Vertex AI if requested
+        if validate_with_vertex and VERTEX_AI_AVAILABLE:
+            try:
+                vertex_corpora = list(rag.list_corpora())
+                vertex_corpus_names = {corpus.display_name for corpus in vertex_corpora}
+                
+                before_count = len(all_corpora_dict)
+                all_corpora_dict = [
+                    c for c in all_corpora_dict 
+                    if c['display_name'] in vertex_corpus_names
+                ]
+                filtered_count = before_count - len(all_corpora_dict)
+                
+                if filtered_count > 0:
+                    logger.info(f"Filtered {filtered_count} corpus/corpora not found in Vertex AI")
+            except Exception as e:
+                logger.warning(f"Failed to validate corpora with Vertex AI: {e}")
+        
+        # Get user's accessible corpus IDs
+        user_corpora = CorpusRepository.get_user_corpora(user_id, active_only=active_only)
+        accessible_corpus_ids = {c['id'] for c in user_corpora}
+        
+        # Build result with access information
+        corpora = []
+        for corpus_data in all_corpora_dict:
+            corpus_id = corpus_data['id']
+            has_access = corpus_id in accessible_corpus_ids
+            
+            # Get permission if user has access
+            permission = None
+            if has_access:
+                user_corpus = next((c for c in user_corpora if c['id'] == corpus_id), None)
+                permission = user_corpus.get('permission') if user_corpus else None
+            
+            # Fetch document count from Vertex AI
+            doc_count = CorpusService._get_document_count(
+                corpus_data.get('name', ''),
+                corpus_data.get('vertex_corpus_id')
+            )
+            
+            corpus = CorpusWithAccess(
+                **{k: v for k, v in corpus_data.items() if k != 'permission'},
+                has_access=has_access,
+                permission=permission,
+                is_active_in_session=False,
+                document_count=doc_count
+            )
+            corpora.append(corpus)
+        
+        return corpora
+    
+    @staticmethod
     def validate_corpus_access(user_id: int, corpus_id: int) -> bool:
         """
         Check if user has access to a corpus.

@@ -395,6 +395,21 @@ class EnhancedApiClient {
     return await response.json();
   }
 
+  async getAllCorporaWithAccess(): Promise<Corpus[]> {
+    const response = await fetch(this.buildUrl('/api/corpora/all-with-access'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('All corpora fetch failed:', response.status, errorText);
+      throw new Error(`Failed to get all corpora: ${response.status} ${errorText}`);
+    }
+
+    return await response.json();
+  }
+
   async selectSessionCorpora(sessionId: string, corpusIds: number[]): Promise<void> {
     const response = await fetch(this.buildUrl(`/api/corpora/session/${sessionId}/select`), {
       method: 'POST',
