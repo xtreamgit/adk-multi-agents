@@ -8,6 +8,7 @@ import LoginForm from '../components/LoginForm';
 import ChatInterface from '../components/ChatInterface';
 import UserProfilePanel from '../components/UserProfilePanel';
 import WelcomeModal from '../components/WelcomeModal';
+import CorpusSelector from '../components/CorpusSelector';
 import Image from 'next/image';
 
 // UserProfile type for legacy compatibility
@@ -22,7 +23,7 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [chatInputValue, setChatInputValue] = useState('');
-  const [selectedCorpora, setSelectedCorpora] = useState<string[]>(['ai-books']);
+  const [selectedCorpora, setSelectedCorpora] = useState<string[]>([]);
   const [showChatInterface, setShowChatInterface] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -499,6 +500,14 @@ export default function Home() {
             </svg>
             <span>List Documents</span>
           </button>
+        </div>
+
+        {/* Corpus Selector */}
+        <div className="p-4 border-t border-gray-200 flex-1 overflow-y-auto">
+          <CorpusSelector 
+            selectedCorpora={selectedCorpora}
+            onCorporaChange={setSelectedCorpora}
+          />
         </div>
 
         {/* Chats Section */}

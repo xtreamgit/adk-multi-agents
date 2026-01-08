@@ -769,14 +769,25 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         user_context += "\n\n"
     
     # Add corpus context if corpora are specified
+    print(f"\n{'='*60}")
+    print(f"[CORPUS DEBUG] Received corpora from frontend: {chat_message.corpora}")
+    print(f"[CORPUS DEBUG] Corpora is None: {chat_message.corpora is None}")
+    print(f"[CORPUS DEBUG] Corpora length: {len(chat_message.corpora) if chat_message.corpora else 0}")
+    print(f"{'='*60}\n")
+    
     if chat_message.corpora and len(chat_message.corpora) > 0:
         corpus_list = ", ".join(chat_message.corpora)
         logging.info(f"[CORPUS DEBUG] User selected {len(chat_message.corpora)} corpora: {corpus_list}")
-        user_context += f"CRITICAL INSTRUCTION: The user has selected {len(chat_message.corpora)} corpora to search: {corpus_list}\n"
-        user_context += f"You MUST use the rag_multi_query tool (NOT rag_query) with these exact corpus names: {chat_message.corpora}\n"
-        user_context += f"Do NOT search only 'ai-books'. Search ALL of the user's selected corpora.\n\n"
+        user_context += f"\n{'='*80}\n"
+        user_context += f"CRITICAL INSTRUCTION - READ THIS CAREFULLY:\n"
+        user_context += f"The user has selected {len(chat_message.corpora)} corpora: {corpus_list}\n"
+        user_context += f"You MUST use rag_multi_query with corpus_names={chat_message.corpora}\n"
+        user_context += f"DO NOT use rag_query. DO NOT search only 'ai-books'.\n"
+        user_context += f"Search ALL {len(chat_message.corpora)} corpora simultaneously.\n"
+        user_context += f"{'='*80}\n\n"
     else:
         logging.info("[CORPUS DEBUG] No corpora specified in request")
+        print("[CORPUS DEBUG WARNING] No corpora received - will use default behavior")
     
     # Combine user context with the message
     full_message = user_context + chat_message.message
