@@ -7,13 +7,15 @@ this tool queries each corpus in parallel and merges the results with source att
 
 import asyncio
 import logging
+import time
 from typing import List, Dict, Any, Optional
-
-from google.adk.tools.tool_context import ToolContext
+from adk import ToolContext
 import vertexai
-from vertexai import rag
+from vertexai.preview import rag
+import os
+from google.api_core import exceptions as google_exceptions
 
-from ..config import PROJECT_ID, LOCATION, DEFAULT_DISTANCE_THRESHOLD, DEFAULT_TOP_K
+from rag_agent.config import PROJECT_ID, LOCATION, DEFAULT_DISTANCE_THRESHOLD, DEFAULT_TOP_K
 from .utils import check_corpus_exists, get_corpus_resource_name
 
 try:
@@ -31,30 +33,33 @@ def _query_single_corpus(
     corpus_name: str,
     query: str,
     rag_retrieval_config: rag.RagRetrievalConfig,
+    max_retries: int = 3,
 ) -> Dict[str, Any]:
     """
-    Query a single corpus synchronously.
+    Query a single corpus synchronously with retry logic.
     
     Args:
         corpus_name: Name of the corpus to query
         query: The search query
         rag_retrieval_config: Retrieval configuration
+        max_retries: Maximum number of retry attempts for rate limit errors
         
     Returns:
         Dict with results or error information
     """
-    try:
-        corpus_resource_name = get_corpus_resource_name(corpus_name)
-        
-        response = rag.retrieval_query(
-            rag_resources=[
-                rag.RagResource(
-                    rag_corpus=corpus_resource_name,
-                )
-            ],
-            text=query,
-            rag_retrieval_config=rag_retrieval_config,
-        )
+    corpus_resource_name = get_corpus_resource_name(corpus_name)
+    
+    for attempt in range(max_retries + 1):
+        try:
+            response = rag.retrieval_query(
+                rag_resources=[
+                    rag.RagResource(
+                        rag_corpus=corpus_resource_name,
+                    )
+                ],
+                text=query,
+                rag_retrieval_config=rag_retrieval_config,
+            )
         
         results = []
         if hasattr(response, "contexts") and response.contexts:
