@@ -284,7 +284,7 @@ if config_path not in sys.path:
 if backend_root not in sys.path:
     sys.path.insert(0, backend_root)
 
-from config_loader import load_agent, load_config
+from config_loader import load_config
 
 # Get account environment (defaults to 'develom')
 account_env = os.environ.get("ACCOUNT_ENV", "develom")
@@ -328,17 +328,14 @@ if AGENT_MANAGER_AVAILABLE:
         root_agent, _ = agent_manager.get_agent_by_id(1)  # Default agent
         print(f"✅ Loaded default agent: {root_agent.name} with {len(root_agent.tools)} tools")
     except Exception as e:
-        print(f"⚠️  Could not load default agent: {e}")
-        print("   Falling back to static agent loading")
-        agent_module = load_agent(account_env)
-        root_agent = agent_module.root_agent
-        agent_manager = None
+        print(f"❌ Could not load default agent from AgentManager: {e}")
+        print("   CRITICAL: AgentManager is required for agent loading")
+        raise RuntimeError(f"Failed to load agent: {e}")
 else:
-    # Fallback to static agent loading
-    agent_module = load_agent(account_env)
-    root_agent = agent_module.root_agent
-    print(f"✅ Loaded static agent: {root_agent.name} with {len(root_agent.tools)} tools")
-    agent_manager = None
+    # AgentManager is required - no fallback
+    print("❌ AgentManager not available")
+    print("   Please run database migrations: python src/database/migrations/run_migrations.py")
+    raise RuntimeError("AgentManager is required but not available")
 
 session_service = InMemorySessionService()
 runner = Runner(agent=root_agent, app_name="rag_agent_api", session_service=session_service)
