@@ -188,17 +188,31 @@ def rag_multi_query(
         
         print(f"Querying {len(validated_corpora)} corpora in parallel...")
         
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
+        # Check if there's already a running event loop
         try:
-            tasks = [
-                _query_corpus_async(corpus_name, query, rag_retrieval_config)
-                for corpus_name in validated_corpora
-            ]
-            corpus_results = loop.run_until_complete(asyncio.gather(*tasks))
-        finally:
-            loop.close()
+            loop = asyncio.get_running_loop()
+            # If we're already in an async context, we need to create tasks differently
+            # Use run_in_executor to avoid "loop is already running" error
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = [
+                    executor.submit(_query_single_corpus, corpus_name, query, rag_retrieval_config)
+                    for corpus_name in validated_corpora
+                ]
+                corpus_results = [future.result() for future in futures]
+        except RuntimeError:
+            # No event loop running, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                tasks = [
+                    _query_corpus_async(corpus_name, query, rag_retrieval_config)
+                    for corpus_name in validated_corpora
+                ]
+                corpus_results = loop.run_until_complete(asyncio.gather(*tasks))
+            finally:
+                loop.close()
         
         all_results = []
         failed_corpora = []
