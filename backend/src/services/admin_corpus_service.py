@@ -89,7 +89,7 @@ class AdminCorpusService:
             metadata = CorpusMetadataRepository.get_by_corpus_id(corpus_id)
         
         # Get groups with access
-        groups = GroupCorpusAccessRepository.get_groups_for_corpus(corpus_id)
+        groups = CorpusRepository.get_groups_for_corpus(corpus_id)
         groups_with_access = []
         for group_access in groups:
             group = GroupRepository.get_group_by_id(group_access['group_id'])
