@@ -21,7 +21,6 @@ interface User {
 }
 
 export default function SessionsPage() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userSessions, setUserSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
