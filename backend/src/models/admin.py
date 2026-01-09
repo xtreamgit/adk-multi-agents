@@ -4,7 +4,7 @@ Admin panel data models.
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 
 
 class AuditLogEntry(BaseModel):
@@ -127,3 +127,42 @@ class CorpusSyncSchedule(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminUserDetail(BaseModel):
+    """Detailed user information for admin panel."""
+    id: int
+    username: str
+    email: EmailStr
+    full_name: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    last_login: Optional[datetime] = None
+    groups: List[Dict[str, Any]] = []  # List of group info
+
+    class Config:
+        from_attributes = True
+
+
+class AdminUserCreate(BaseModel):
+    """Model for admin creating a new user."""
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
+    full_name: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=8)
+    group_ids: List[int] = []  # Initial group assignments
+
+
+class AdminUserUpdate(BaseModel):
+    """Model for admin updating a user."""
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    is_active: Optional[bool] = None
+    password: Optional[str] = Field(None, min_length=8)  # For password reset
+
+
+class UserGroupAssignment(BaseModel):
+    """Model for assigning/removing user from groups."""
+    user_id: int
+    group_id: int

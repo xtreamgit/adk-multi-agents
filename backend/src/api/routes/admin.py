@@ -18,10 +18,14 @@ from models.admin import (
     BulkOperationResult,
     PermissionGrantRequest,
     SyncResult,
+    AdminUserDetail,
+    AdminUserCreate,
+    AdminUserUpdate,
+    UserGroupAssignment,
 )
 from services.admin_corpus_service import AdminCorpusService
 from services.bulk_operation_service import BulkOperationService
-from database.repositories import AuditRepository, CorpusMetadataRepository, CorpusRepository
+from database.repositories import AuditRepository, CorpusMetadataRepository, CorpusRepository, UserRepository
 from database.repositories.group_repository import GroupRepository
 
 logger = logging.getLogger(__name__)
@@ -414,3 +418,375 @@ async def trigger_corpus_sync(
     except Exception as e:
         logger.error(f"Failed to sync corpora: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========== User Management Endpoints ==========
+
+@router.get("/users", response_model=List[AdminUserDetail])
+async def list_all_users(
+    current_user: User = Depends(require_admin)
+):
+    """Get all users with their group memberships."""
+    try:
+        from services.user_service import UserService
+        
+        users = UserService.get_all_users()
+        user_details = []
+        
+        for user in users:
+            # Get user's groups
+            group_ids = UserService.get_user_groups(user.id)
+            groups = []
+            for gid in group_ids:
+                group = GroupRepository.get_group_by_id(gid)
+                if group:
+                    groups.append({
+                        'id': group['id'],
+                        'name': group['name'],
+                        'description': group.get('description', '')
+                    })
+            
+            user_details.append(AdminUserDetail(
+                id=user.id,
+                username=user.username,
+                email=user.email,
+                full_name=user.full_name,
+                is_active=user.is_active,
+                created_at=user.created_at,
+                updated_at=user.updated_at,
+                last_login=user.last_login,
+                groups=groups
+            ))
+        
+        return user_details
+    except Exception as e:
+        logger.error(f"Failed to list users: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")
+
+
+@router.post("/users", response_model=AdminUserDetail, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    user_create: AdminUserCreate,
+    current_user: User = Depends(require_admin)
+):
+    """Create a new user (admin only)."""
+    try:
+        from services.user_service import UserService
+        from models.user import UserCreate
+        
+        # Create the user
+        new_user = UserService.create_user(UserCreate(
+            username=user_create.username,
+            email=user_create.email,
+            full_name=user_create.full_name,
+            password=user_create.password
+        ))
+        
+        if not new_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to create user (username or email may already exist)"
+            )
+        
+        # Add user to initial groups
+        for group_id in user_create.group_ids:
+            UserService.add_user_to_group(new_user.id, group_id)
+        
+        # Log the action
+        AuditRepository.create({
+            'user_id': current_user.id,
+            'action': 'created_user',
+            'changes': {
+                'new_user_id': new_user.id,
+                'username': new_user.username,
+                'groups': user_create.group_ids
+            },
+            'metadata': {'operation': 'user_create'}
+        })
+        
+        # Get groups for response
+        group_ids = UserService.get_user_groups(new_user.id)
+        groups = []
+        for gid in group_ids:
+            group = GroupRepository.get_group_by_id(gid)
+            if group:
+                groups.append({
+                    'id': group['id'],
+                    'name': group['name'],
+                    'description': group.get('description', '')
+                })
+        
+        return AdminUserDetail(
+            id=new_user.id,
+            username=new_user.username,
+            email=new_user.email,
+            full_name=new_user.full_name,
+            is_active=new_user.is_active,
+            created_at=new_user.created_at,
+            updated_at=new_user.updated_at,
+            last_login=new_user.last_login,
+            groups=groups
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create user: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+
+
+@router.put("/users/{user_id}", response_model=AdminUserDetail)
+async def update_user(
+    user_id: int,
+    user_update: AdminUserUpdate,
+    current_user: User = Depends(require_admin)
+):
+    """Update user information (admin only)."""
+    try:
+        from services.user_service import UserService
+        from models.user import UserUpdate as BaseUserUpdate
+        
+        # Get existing user
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Update basic user info
+        update_data = {}
+        if user_update.email is not None:
+            update_data['email'] = user_update.email
+        if user_update.full_name is not None:
+            update_data['full_name'] = user_update.full_name
+        if user_update.is_active is not None:
+            update_data['is_active'] = user_update.is_active
+        
+        if update_data:
+            updated_user = UserService.update_user(user_id, BaseUserUpdate(**update_data))
+            if not updated_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to update user"
+                )
+        else:
+            updated_user = user
+        
+        # Handle password reset if provided
+        if user_update.password:
+            from passlib.context import CryptContext
+            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            hashed_password = pwd_context.hash(user_update.password)
+            
+            from database.repositories import UserRepository
+            UserRepository.update_password(user_id, hashed_password)
+        
+        # Log the action
+        AuditRepository.create({
+            'user_id': current_user.id,
+            'action': 'updated_user',
+            'changes': {
+                'target_user_id': user_id,
+                'updates': update_data,
+                'password_reset': bool(user_update.password)
+            },
+            'metadata': {'operation': 'user_update'}
+        })
+        
+        # Get groups for response
+        group_ids = UserService.get_user_groups(updated_user.id)
+        groups = []
+        for gid in group_ids:
+            group = GroupRepository.get_group_by_id(gid)
+            if group:
+                groups.append({
+                    'id': group['id'],
+                    'name': group['name'],
+                    'description': group.get('description', '')
+                })
+        
+        return AdminUserDetail(
+            id=updated_user.id,
+            username=updated_user.username,
+            email=updated_user.email,
+            full_name=updated_user.full_name,
+            is_active=updated_user.is_active,
+            created_at=updated_user.created_at,
+            updated_at=updated_user.updated_at,
+            last_login=updated_user.last_login,
+            groups=groups
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update user: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update user: {str(e)}")
+
+
+@router.post("/users/{user_id}/groups/{group_id}")
+async def assign_user_to_group(
+    user_id: int,
+    group_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """Assign user to a group (admin only)."""
+    try:
+        from services.user_service import UserService
+        
+        # Verify user exists
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Verify group exists
+        group = GroupRepository.get_group_by_id(group_id)
+        if not group:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Group not found"
+            )
+        
+        success = UserService.add_user_to_group(user_id, group_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to add user to group (may already be member)"
+            )
+        
+        # Log the action
+        AuditRepository.create({
+            'user_id': current_user.id,
+            'action': 'assigned_user_to_group',
+            'changes': {
+                'target_user_id': user_id,
+                'group_id': group_id,
+                'username': user.username,
+                'group_name': group['name']
+            },
+            'metadata': {'operation': 'user_group_assignment'}
+        })
+        
+        return {
+            "success": True,
+            "message": f"User {user.username} added to group {group['name']}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to assign user to group: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to assign user to group: {str(e)}")
+
+
+@router.delete("/users/{user_id}/groups/{group_id}")
+async def remove_user_from_group(
+    user_id: int,
+    group_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """Remove user from a group (admin only)."""
+    try:
+        from services.user_service import UserService
+        
+        # Verify user exists
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Verify group exists
+        group = GroupRepository.get_group_by_id(group_id)
+        if not group:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Group not found"
+            )
+        
+        success = UserService.remove_user_from_group(user_id, group_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not in group or removal failed"
+            )
+        
+        # Log the action
+        AuditRepository.create({
+            'user_id': current_user.id,
+            'action': 'removed_user_from_group',
+            'changes': {
+                'target_user_id': user_id,
+                'group_id': group_id,
+                'username': user.username,
+                'group_name': group['name']
+            },
+            'metadata': {'operation': 'user_group_removal'}
+        })
+        
+        return {
+            "success": True,
+            "message": f"User {user.username} removed from group {group['name']}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to remove user from group: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to remove user from group: {str(e)}")
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """Delete (deactivate) a user (admin only)."""
+    try:
+        from services.user_service import UserService
+        from models.user import UserUpdate as BaseUserUpdate
+        
+        # Prevent self-deletion
+        if user_id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete your own account"
+            )
+        
+        # Get existing user
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Deactivate instead of deleting
+        updated_user = UserService.update_user(user_id, BaseUserUpdate(is_active=False))
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to deactivate user"
+            )
+        
+        # Log the action
+        AuditRepository.create({
+            'user_id': current_user.id,
+            'action': 'deleted_user',
+            'changes': {
+                'target_user_id': user_id,
+                'username': user.username
+            },
+            'metadata': {'operation': 'user_delete'}
+        })
+        
+        return {
+            "success": True,
+            "message": f"User {user.username} has been deactivated"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete user: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
