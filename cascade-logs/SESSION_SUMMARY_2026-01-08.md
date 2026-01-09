@@ -274,3 +274,100 @@ curl http://localhost:8000/api/health
 - Important note 1
 - Important note 2
 - Where you left off
+
+
+
+### Rate Limiting (429 RESOURCE_EXHAUSTED)
+
+**Issue:**
+- Querying multiple corpora in parallel can exceed Vertex AI's rate limits
+- Error: `429 RESOURCE_EXHAUSTED`
+
+**Solution:**
+- Implemented exponential backoff retry logic in `rag_multi_query.py`
+- Retry pattern: 3 attempts with delays of 1s, 2.1s, 4.2s
+- Only retries on `ResourceExhausted` exceptions
+- Other errors fail immediately
+
+**Code Location:** `backend/src/rag_agent/tools/rag_multi_query.py`
+
+---
+
+## Corpus Access Control
+
+### Group Permissions
+- Corpora require explicit group access permissions in `users.db`
+- Table: `group_corpus_access` with columns: `group_id`, `corpus_id`, `permission`
+- Permissions: `read`, `admin`
+
+### Sync Script
+- Use `backend/sync_corpora_from_vertex.py` to sync DB with Vertex AI
+- Automatically detects new corpora
+- Grants default group access permissions
+
+---
+
+## Multi-Corpus Query Strategy
+
+### Parallel Execution
+- Each corpus is queried in a separate thread/async task
+- Results are merged and sorted by score
+- Source corpus is tracked in results
+
+### Error Handling
+- Individual corpus failures don't block other queries
+- Failed corpora are reported separately
+- Partial results still returned
+
+---
+
+## Architecture Notes
+
+### Agent Loading
+- Transitioned from Python-based `agent.py` files to JSON configs
+- Agent definitions: `config/agent_instructions/*.json`
+- Dynamic loading via `AgentManager` and `agent_loader.py`
+
+### Import Path
+- ToolContext: `from google.adk.tools.tool_context import ToolContext`
+- Not `from google.adk import ToolContext`
+
+---
+
+## Current Corpora (adk-rag-ma)
+
+1. **ai-books** - AI/ML reference materials
+2. **test-corpus** - Testing data
+3. **design** - Design documentation
+4. **management** - Management resources
+5. **usfs-corpora** - USFS-specific data
+
+---
+
+## Testing Recommendations
+
+1. **Single Corpus** - Verify basic query functionality
+2. **Multi-Corpus** - Test 2-3 corpora to avoid rate limits
+3. **Rate Limit Handling** - Monitor backend logs for retry warnings
+4. **Error States** - Test with invalid corpus names
+
+---
+
+## Future Enhancements
+
+- [ ] Rate limit prediction/throttling
+- [ ] Corpus query result caching
+- [ ] User-configurable retry settings
+- [ ] Query performance metrics
+- [ ] Corpus health monitoring
+
+---
+
+## References
+
+- Session: January 7-8, 2026
+- Commits: `066c627`, `8c1ddf1`, `d78aa7c`, `b1388ab`
+- Related Files:
+  - `backend/src/rag_agent/tools/rag_multi_query.py`
+  - `backend/src/services/agent_manager.py`
+  - `backend/src/services/agent_loader.py`

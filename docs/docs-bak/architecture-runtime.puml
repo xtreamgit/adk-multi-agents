@@ -1,0 +1,202 @@
+@startuml ADK RAG Agent - Runtime Architecture
+
+!theme plain
+skinparam componentStyle rectangle
+
+title ADK RAG Agent - Runtime Architecture & User Flow
+
+actor User
+
+' Internet Entry Point
+cloud Internet {
+    node "HTTPS Request" as https
+}
+
+' Google Cloud Platform
+cloud "Google Cloud Platform" as gcp {
+    
+    ' Load Balancer Layer
+    rectangle "Load Balancer" as lb #LightBlue {
+        component "Static IP\n34.149.125.180" as staticIP
+        component "SSL Certificate" as ssl
+        component "Identity-Aware Proxy\n(IAP)" as iap
+        
+        rectangle "URL Mapping" as urlMap {
+            component "/" as rootPath
+            component "/api/*" as apiPath
+        }
+    }
+    
+    ' Cloud Run Services
+    rectangle "Cloud Run" as cloudrun #LightGreen {
+        
+        rectangle "Frontend Service" as frontend {
+            component "Next.js\nReact + TypeScript\nPort: 3000" as nextjs
+            database "Chat UI\nAuth UI\nDoc Management" as ui
+        }
+        
+        rectangle "Backend Service" as backend {
+            component "FastAPI\nPort: 8080" as fastapi
+            
+            rectangle "Configuration" as beConfig #LightYellow {
+                component "ACCOUNT_ENV=tt" as accountEnv
+                component "config_loader.py" as configLoader
+                component "config/tt/config.py" as ttConfig
+                component "config/tt/agent.py" as ttAgent
+            }
+            
+            rectangle "RAG Agent" as ragAgent #LightCyan {
+                component "TechTrend\nRAG Agent" as agent
+                
+                rectangle "Tools" as tools {
+                    component "rag_query" as ragQuery
+                    component "list_corpora" as listCorpora
+                    component "create_corpus" as createCorpus
+                    component "add_data" as addData
+                    component "delete_corpus" as deleteCorpus
+                }
+            }
+            
+            database "Session\nManagement" as sessions
+            database "User DB\n(SQLite)" as userDb
+        }
+    }
+    
+    ' Vertex AI Services
+    rectangle "Vertex AI" as vertexai #LightPink {
+        database "RAG Corpora\n(Vector Store)" as corpora
+        component "Gemini 2.5 Flash\n(LLM)" as gemini
+        component "Embeddings API\ntext-embedding-005" as embeddings
+    }
+    
+    ' Cloud Storage
+    database "Cloud Storage\n(GCS Buckets)" as gcs #LightGray
+}
+
+' ============================================================================
+' USER FLOW - REQUEST PATH
+' ============================================================================
+
+User --> https : "1. Access Application\nhttps://34.149.125.180.nip.io"
+https --> staticIP : "2. HTTPS/443"
+staticIP --> ssl : "3. SSL/TLS"
+ssl --> iap : "4. Auth Check"
+
+iap --> User : "5a. Redirect to\nGoogle OAuth" 
+User --> iap : "5b. Login with\n@fedgovai.com"
+
+iap --> urlMap : "6. Authorized Request"
+
+urlMap --> rootPath : "Path: /"
+rootPath --> frontend : "7a. Route to Frontend"
+
+urlMap --> apiPath : "Path: /api/*"
+apiPath --> backend : "7b. Route to Backend"
+
+' ============================================================================
+' FRONTEND FLOW
+' ============================================================================
+
+frontend --> nextjs : "Serve React App"
+nextjs --> ui : "Render Components"
+ui --> User : "Display Interface"
+
+' ============================================================================
+' BACKEND API FLOW
+' ============================================================================
+
+ui ..> fastapi : "8. API Call\n/api/chat"
+
+fastapi --> accountEnv : "9. Read env var"
+accountEnv --> configLoader : "10. Load config"
+configLoader --> ttConfig : "11. Load tt/config.py\nPROJECT_ID=adk-rag-tt"
+configLoader --> ttAgent : "12. Load tt/agent.py\nTechTrend Agent"
+
+ttAgent --> agent : "13. Initialize Agent"
+agent --> tools : "14. Register Tools"
+
+fastapi --> sessions : "Session lookup"
+fastapi --> userDb : "User authentication"
+
+' ============================================================================
+' RAG QUERY FLOW
+' ============================================================================
+
+agent --> ragQuery : "15. Execute rag_query"
+ragQuery --> corpora : "16. Retrieve relevant\ndocuments (vectors)"
+corpora --> ragQuery : "17. Return context"
+
+ragQuery --> gemini : "18. Generate response\n(context + query)"
+gemini --> ragQuery : "19. AI Response"
+
+ragQuery --> agent : "20. Tool result"
+agent --> fastapi : "21. Response"
+fastapi --> ui : "22. JSON response"
+ui --> User : "23. Display answer"
+
+' ============================================================================
+' CORPUS MANAGEMENT FLOW
+' ============================================================================
+
+agent --> createCorpus : "Create new corpus"
+createCorpus --> corpora : "Create vector store"
+
+agent --> addData : "Add documents"
+addData --> gcs : "Read documents"
+gcs --> addData : "Document content"
+addData --> embeddings : "Generate embeddings"
+embeddings --> addData : "Vector embeddings"
+addData --> corpora : "Store vectors + metadata"
+
+agent --> listCorpora : "List available corpora"
+listCorpora --> corpora : "Query corpora"
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note right of iap
+    <b>Security Layer</b>
+    • Google OAuth authentication
+    • Restricted to @fedgovai.com
+    • Two-layer auth:
+      1. IAP (infrastructure)
+      2. JWT (application)
+end note
+
+note right of accountEnv
+    <b>Multi-Account Support</b>
+    Set during deployment:
+    • develom → Develom project
+    • usfs → USFS project
+    • tt → TechTrend project
+    
+    Loads account-specific:
+    • GCP Project ID
+    • Region
+    • Agent branding
+    • Instructions
+end note
+
+note right of corpora
+    <b>RAG Capabilities</b>
+    • Vector similarity search
+    • Document chunking
+    • Metadata filtering
+    • Multi-corpus support
+    
+    <b>Supported Sources</b>
+    • Google Drive URLs
+    • GCS paths
+    • Direct file upload
+end note
+
+note bottom of gemini
+    <b>Model: Gemini 2.5 Flash</b>
+    • Fast inference
+    • Context-aware responses
+    • Retrieval-augmented generation
+    • Streaming support
+end note
+
+@enduml

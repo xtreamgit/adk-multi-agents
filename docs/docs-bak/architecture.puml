@@ -1,0 +1,342 @@
+@startuml ADK RAG Agent Architecture
+
+!define RECTANGLE class
+
+title ADK RAG Agent - Multi-Account Architecture
+
+' ============================================================================
+' DEPLOYMENT CONFIGURATION LAYER
+' ============================================================================
+
+package "Deployment Configuration" <<Cloud>> {
+    component [deployment.config] as config {
+        note right
+            PROJECT_ID=adk-rag-tt
+            REGION=us-east4
+            ACCOUNT_ENV=tt
+            ORGANIZATION_DOMAIN=fedgovai.com
+        end note
+    }
+    
+    package "Deployment Scripts" {
+        component [deploy-all.sh] as deployAll
+        component [deploy-init.sh] as deployInit
+        component [deploy-new-project-id.sh] as deployNewProject
+        
+        package "lib/" {
+            component [prerequisites.sh] as prereqs
+            component [infrastructure.sh] as infra
+            component [cloudrun.sh] as cloudrun
+            component [oauth.sh] as oauth
+            component [loadbalancer.sh] as lb
+            component [iap.sh] as iap
+            component [finalize.sh] as finalize
+        }
+    }
+}
+
+' ============================================================================
+' MULTI-ACCOUNT CONFIGURATION LAYER
+' ============================================================================
+
+package "Multi-Account Configuration" <<Node>> {
+    component [config_loader.py] as configLoader {
+        note right
+            Reads ACCOUNT_ENV
+            Loads account-specific:
+            - config.py
+            - agent.py
+        end note
+    }
+    
+    package "Account: develom" <<Folder>> {
+        component [develom/config.py] as devConfig
+        component [develom/agent.py] as devAgent
+    }
+    
+    package "Account: usfs" <<Folder>> {
+        component [usfs/config.py] as usfsConfig
+        component [usfs/agent.py] as usfsAgent
+    }
+    
+    package "Account: tt" <<Folder>> {
+        component [tt/config.py] as ttConfig
+        component [tt/agent.py] as ttAgent
+    }
+}
+
+' ============================================================================
+' GOOGLE CLOUD INFRASTRUCTURE LAYER
+' ============================================================================
+
+cloud "Google Cloud Platform" {
+    
+    package "Artifact Registry" <<Database>> {
+        component [Backend Image] as backendImage
+        component [Frontend Image] as frontendImage
+    }
+    
+    package "IAM & Security" {
+        component [Service Accounts] as sa {
+            note right
+                - backend-sa
+                - frontend-sa
+                - adk-rag-agent-sa
+                - iap-accessor
+            end note
+        }
+        
+        component [OAuth Client] as oauthClient
+        component [OAuth Consent Screen] as consentScreen
+    }
+    
+    ' Load Balancer Layer
+    package "Load Balancer (HTTPS)" <<Rectangle>> {
+        component [Static IP] as staticIP
+        component [SSL Certificate] as ssl
+        component [URL Map] as urlMap {
+            note right
+                / → Frontend
+                /api/* → Backend
+            end note
+        }
+        
+        component [IAP] as iapComponent {
+            note right
+                Google OAuth
+                @fedgovai.com only
+            end note
+        }
+        
+        component [Backend Services] as backendServices {
+            component [frontend-backend-service] as feBE
+            component [backend-backend-service] as beBE
+        }
+    }
+    
+    ' Cloud Run Services
+    package "Cloud Run Services" <<Rectangle>> {
+        
+        component [Frontend Service] as frontendService {
+            note right
+                Next.js Application
+                Port: 3000
+                Min: 0, Max: 5
+            end note
+        }
+        
+        component [Backend Service] as backendService {
+            note right
+                FastAPI Application
+                Port: 8080
+                Min: 0, Max: 10
+                
+                Environment:
+                - PROJECT_ID
+                - ACCOUNT_ENV
+                - VERTEXAI_PROJECT
+                - VERTEXAI_LOCATION
+            end note
+        }
+    }
+    
+    ' Vertex AI Services
+    package "Vertex AI" <<Database>> {
+        component [RAG Corpora] as ragCorpora
+        component [Gemini 2.5 Flash] as gemini
+        component [Embeddings API] as embeddings
+    }
+    
+    ' Cloud Storage
+    package "Cloud Storage" {
+        component [GCS Buckets] as gcs {
+            note right
+                Document storage
+                for RAG corpora
+            end note
+        }
+    }
+}
+
+' ============================================================================
+' BACKEND APPLICATION LAYER
+' ============================================================================
+
+package "Backend Application" <<Node>> {
+    
+    component [server.py] as server {
+        note right
+            FastAPI Application
+            - Loads config_loader
+            - Initializes RAG Agent
+            - Sets up CORS
+            - Provides REST API
+        end note
+    }
+    
+    package "RAG Agent System" {
+        component [Agent] as agent {
+            note right
+                Google ADK Agent
+                Model: Gemini 2.5 Flash
+                Account-specific name
+                & instructions
+            end note
+        }
+        
+        component [config.py] as ragConfig {
+            note right
+                Shared RAG settings:
+                - DEFAULT_CHUNK_SIZE
+                - DEFAULT_TOP_K
+                - CORPUS_TO_BUCKET_MAPPING
+            end note
+        }
+        
+        package "RAG Tools" {
+            component [rag_query] as ragQuery
+            component [list_corpora] as listCorpora
+            component [create_corpus] as createCorpus
+            component [add_data] as addData
+            component [get_corpus_info] as corpusInfo
+            component [delete_corpus] as deleteCorpus
+            component [delete_document] as deleteDoc
+        }
+    }
+    
+    component [Session Management] as sessions {
+        note right
+            InMemorySessionService
+            User sessions & chat history
+        end note
+    }
+    
+    component [User Database] as userDb {
+        note right
+            SQLite: users.db
+            User authentication
+        end note
+    }
+}
+
+' ============================================================================
+' FRONTEND APPLICATION LAYER
+' ============================================================================
+
+package "Frontend Application" <<Node>> {
+    
+    component [Next.js App] as nextjs {
+        note right
+            React + TypeScript
+            TailwindCSS
+            Port: 3000
+        end note
+    }
+    
+    package "Pages & Components" {
+        component [Chat Interface] as chatUI
+        component [Authentication] as authUI
+        component [Document Management] as docUI
+    }
+    
+    component [API Client] as apiClient {
+        note right
+            Calls backend at:
+            NEXT_PUBLIC_BACKEND_URL
+        end note
+    }
+}
+
+' ============================================================================
+' USER LAYER
+' ============================================================================
+
+actor User as user
+
+' ============================================================================
+' RELATIONSHIPS - DEPLOYMENT FLOW
+' ============================================================================
+
+config --> deployAll : "Provides configuration"
+deployAll --> prereqs : "1. Enable APIs"
+prereqs --> infra : "2. Setup infrastructure"
+infra --> cloudrun : "3. Deploy services"
+cloudrun --> oauth : "4. Configure OAuth"
+oauth --> lb : "5. Setup Load Balancer"
+lb --> iap : "6. Enable IAP"
+iap --> finalize : "7. Finalize & verify"
+
+cloudrun --> backendImage : "Builds & deploys"
+cloudrun --> frontendImage : "Builds & deploys"
+backendImage --> backendService : "Runs container"
+frontendImage --> frontendService : "Runs container"
+
+' ============================================================================
+' RELATIONSHIPS - RUNTIME CONFIGURATION
+' ============================================================================
+
+config ..> cloudrun : "ACCOUNT_ENV=tt"
+cloudrun ..> backendService : "Sets env vars"
+backendService --> configLoader : "Reads ACCOUNT_ENV"
+configLoader --> ttConfig : "Loads config"
+configLoader --> ttAgent : "Loads agent"
+ttAgent --> agent : "Creates root_agent"
+
+agent --> ragQuery
+agent --> listCorpora
+agent --> createCorpus
+agent --> addData
+agent --> corpusInfo
+agent --> deleteCorpus
+agent --> deleteDoc
+
+ragQuery --> ragConfig : "Uses settings"
+createCorpus --> ragConfig : "Uses settings"
+addData --> ragConfig : "Uses settings"
+
+' ============================================================================
+' RELATIONSHIPS - RUNTIME USER FLOW
+' ============================================================================
+
+user --> staticIP : "HTTPS Request"
+staticIP --> ssl : "SSL/TLS"
+ssl --> iapComponent : "IAP Check"
+iapComponent --> oauthClient : "OAuth validation"
+oauthClient --> consentScreen : "User auth"
+
+iapComponent --> urlMap : "Authorized"
+urlMap --> feBE : "/ paths"
+urlMap --> beBE : "/api/* paths"
+
+feBE --> frontendService : "Routes to frontend"
+beBE --> backendService : "Routes to backend"
+
+frontendService --> nextjs : "Serves app"
+nextjs --> chatUI
+nextjs --> authUI
+nextjs --> docUI
+
+apiClient --> backendService : "API calls"
+backendService --> server : "HTTP requests"
+server --> agent : "Process requests"
+server --> sessions : "Manage sessions"
+server --> userDb : "User data"
+
+agent --> ragQuery : "Query documents"
+ragQuery --> ragCorpora : "RAG retrieval"
+ragQuery --> gemini : "Generate response"
+createCorpus --> ragCorpora : "Create corpus"
+addData --> gcs : "Read documents"
+addData --> embeddings : "Generate embeddings"
+addData --> ragCorpora : "Store vectors"
+
+' ============================================================================
+' PERMISSIONS & SECURITY
+' ============================================================================
+
+sa --> backendService : "Authenticates as\nadk-rag-agent-sa"
+sa --> frontendService : "Authenticates as\nfrontend-sa"
+backendService --> ragCorpora : "IAM: aiplatform.admin"
+backendService --> gcs : "IAM: storage.admin"
+
+@enduml

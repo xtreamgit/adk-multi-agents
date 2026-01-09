@@ -24,7 +24,7 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
 
       try {
         setLoading(true);
-        const response = await apiClient.getMyCorpora();
+        const response = await apiClient.getAllCorporaWithAccess();
         
         // Deduplicate by ID (backend may return duplicates)
         const uniqueCorpora = response.reduce((acc, corpus) => {
@@ -91,6 +91,9 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
               <div
                 key={corpus.id}
                 onClick={() => {
+                  // Only allow selection if user has access
+                  if (!corpus.has_access) return;
+                  
                   if (isSelected) {
                     onCorporaChange(selectedCorpora.filter(name => name !== corpus.name));
                   } else {
@@ -98,11 +101,13 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
                   }
                 }}
                 className={`
-                  flex items-center p-3 rounded-lg border cursor-pointer transition-all
+                  flex items-center p-3 rounded-lg border transition-all
                   ${
-                    isSelected
-                      ? 'bg-blue-50 border-blue-400 hover:bg-blue-100'
-                      : 'bg-white border-gray-300 hover:bg-gray-50'
+                    !corpus.has_access
+                      ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+                      : isSelected
+                      ? 'bg-blue-50 border-blue-400 hover:bg-blue-100 cursor-pointer'
+                      : 'bg-white border-gray-300 hover:bg-gray-50 cursor-pointer'
                   }
                 `}
               >
@@ -111,34 +116,51 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
                     className={`
                       w-5 h-5 mr-3 border-2 rounded flex items-center justify-center
                       ${
-                        isSelected
+                        !corpus.has_access
+                          ? 'bg-gray-200 border-gray-300'
+                          : isSelected
                           ? 'bg-blue-500 border-blue-500'
                           : 'bg-white border-gray-400'
                       }
                     `}
                   >
-                    {isSelected && (
+                    {!corpus.has_access ? (
+                      <svg className="w-3 h-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    ) : isSelected ? (
                       <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
-                    )}
+                    ) : null}
                   </div>
                   <div className="flex-1">
                     <p className={`text-sm font-medium ${
-                      isSelected ? 'text-blue-900' : 'text-gray-900'
+                      !corpus.has_access
+                        ? 'text-gray-500'
+                        : isSelected ? 'text-blue-900' : 'text-gray-900'
                     }`}>
                       {corpus.display_name}
                       {corpus.document_count !== undefined && (
                         <span className={`ml-2 text-xs font-normal ${
-                          isSelected ? 'text-blue-600' : 'text-gray-500'
+                          !corpus.has_access
+                            ? 'text-gray-400'
+                            : isSelected ? 'text-blue-600' : 'text-gray-500'
                         }`}>
                           ({corpus.document_count})
+                        </span>
+                      )}
+                      {!corpus.has_access && (
+                        <span className="ml-2 text-xs font-normal text-gray-400">
+                          (No Access)
                         </span>
                       )}
                     </p>
                     {corpus.description && (
                       <p className={`text-xs mt-0.5 ${
-                        isSelected ? 'text-blue-600' : 'text-gray-500'
+                        !corpus.has_access
+                          ? 'text-gray-400'
+                          : isSelected ? 'text-blue-600' : 'text-gray-500'
                       }`}>
                         {corpus.description}
                       </p>
