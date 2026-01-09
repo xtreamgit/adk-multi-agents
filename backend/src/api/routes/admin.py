@@ -737,6 +737,83 @@ async def remove_user_from_group(
         raise HTTPException(status_code=500, detail=f"Failed to remove user from group: {str(e)}")
 
 
+@router.get("/user-stats")
+async def get_user_stats(
+    current_user: User = Depends(require_admin)
+):
+    """Get user statistics for dashboard."""
+    try:
+        from services.user_service import UserService
+        from datetime import datetime, timedelta, timezone
+        
+        all_users = UserService.get_all_users()
+        total_users = len(all_users)
+        
+        # Count users created today
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        users_created_today = sum(
+            1 for user in all_users 
+            if user.created_at and datetime.fromisoformat(user.created_at.replace('Z', '+00:00')) >= today_start
+        )
+        
+        # Count active users in last week (users with last_login in past 7 days)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        active_users_last_week = sum(
+            1 for user in all_users 
+            if user.last_login and datetime.fromisoformat(user.last_login.replace('Z', '+00:00')) >= week_ago
+        )
+        
+        return {
+            "total_users": total_users,
+            "users_created_today": users_created_today,
+            "active_users_last_week": active_users_last_week
+        }
+    except Exception as e:
+        logger.error(f"Failed to get user stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get user stats: {str(e)}")
+
+
+@router.get("/sessions")
+async def get_all_sessions(
+    current_user: User = Depends(require_admin)
+):
+    """Get all active sessions for dashboard."""
+    try:
+        from database.connection import get_db_connection
+        
+        # Get all sessions from database
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT s.session_id, u.username, s.created_at, s.updated_at,
+                       COUNT(m.id) as message_count
+                FROM sessions s
+                LEFT JOIN users u ON s.user_id = u.id
+                LEFT JOIN messages m ON s.session_id = m.session_id
+                GROUP BY s.session_id, u.username, s.created_at, s.updated_at
+                ORDER BY s.updated_at DESC
+                LIMIT 50
+            """)
+            rows = cursor.fetchall()
+        
+        # Format sessions for frontend
+        formatted_sessions = []
+        for row in rows:
+            formatted_sessions.append({
+                "session_id": row['session_id'],
+                "username": row['username'] if row['username'] else 'Unknown',
+                "created_at": row['created_at'],
+                "last_activity": row['updated_at'] if row['updated_at'] else row['created_at'],
+                "chat_messages": row['message_count'] if row['message_count'] else 0
+            })
+        
+        return formatted_sessions
+    except Exception as e:
+        logger.error(f"Failed to get sessions: {e}")
+        # Return empty list if sessions not available (table might not exist yet)
+        return []
+
+
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: int,
