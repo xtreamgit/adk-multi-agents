@@ -751,17 +751,29 @@ async def get_user_stats(
         
         # Count users created today
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        users_created_today = sum(
-            1 for user in all_users 
-            if user.created_at and datetime.fromisoformat(user.created_at.replace('Z', '+00:00')) >= today_start
-        )
+        users_created_today = 0
+        for user in all_users:
+            if user.created_at:
+                try:
+                    # Handle various datetime formats
+                    created_dt = datetime.fromisoformat(user.created_at.replace('Z', '+00:00'))
+                    if created_dt >= today_start:
+                        users_created_today += 1
+                except (ValueError, AttributeError):
+                    # Skip users with invalid datetime formats
+                    continue
         
         # Count active users in last week (users with last_login in past 7 days)
         week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-        active_users_last_week = sum(
-            1 for user in all_users 
-            if user.last_login and datetime.fromisoformat(user.last_login.replace('Z', '+00:00')) >= week_ago
-        )
+        active_users_last_week = 0
+        for user in all_users:
+            if user.last_login:
+                try:
+                    login_dt = datetime.fromisoformat(user.last_login.replace('Z', '+00:00'))
+                    if login_dt >= week_ago:
+                        active_users_last_week += 1
+                except (ValueError, AttributeError):
+                    continue
         
         return {
             "total_users": total_users,
@@ -769,7 +781,7 @@ async def get_user_stats(
             "active_users_last_week": active_users_last_week
         }
     except Exception as e:
-        logger.error(f"Failed to get user stats: {e}")
+        logger.error(f"Failed to get user stats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get user stats: {str(e)}")
 
 
