@@ -21,7 +21,7 @@ from models.admin import (
 )
 from services.admin_corpus_service import AdminCorpusService
 from services.bulk_operation_service import BulkOperationService
-from database.repositories import AuditRepository, CorpusMetadataRepository
+from database.repositories import AuditRepository, CorpusMetadataRepository, CorpusRepository
 from database.repositories.group_repository import GroupRepository
 
 logger = logging.getLogger(__name__)
