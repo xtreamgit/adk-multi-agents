@@ -742,36 +742,30 @@ async def get_user_stats():
     """Get user statistics for dashboard."""
     try:
         from services.user_service import UserService
-        from datetime import datetime, timedelta, timezone
+        from database.connection import get_db_connection
+        from datetime import datetime, timedelta
         
         all_users = UserService.get_all_users()
         total_users = len(all_users)
         
-        # Count users created today
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        users_created_today = 0
-        for user in all_users:
-            if user.created_at:
-                try:
-                    # Handle various datetime formats
-                    created_dt = datetime.fromisoformat(user.created_at.replace('Z', '+00:00'))
-                    if created_dt >= today_start:
-                        users_created_today += 1
-                except (ValueError, AttributeError):
-                    # Skip users with invalid datetime formats
-                    continue
-        
-        # Count active users in last week (users with last_login in past 7 days)
-        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-        active_users_last_week = 0
-        for user in all_users:
-            if user.last_login:
-                try:
-                    login_dt = datetime.fromisoformat(user.last_login.replace('Z', '+00:00'))
-                    if login_dt >= week_ago:
-                        active_users_last_week += 1
-                except (ValueError, AttributeError):
-                    continue
+        # Query database directly for more reliable date filtering
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Count users created today
+            cursor.execute("""
+                SELECT COUNT(*) FROM users 
+                WHERE date(created_at) = date('now')
+            """)
+            users_created_today = cursor.fetchone()[0]
+            
+            # Count active users in last week (with last_login)
+            cursor.execute("""
+                SELECT COUNT(*) FROM users 
+                WHERE last_login IS NOT NULL 
+                AND datetime(last_login) >= datetime('now', '-7 days')
+            """)
+            active_users_last_week = cursor.fetchone()[0]
         
         return {
             "total_users": total_users,
