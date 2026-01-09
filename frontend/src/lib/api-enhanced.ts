@@ -735,8 +735,14 @@ class EnhancedApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || `Failed to create user: ${response.statusText}`);
+      let errorMessage = `Failed to create user: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON, use status text
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -755,8 +761,14 @@ class EnhancedApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || `Failed to update user: ${response.statusText}`);
+      let errorMessage = `Failed to update user: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON, use status text
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -769,8 +781,14 @@ class EnhancedApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || `Failed to delete user: ${response.statusText}`);
+      let errorMessage = `Failed to delete user: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON, use status text
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -783,8 +801,14 @@ class EnhancedApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || `Failed to assign user to group: ${response.statusText}`);
+      let errorMessage = `Failed to assign user to group: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON, use status text
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -797,8 +821,14 @@ class EnhancedApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || `Failed to remove user from group: ${response.statusText}`);
+      let errorMessage = `Failed to remove user from group: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON, use status text
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
