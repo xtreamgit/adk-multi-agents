@@ -24,8 +24,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       const user = apiClient.getCurrentUser();
       if (user) {
-        const groups = await apiClient.getUserGroups(user.id);
-        const hasAdminAccess = groups.some((g: any) => g.name === 'admin-users');
+        const groups = await apiClient.getMyGroups();
+        const hasAdminAccess = groups.some((g: { name: string }) => g.name === 'admin-users');
         setIsAdmin(hasAdminAccess);
       }
     } catch (error) {
