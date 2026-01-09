@@ -81,13 +81,6 @@ export default function SessionsPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">All Sessions</h1>
-        
-        {/* Note about auth being disabled */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> Authentication is temporarily disabled for testing. Showing all sessions.
-          </p>
-        </div>
 
         {/* Sessions Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
