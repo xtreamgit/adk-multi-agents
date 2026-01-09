@@ -182,3 +182,25 @@ class UserRepository:
             """, (user_id, group_id))
             conn.commit()
             return cursor.rowcount > 0
+    
+    @staticmethod
+    def get_all() -> List[Dict]:
+        """Get all users."""
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users ORDER BY created_at DESC")
+            return [dict(row) for row in cursor.fetchall()]
+    
+    @staticmethod
+    def update_password(user_id: int, hashed_password: str) -> bool:
+        """Update user password."""
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE users SET hashed_password = ?, updated_at = ? WHERE id = ?
+                """, (hashed_password, datetime.now(timezone.utc).isoformat(), user_id))
+                conn.commit()
+            return True
+        except Exception:
+            return False

@@ -68,6 +68,12 @@ class UserService:
         return User(**user_dict) if user_dict else None
     
     @staticmethod
+    def get_all_users() -> List[User]:
+        """Get all users."""
+        user_dicts = UserRepository.get_all()
+        return [User(**user_dict) for user_dict in user_dicts]
+    
+    @staticmethod
     def update_user(user_id: int, user_update: UserUpdate) -> Optional[User]:
         """
         Update user information.
