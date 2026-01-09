@@ -791,13 +791,12 @@ async def get_all_sessions(
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT s.session_id, u.username, s.created_at, s.updated_at,
-                       COUNT(m.id) as message_count
-                FROM sessions s
-                LEFT JOIN users u ON s.user_id = u.id
-                LEFT JOIN messages m ON s.session_id = m.session_id
-                GROUP BY s.session_id, u.username, s.created_at, s.updated_at
-                ORDER BY s.updated_at DESC
+                SELECT us.session_id, u.username, us.created_at, us.last_activity,
+                       0 as message_count
+                FROM user_sessions us
+                LEFT JOIN users u ON us.user_id = u.id
+                WHERE us.is_active = 1
+                ORDER BY us.last_activity DESC
                 LIMIT 50
             """)
             rows = cursor.fetchall()
@@ -809,8 +808,8 @@ async def get_all_sessions(
                 "session_id": row['session_id'],
                 "username": row['username'] if row['username'] else 'Unknown',
                 "created_at": row['created_at'],
-                "last_activity": row['updated_at'] if row['updated_at'] else row['created_at'],
-                "chat_messages": row['message_count'] if row['message_count'] else 0
+                "last_activity": row['last_activity'] if row['last_activity'] else row['created_at'],
+                "chat_messages": 0  # Message count not tracked in this table
             })
         
         return formatted_sessions
