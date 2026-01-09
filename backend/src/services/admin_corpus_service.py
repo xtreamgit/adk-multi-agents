@@ -46,7 +46,7 @@ class AdminCorpusService:
             groups = CorpusRepository.get_groups_for_corpus(corpus_id)
             groups_with_access = []
             for group_access in groups:
-                group = GroupRepository.get_by_id(group_access['group_id'])
+                group = GroupRepository.get_group_by_id(group_access['group_id'])
                 if group:
                     groups_with_access.append({
                         'group_id': group['id'],
@@ -92,7 +92,7 @@ class AdminCorpusService:
         groups = GroupCorpusAccessRepository.get_groups_for_corpus(corpus_id)
         groups_with_access = []
         for group_access in groups:
-            group = GroupRepository.get_by_id(group_access['group_id'])
+            group = GroupRepository.get_group_by_id(group_access['group_id'])
             if group:
                 groups_with_access.append({
                     'group_id': group['id'],
