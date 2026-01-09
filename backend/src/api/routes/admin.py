@@ -5,7 +5,7 @@ Requires admin permissions.
 
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, status
 
 from middleware.auth_middleware import get_current_user
 from models.user import User
