@@ -75,6 +75,32 @@ class GroupRepository:
                 cursor.execute("SELECT * FROM groups ORDER BY name")
             return [dict(row) for row in cursor.fetchall()]
     
+    @staticmethod
+    def delete_group(group_id: int) -> bool:
+        """Delete (deactivate) a group."""
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE groups SET is_active = 0 WHERE id = ?", (group_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception:
+            return False
+    
+    @staticmethod
+    def get_group_users(group_id: int) -> List[Dict]:
+        """Get all users in a group."""
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT u.id, u.username, u.email, u.full_name, u.is_active, u.created_at
+                FROM users u
+                INNER JOIN user_groups ug ON u.id = ug.user_id
+                WHERE ug.group_id = ?
+                ORDER BY u.username
+            """, (group_id,))
+            return [dict(row) for row in cursor.fetchall()]
+    
     # ========== Role Operations ==========
     
     @staticmethod
