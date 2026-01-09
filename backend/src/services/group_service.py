@@ -79,6 +79,35 @@ class GroupService:
         group_dict = GroupRepository.update_group(group_id, **update_data)
         return Group(**group_dict) if group_dict else None
     
+    @staticmethod
+    def delete_group(group_id: int) -> bool:
+        """
+        Delete (deactivate) a group.
+        
+        Args:
+            group_id: Group ID
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        success = GroupRepository.delete_group(group_id)
+        if success:
+            logger.info(f"Group {group_id} deleted")
+        return success
+    
+    @staticmethod
+    def get_group_users(group_id: int) -> List:
+        """
+        Get all users in a group.
+        
+        Args:
+            group_id: Group ID
+            
+        Returns:
+            List of user dictionaries
+        """
+        return GroupRepository.get_group_users(group_id)
+    
     # ========== Role Operations ==========
     
     @staticmethod

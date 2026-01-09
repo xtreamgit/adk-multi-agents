@@ -113,6 +113,58 @@ async def update_group(
     return updated_group
 
 
+@router.delete("/{group_id}")
+async def delete_group(
+    group_id: int,
+    current_user: User = Depends(require_permission("manage:groups"))
+):
+    """
+    Delete a group (admin only).
+    
+    Requires 'manage:groups' permission.
+    """
+    # Verify group exists
+    group = GroupService.get_group_by_id(group_id)
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found"
+        )
+    
+    success = GroupService.delete_group(group_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to delete group"
+        )
+    
+    logger.info(f"Group {group.name} deleted by {current_user.username}")
+    return {"message": "Group deleted successfully"}
+
+
+@router.get("/{group_id}/users")
+async def get_group_users(
+    group_id: int,
+    current_user: User = Depends(require_permission("manage:groups"))
+):
+    """
+    Get all users in a group (admin only).
+    
+    Requires 'manage:groups' permission.
+    """
+    # Verify group exists
+    group = GroupService.get_group_by_id(group_id)
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found"
+        )
+    
+    users = GroupService.get_group_users(group_id)
+    return users
+
+
 @router.put("/{group_id}/users/{user_id}")
 async def add_user_to_group(
     group_id: int,
