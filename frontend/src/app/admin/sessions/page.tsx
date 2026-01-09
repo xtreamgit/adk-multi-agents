@@ -19,6 +19,13 @@ export default function SessionsPage() {
 
   useEffect(() => {
     loadData();
+    
+    // Auto-refresh every 5 seconds to show new sessions
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
