@@ -612,7 +612,18 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
             session_id=session_id,
         )
 
-        # Store session information with agent details
+        # Persist session to database using SessionService
+        from services.session_service import SessionService
+        from models.session import SessionCreate
+        
+        session_create_data = SessionCreate(
+            session_id=session_id,
+            user_id=current_user.id,
+            active_agent_id=agent_id
+        )
+        SessionService.create_session(session_create_data)
+
+        # Store session information with agent details (in-memory for quick access)
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": user_profile.model_dump() if user_profile else None,
