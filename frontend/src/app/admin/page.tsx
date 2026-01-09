@@ -47,9 +47,10 @@ export default function AdminPage() {
         apiClient.getAllSessions()
       ]);
       
-      setUsers(usersResponse.users);
+      // Handle response - API returns array directly or object with users property
+      setUsers(Array.isArray(usersResponse) ? usersResponse : (usersResponse.users || []));
       setStats(statsResponse);
-      setSessions(sessionsResponse.sessions);
+      setSessions(Array.isArray(sessionsResponse) ? sessionsResponse : (sessionsResponse.sessions || []));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {

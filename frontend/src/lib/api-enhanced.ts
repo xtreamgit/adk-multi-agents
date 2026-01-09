@@ -450,6 +450,197 @@ class EnhancedApiClient {
     return await response.json();
   }
 
+  async createGroup(groupData: { name: string; description: string }): Promise<any> {
+    const response = await fetch(this.buildUrl('/api/groups/'), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(groupData),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to create group: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async updateGroup(groupId: number, groupData: { name?: string; description?: string }): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/groups/${groupId}`), {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(groupData),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to update group: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async deleteGroup(groupId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/groups/${groupId}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to delete group: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async getGroupUsers(groupId: number): Promise<any[]> {
+    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users`), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get group users: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async addUserToGroupViaGroupAPI(groupId: number, userId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to add user to group: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async removeUserFromGroupViaGroupAPI(groupId: number, userId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to remove user from group: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // ========== Role Management APIs ==========
+
+  async getAllRoles(): Promise<any[]> {
+    const response = await fetch(this.buildUrl('/api/groups/roles/'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get roles: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async createRole(roleData: { name: string; permissions: string[] }): Promise<any> {
+    const response = await fetch(this.buildUrl('/api/groups/roles/'), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(roleData),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to create role: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async assignRoleToGroup(groupId: number, roleId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to assign role: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async removeRoleFromGroup(groupId: number, roleId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to remove role: ${response.statusText}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || errorMessage;
+      } catch (e) {
+        // Response is not JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
   // ========== Session/Chat Endpoints (Legacy compatibility) ==========
 
   resetSession() {
