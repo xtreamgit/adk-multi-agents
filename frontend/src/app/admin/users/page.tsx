@@ -90,7 +90,9 @@ export default function AdminUsersPage() {
       });
       await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create user');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Create user error:', err);
+      alert(`Failed to create user: ${errorMessage}`);
     }
   };
 
@@ -120,7 +122,9 @@ export default function AdminUsersPage() {
       setSelectedUser(null);
       await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update user');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Update user error:', err);
+      alert(`Failed to update user: ${errorMessage}`);
     }
   };
 
@@ -133,7 +137,9 @@ export default function AdminUsersPage() {
       await apiClient.admin_deleteUser(userId);
       await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete user');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Delete user error:', err);
+      alert(`Failed to delete user: ${errorMessage}`);
     }
   };
 
@@ -148,7 +154,9 @@ export default function AdminUsersPage() {
         setSelectedUser(updatedUser);
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to assign group');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Assign group error:', err);
+      alert(`Failed to assign group: ${errorMessage}`);
     }
   };
 
@@ -167,7 +175,9 @@ export default function AdminUsersPage() {
         setSelectedUser(updatedUser);
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to remove group');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Remove group error:', err);
+      alert(`Failed to remove group: ${errorMessage}`);
     }
   };
 
