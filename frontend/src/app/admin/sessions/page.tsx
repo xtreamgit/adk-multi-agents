@@ -12,14 +12,6 @@ interface SessionData {
   chat_messages: number;
 }
 
-interface User {
-  username: string;
-  full_name: string;
-  email: string;
-  created_at: string;
-  last_login?: string;
-}
-
 export default function SessionsPage() {
   const [userSessions, setUserSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
