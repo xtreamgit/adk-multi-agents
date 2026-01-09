@@ -44,6 +44,20 @@ from .session import (
     SessionCorpusSelection
 )
 
+from .admin import (
+    AuditLogEntry,
+    CorpusMetadata,
+    CorpusMetadataUpdate,
+    GroupAccessInfo,
+    AdminCorpusDetail,
+    BulkGrantRequest,
+    BulkStatusUpdate,
+    BulkOperationResult,
+    PermissionGrantRequest,
+    SyncResult,
+    CorpusSyncSchedule,
+)
+
 __all__ = [
     "User",
     "UserCreate",

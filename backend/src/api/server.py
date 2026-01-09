@@ -46,7 +46,8 @@ try:
         users_router,
         groups_router,
         agents_router,
-        corpora_router
+        corpora_router,
+        admin_router
     )
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
@@ -377,6 +378,7 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(groups_router)
     app.include_router(agents_router)
     app.include_router(corpora_router)
+    app.include_router(admin_router)
     
     print("\n" + "="*70)
     print("🚀 New API Routes Registered:")
@@ -385,6 +387,7 @@ if NEW_ROUTES_AVAILABLE:
     print("  ✅ /api/groups/*      - Groups & Roles (admin)")
     print("  ✅ /api/agents/*      - Agent Management (switching, access)")
     print("  ✅ /api/corpora/*     - Corpus Management (access, selection)")
+    print("  ✅ /api/admin/*       - Admin Panel (corpus management, audit)")
     print("="*70 + "\n")
     
     # Note: Old auth endpoints below are replaced by new routes
