@@ -437,6 +437,19 @@ class EnhancedApiClient {
     return await response.json();
   }
 
+  async getAllGroups(): Promise<Group[]> {
+    const response = await fetch(this.buildUrl('/api/groups/'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get all groups');
+    }
+
+    return await response.json();
+  }
+
   // ========== Session/Chat Endpoints (Legacy compatibility) ==========
 
   resetSession() {
