@@ -322,8 +322,12 @@ async def trigger_corpus_sync(
         # Get all corpora from Vertex AI
         try:
             from rag_agent.tools.list_corpora import list_corpora
-            vertex_corpora = list(list_corpora())
-            vertex_corpus_names = {c.display_name for c in vertex_corpora}
+            result = list_corpora()
+            if result['status'] != 'success':
+                raise Exception(result.get('message', 'Failed to list corpora'))
+            
+            vertex_corpora = result['corpora']
+            vertex_corpus_names = {c['display_name'] for c in vertex_corpora}
             
         except Exception as e:
             logger.error(f"Failed to fetch from Vertex AI: {e}")
@@ -344,15 +348,15 @@ async def trigger_corpus_sync(
         
         # Add new corpora from Vertex AI
         for vertex_corpus in vertex_corpora:
-            if vertex_corpus.display_name not in db_corpus_names:
+            if vertex_corpus['display_name'] not in db_corpus_names:
                 try:
                     # Create new corpus
                     new_corpus = CorpusRepository.create(
-                        name=vertex_corpus.display_name,
-                        display_name=vertex_corpus.display_name,
+                        name=vertex_corpus['display_name'],
+                        display_name=vertex_corpus['display_name'],
                         description=f"Synced from Vertex AI",
                         gcs_bucket="",  # Will be populated later
-                        vertex_corpus_id=vertex_corpus.name
+                        vertex_corpus_id=vertex_corpus['resource_name']
                     )
                     
                     # Create metadata
