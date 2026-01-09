@@ -32,9 +32,12 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """Dependency to require admin privileges."""
     # Check if user is in admin-users group
-    from database.repositories.group_repository import GroupRepository
+    from services.user_service import UserService
+    from database.repositories import GroupRepository
     
-    user_groups = GroupRepository.get_user_groups(current_user.id)
+    user_group_ids = UserService.get_user_groups(current_user.id)
+    user_groups = [GroupRepository.get_group_by_id(gid) for gid in user_group_ids]
+    user_groups = [g for g in user_groups if g is not None]
     is_admin = any(group['name'] == 'admin-users' for group in user_groups)
     
     if not is_admin:

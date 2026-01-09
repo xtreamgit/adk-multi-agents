@@ -104,6 +104,18 @@ class CorpusRepository:
             return cursor.rowcount > 0
     
     @staticmethod
+    def get_groups_for_corpus(corpus_id: int) -> List[Dict]:
+        """Get all groups that have access to a corpus."""
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT gca.group_id, gca.permission, gca.granted_at
+                FROM group_corpus_access gca
+                WHERE gca.corpus_id = ?
+            """, (corpus_id,))
+            return [dict(row) for row in cursor.fetchall()]
+    
+    @staticmethod
     def get_user_corpora(user_id: int, active_only: bool = True) -> List[Dict]:
         """Get all corpora a user has access to (through their groups)."""
         with get_db_connection() as conn:
