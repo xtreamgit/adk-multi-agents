@@ -705,6 +705,104 @@ class EnhancedApiClient {
 
     return response.json();
   }
+
+  // ========== Admin User Management APIs ==========
+
+  async admin_getAllUsers(): Promise<any[]> {
+    const response = await fetch(this.buildUrl('/api/admin/users'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get users: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_createUser(userData: {
+    username: string;
+    email: string;
+    full_name: string;
+    password: string;
+    group_ids?: number[];
+  }): Promise<any> {
+    const response = await fetch(this.buildUrl('/api/admin/users'), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `Failed to create user: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_updateUser(userId: number, userData: {
+    email?: string;
+    full_name?: string;
+    is_active?: boolean;
+    password?: string;
+  }): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}`), {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `Failed to update user: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_deleteUser(userId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `Failed to delete user: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_assignUserToGroup(userId: number, groupId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `Failed to assign user to group: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_removeUserFromGroup(userId: number, groupId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `Failed to remove user from group: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance
