@@ -321,7 +321,7 @@ async def trigger_corpus_sync(
         
         # Get all corpora from Vertex AI
         try:
-            from tools.rag import list_corpora
+            from rag_agent.tools.rag import list_corpora
             vertex_corpora = list(list_corpora())
             vertex_corpus_names = {c.display_name for c in vertex_corpora}
             
