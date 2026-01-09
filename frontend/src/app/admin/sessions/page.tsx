@@ -35,19 +35,16 @@ export default function SessionsPage() {
       setLoading(true);
       setError(null);
       
-      // Get current user info and all sessions
-      const [userResponse, sessionsResponse] = await Promise.all([
-        apiClient.verifyToken(),
-        apiClient.getAllSessions()
-      ]);
+      // Get all sessions (auth temporarily disabled for testing)
+      const sessionsResponse = await apiClient.getAllSessions();
       
-      setCurrentUser(userResponse);
+      // Handle response format
+      const sessions = Array.isArray(sessionsResponse) 
+        ? sessionsResponse 
+        : (sessionsResponse.sessions || []);
       
-      // Filter sessions for current user
-      const filteredSessions = sessionsResponse.sessions.filter(
-        (session: SessionData) => session.username === userResponse.username
-      );
-      setUserSessions(filteredSessions);
+      // For now, show all sessions since auth is disabled
+      setUserSessions(sessions);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -92,32 +89,14 @@ export default function SessionsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Sessions</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">All Sessions</h1>
         
-        {/* Current User Info */}
-        {currentUser && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Current User</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Username</label>
-                <p className="text-lg text-gray-900">{currentUser.username}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Full Name</label>
-                <p className="text-lg text-gray-900">{currentUser.full_name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="text-lg text-gray-900">{currentUser.email}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Last Login</label>
-                <p className="text-lg text-gray-900">{formatDate(currentUser.last_login || null)}</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Note about auth being disabled */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-yellow-800">
+            <strong>Note:</strong> Authentication is temporarily disabled for testing. Showing all sessions.
+          </p>
+        </div>
 
         {/* Sessions Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -145,8 +124,8 @@ export default function SessionsPage() {
         {/* Sessions List */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Your Active Sessions</h2>
-            <p className="text-gray-600">All sessions associated with your account</p>
+            <h2 className="text-xl font-semibold text-gray-900">All Active Sessions</h2>
+            <p className="text-gray-600">All sessions in the system</p>
           </div>
           
           {userSessions.length > 0 ? (
