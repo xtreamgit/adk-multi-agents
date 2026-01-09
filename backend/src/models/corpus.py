@@ -12,7 +12,7 @@ class CorpusBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     display_name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    gcs_bucket: str = Field(..., min_length=1)
+    gcs_bucket: Optional[str] = None
 
 
 class CorpusCreate(CorpusBase):
