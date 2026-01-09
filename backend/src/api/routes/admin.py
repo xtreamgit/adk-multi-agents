@@ -321,13 +321,6 @@ async def trigger_corpus_sync(
         
         # Get all corpora from Vertex AI
         try:
-            from config import VERTEX_AI_AVAILABLE
-            if not VERTEX_AI_AVAILABLE:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Vertex AI not available"
-                )
-            
             from tools.rag import list_corpora
             vertex_corpora = list(list_corpora())
             vertex_corpus_names = {c.display_name for c in vertex_corpora}
