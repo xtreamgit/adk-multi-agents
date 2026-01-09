@@ -523,6 +523,175 @@ class EnhancedApiClient {
     const data = await response.json();
     return data.chat_history || [];
   }
+
+  // ========== Admin Panel APIs ==========
+
+  async admin_getAllCorpora(includeInactive: boolean = false): Promise<any[]> {
+    const response = await fetch(
+      this.buildUrl(`/api/admin/corpora?include_inactive=${includeInactive}`),
+      {
+        headers: this.getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get admin corpora: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_getCorpusDetail(corpusId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/corpora/${corpusId}`), {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get corpus detail: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_updateCorpusMetadata(
+    corpusId: number,
+    metadata: { tags?: string; notes?: string; sync_status?: string }
+  ): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/corpora/${corpusId}/metadata`), {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(metadata),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update metadata: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_updateCorpusStatus(corpusId: number, isActive: boolean): Promise<any> {
+    const response = await fetch(
+      this.buildUrl(`/api/admin/corpora/${corpusId}/status?is_active=${isActive}`),
+      {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to update status: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_grantPermission(
+    corpusId: number,
+    groupId: number,
+    permission: string = 'read'
+  ): Promise<any> {
+    const response = await fetch(
+      this.buildUrl(`/api/admin/corpora/${corpusId}/permissions/grant`),
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ group_id: groupId, permission }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to grant permission: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_revokePermission(corpusId: number, groupId: number): Promise<any> {
+    const response = await fetch(
+      this.buildUrl(`/api/admin/corpora/${corpusId}/permissions/${groupId}`),
+      {
+        method: 'DELETE',
+        headers: this.getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to revoke permission: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_bulkGrantAccess(
+    corpusIds: number[],
+    groupId: number,
+    permission: string = 'read'
+  ): Promise<any> {
+    const response = await fetch(this.buildUrl('/api/admin/corpora/bulk/grant-access'), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ corpus_ids: corpusIds, group_id: groupId, permission }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to bulk grant access: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_bulkUpdateStatus(corpusIds: number[], isActive: boolean): Promise<any> {
+    const response = await fetch(this.buildUrl('/api/admin/corpora/bulk/update-status'), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ corpus_ids: corpusIds, is_active: isActive }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to bulk update status: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_getAuditLog(filters?: {
+    corpus_id?: number;
+    user_id?: number;
+    action?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (filters?.corpus_id) params.append('corpus_id', filters.corpus_id.toString());
+    if (filters?.user_id) params.append('user_id', filters.user_id.toString());
+    if (filters?.action) params.append('action', filters.action);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+
+    const response = await fetch(this.buildUrl(`/api/admin/audit?${params.toString()}`), {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get audit log: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_syncCorpora(): Promise<any> {
+    const response = await fetch(this.buildUrl('/api/admin/corpora/sync'), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to sync corpora: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance
