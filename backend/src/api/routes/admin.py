@@ -162,7 +162,7 @@ async def grant_corpus_permission(
 ):
     """Grant group access to a corpus."""
     try:
-        CorpusRepository.grant_corpus_access(
+        CorpusRepository.grant_group_access(
             group_id=grant.group_id,
             corpus_id=corpus_id,
             permission=grant.permission
@@ -199,7 +199,7 @@ async def revoke_corpus_permission(
 ):
     """Revoke group access from a corpus."""
     try:
-        CorpusRepository.revoke_corpus_access(
+        CorpusRepository.revoke_group_access(
             group_id=group_id,
             corpus_id=corpus_id
         )
