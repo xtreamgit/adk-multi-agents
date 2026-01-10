@@ -1,12 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-enhanced';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -61,56 +59,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  const navItems = [
-    { href: '/admin/corpora', label: 'Corpus Management', icon: '📚' },
-    { href: '/admin/corpora/permissions', label: 'Permissions', icon: '🔐' },
-    { href: '/admin/corpora/audit', label: 'Audit Log', icon: '📋' },
-  ];
-
-  return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex-shrink-0">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold">Admin Panel</h1>
-          <p className="text-gray-400 text-sm mt-1">Corpus Management</p>
-        </div>
-        
-        <nav className="mt-6">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block px-6 py-3 text-sm transition-colors ${
-                  isActive
-                    ? 'bg-gray-800 text-white border-l-4 border-blue-500'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white border-l-4 border-transparent'
-                }`}
-              >
-                <span className="mr-3">{item.icon}</span>
-                {item.label}
-              </Link>
-            );
-          })}
-          
-          <div className="mt-6 pt-6 border-t border-gray-800">
-            <Link
-              href="/"
-              className="block px-6 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-white border-l-4 border-transparent"
-            >
-              <span className="mr-3">←</span>
-              Back to App
-            </Link>
-          </div>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
-    </div>
-  );
+  return <>{children}</>;
 }

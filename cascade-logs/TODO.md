@@ -64,3 +64,5 @@ This file tracks features, fixes, and tasks that need to be completed either the
 ---
 
 **Last Updated:** January 8, 2026 - 12:40 PM
+
+Create a list of what we are going to call "Corpora Actions". These actions are designed to include any kind of data manipulation or change to the corpora data used during the session. The Corpora Actions (CA)could be downloading the document that they are currently using by typing "download" or "save". Another CA could be creating a document editing UI to allow users to edit the document they are currently using. The editor CA could also allow the users to edit the metadata of the document. 
