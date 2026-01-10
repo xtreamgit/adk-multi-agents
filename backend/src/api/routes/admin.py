@@ -792,7 +792,7 @@ async def get_all_sessions(
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT us.session_id, u.username, us.created_at, us.last_activity,
-                       0 as message_count
+                       COALESCE(us.message_count, 0) as message_count
                 FROM user_sessions us
                 LEFT JOIN users u ON us.user_id = u.id
                 WHERE us.is_active = 1
