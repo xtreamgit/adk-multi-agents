@@ -23,6 +23,7 @@ interface SessionData {
   created_at: string;
   last_activity: string;
   chat_messages: number;
+  user_queries: number;
 }
 
 export default function AdminPage() {
@@ -184,7 +185,7 @@ export default function AdminPage() {
                                   {session.session_id.substring(0, 8)}...
                                 </span>
                                 <span className="text-xs text-gray-400">
-                                  {session.chat_messages} msgs
+                                  {session.chat_messages || 0} msgs ({session.user_queries || 0} queries)
                                 </span>
                                 <span className="text-xs text-gray-400">
                                   {formatDate(session.last_activity)}

@@ -10,6 +10,7 @@ interface SessionData {
   created_at: string;
   last_activity: string;
   chat_messages: number;
+  user_queries: number;
 }
 
 export default function SessionsPage() {
@@ -98,7 +99,10 @@ export default function SessionsPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Messages</h3>
             <p className="text-3xl font-bold text-green-600">
-              {userSessions.reduce((total, session) => total + session.chat_messages, 0)}
+              {userSessions.reduce((total, session) => total + (session.chat_messages || 0), 0)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              {userSessions.reduce((total, session) => total + (session.user_queries || 0), 0)} user queries
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
@@ -141,7 +145,10 @@ export default function SessionsPage() {
                           <span className="font-medium">Last Activity:</span> {formatDate(session.last_activity)}
                         </div>
                         <div>
-                          <span className="font-medium">Messages:</span> {session.chat_messages}
+                          <span className="font-medium">Messages:</span> {session.chat_messages || 0}
+                        </div>
+                        <div>
+                          <span className="font-medium">User Queries:</span> {session.user_queries || 0}
                         </div>
                       </div>
                     </div>

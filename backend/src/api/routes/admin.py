@@ -792,7 +792,8 @@ async def get_all_sessions(
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT us.session_id, u.username, us.created_at, us.last_activity,
-                       COALESCE(us.message_count, 0) as message_count
+                       COALESCE(us.message_count, 0) as message_count,
+                       COALESCE(us.user_query_count, 0) as user_query_count
                 FROM user_sessions us
                 LEFT JOIN users u ON us.user_id = u.id
                 WHERE us.is_active = 1
@@ -809,7 +810,8 @@ async def get_all_sessions(
                 "username": row['username'] if row['username'] else 'Unknown',
                 "created_at": row['created_at'],
                 "last_activity": row['last_activity'] if row['last_activity'] else row['created_at'],
-                "chat_messages": 0  # Message count not tracked in this table
+                "chat_messages": row['message_count'],
+                "user_queries": row['user_query_count']
             })
         
         return formatted_sessions
