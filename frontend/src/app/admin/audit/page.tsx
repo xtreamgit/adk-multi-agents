@@ -34,7 +34,7 @@ export default function AdminAuditPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.admin_getAuditLog(page, 50);
+      const data = await apiClient.admin_getAuditLog({ offset: page, limit: 50 });
       setLogs(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
