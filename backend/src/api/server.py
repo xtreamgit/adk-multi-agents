@@ -47,7 +47,8 @@ try:
         groups_router,
         agents_router,
         corpora_router,
-        admin_router
+        admin_router,
+        iap_auth_router
     )
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
@@ -318,20 +319,26 @@ logging.info(
 )
 
 # Initialize AgentManager for dynamic agent loading
+root_agent = None
 if AGENT_MANAGER_AVAILABLE:
     agent_manager = AgentManager(
         project_id=effective_project,
         location=effective_location
     )
     print(f"✅ AgentManager initialized for dynamic agent loading")
-    # Load default agent for backward compatibility and health checks
+    # Load default agent for backward compatibility and health checks (optional)
     try:
         root_agent, _ = agent_manager.get_agent_by_id(1)  # Default agent
         print(f"✅ Loaded default agent: {root_agent.name} with {len(root_agent.tools)} tools")
     except Exception as e:
-        print(f"❌ Could not load default agent from AgentManager: {e}")
-        print("   CRITICAL: AgentManager is required for agent loading")
-        raise RuntimeError(f"Failed to load agent: {e}")
+        print(f"⚠️  Could not load default agent from AgentManager: {e}")
+        print("   This is OK - agents will be loaded dynamically from database")
+        print("   To add agents, use the admin panel or API endpoints")
+        # Load agent from config as fallback
+        from services.agent_loader import load_agent_config, create_agent_from_config
+        agent_config = load_agent_config(account_env)
+        root_agent = create_agent_from_config(agent_config, effective_project, effective_location)
+        print(f"✅ Loaded agent from config as fallback: {root_agent.name}")
 else:
     # AgentManager is required - no fallback
     print("❌ AgentManager not available")
@@ -379,6 +386,7 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(agents_router)
     app.include_router(corpora_router)
     app.include_router(admin_router)
+    app.include_router(iap_auth_router)
     
     print("\n" + "="*70)
     print("🚀 New API Routes Registered:")
@@ -388,6 +396,7 @@ if NEW_ROUTES_AVAILABLE:
     print("  ✅ /api/agents/*      - Agent Management (switching, access)")
     print("  ✅ /api/corpora/*     - Corpus Management (access, selection)")
     print("  ✅ /api/admin/*       - Admin Panel (corpus management, audit)")
+    print("  ✅ /api/iap/*         - IAP Authentication (Google Cloud IAP)")
     print("="*70 + "\n")
     
     # Note: Old auth endpoints below are replaced by new routes

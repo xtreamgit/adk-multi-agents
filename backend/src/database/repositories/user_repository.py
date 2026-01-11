@@ -40,6 +40,15 @@ class UserRepository:
             return dict(row) if row else None
     
     @staticmethod
+    def get_by_google_id(google_id: str) -> Optional[Dict]:
+        """Get user by Google ID (from IAP authentication)."""
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE google_id = ?", (google_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    
+    @staticmethod
     def create(username: str, email: str, full_name: str, hashed_password: str) -> Dict:
         """Create a new user."""
         created_at = datetime.now(timezone.utc).isoformat()
@@ -52,6 +61,24 @@ class UserRepository:
                                    is_active, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (username, email, full_name, hashed_password, True, created_at, updated_at))
+            conn.commit()
+            user_id = cursor.lastrowid
+        
+        return UserRepository.get_by_id(user_id)
+    
+    @staticmethod
+    def create_iap_user(username: str, email: str, full_name: str, google_id: str) -> Dict:
+        """Create a new user from IAP authentication (no password required)."""
+        created_at = datetime.now(timezone.utc).isoformat()
+        updated_at = created_at
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO users (username, email, full_name, google_id, auth_provider,
+                                   is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (username, email, full_name, google_id, 'iap', True, created_at, updated_at))
             conn.commit()
             user_id = cursor.lastrowid
         
@@ -78,13 +105,14 @@ class UserRepository:
         return UserRepository.get_by_id(user_id)
     
     @staticmethod
-    def update_last_login(user_id: int) -> None:
+    def update_last_login(user_id: int) -> bool:
         """Update the last login timestamp."""
         last_login = datetime.now(timezone.utc).isoformat()
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("UPDATE users SET last_login = ? WHERE id = ?", (last_login, user_id))
             conn.commit()
+            return cursor.rowcount > 0
     
     @staticmethod
     def exists(username: str) -> bool:

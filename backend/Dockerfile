@@ -29,9 +29,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code
 COPY src/ ./src/
 COPY config/ ./config/
+COPY entrypoint.sh ./entrypoint.sh
 
 # Create directory for SQLite database
 RUN mkdir -p /app/data
+
+# Make entrypoint executable
+RUN chmod +x /app/entrypoint.sh
 
 # Set environment variables (only stable/non-sensitive defaults)
 # Project-specific values should be set at deployment time via Cloud Run env vars
@@ -49,12 +53,11 @@ ENV VERTEXAI_PROJECT=adk-rag-ma
 ENV VERTEXAI_LOCATION=us-west1
 ENV ACCOUNT_ENV=develom
 
-# Expose port (Cloud Run will set PORT env var)
+# Set default PORT to match Cloud Run (Cloud Run will override this to 8080)
+ENV PORT=8080
+
+# Expose port
 EXPOSE 8080
 
-# Health check - use PORT env var or default to 8000
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/ || exit 1
-
-# Run the application - let api_server.py handle PORT env var
-CMD ["python", "src/api/server.py"]
+# Run the application via entrypoint (runs migrations first)
+CMD ["/app/entrypoint.sh"]

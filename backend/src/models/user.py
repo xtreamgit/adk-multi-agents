@@ -31,6 +31,8 @@ class User(UserBase):
     id: int
     is_active: bool = True
     default_agent_id: Optional[int] = None
+    google_id: Optional[str] = None
+    auth_provider: str = "local"  # 'local', 'iap', 'google'
     created_at: datetime
     updated_at: datetime
     last_login: Optional[datetime] = None

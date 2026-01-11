@@ -8,6 +8,7 @@ from .groups import router as groups_router
 from .agents import router as agents_router
 from .corpora import router as corpora_router
 from .admin import router as admin_router
+from .iap_auth import router as iap_auth_router
 
 __all__ = [
     "auth_router",
@@ -16,4 +17,5 @@ __all__ = [
     "agents_router",
     "corpora_router",
     "admin_router",
+    "iap_auth_router",
 ]

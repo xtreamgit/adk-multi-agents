@@ -68,6 +68,18 @@ class UserService:
         return User(**user_dict) if user_dict else None
     
     @staticmethod
+    def get_user_by_email(email: str) -> Optional[User]:
+        """Get user by email address."""
+        user_dict = UserRepository.get_by_email(email)
+        return User(**user_dict) if user_dict else None
+    
+    @staticmethod
+    def get_user_by_google_id(google_id: str) -> Optional[User]:
+        """Get user by Google ID (from IAP)."""
+        user_dict = UserRepository.get_by_google_id(google_id)
+        return User(**user_dict) if user_dict else None
+    
+    @staticmethod
     def get_all_users() -> List[User]:
         """Get all users."""
         user_dicts = UserRepository.get_all()
@@ -233,3 +245,78 @@ class UserService:
         corpus_list = profile.preferences.get('selected_corpora', [])
         logger.debug(f"Retrieved corpus selection for user {user_id}: {corpus_list}")
         return corpus_list if isinstance(corpus_list, list) else []
+    
+    @staticmethod
+    def create_user_from_iap(email: str, google_id: str, full_name: str) -> User:
+        """
+        Create a new user from IAP authentication.
+        
+        Args:
+            email: User's email from Google
+            google_id: User's unique Google ID
+            full_name: User's display name
+            
+        Returns:
+            Created User object
+            
+        Raises:
+            ValueError: If email already exists
+        """
+        # Check if email exists
+        if UserRepository.get_by_email(email):
+            raise ValueError(f"Email '{email}' already exists")
+        
+        # Generate username from email
+        username = email.split('@')[0]
+        
+        # Ensure username is unique by adding suffix if needed
+        base_username = username
+        counter = 1
+        while UserRepository.get_by_username(username):
+            username = f"{base_username}{counter}"
+            counter += 1
+        
+        # Create user without password (IAP handles authentication)
+        user_dict = UserRepository.create_iap_user(
+            username=username,
+            email=email,
+            full_name=full_name,
+            google_id=google_id
+        )
+        
+        # Create default profile
+        UserRepository.create_profile(user_dict['id'])
+        
+        logger.info(f"User created from IAP: {email} (ID: {user_dict['id']})")
+        return User(**user_dict)
+    
+    @staticmethod
+    def update_google_id(user_id: int, google_id: str) -> bool:
+        """
+        Update user's Google ID.
+        
+        Args:
+            user_id: User ID
+            google_id: Google ID to set
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        user_dict = UserRepository.update(user_id, google_id=google_id, auth_provider='iap')
+        if user_dict:
+            logger.info(f"Updated google_id for user {user_id}")
+            return True
+        return False
+    
+    @staticmethod
+    def update_last_login(user_id: int) -> bool:
+        """
+        Update user's last login timestamp.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        return UserRepository.update_last_login(user_id)
