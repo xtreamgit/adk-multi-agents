@@ -11,11 +11,30 @@ from services.user_service import UserService
 from models.group import Group, GroupCreate, GroupUpdate, Role, RoleCreate
 from models.user import User
 from middleware.auth_middleware import get_current_user
-from middleware.authorization_middleware import require_permission
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/groups", tags=["Groups & Roles"])
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Dependency to require admin privileges."""
+    from services.user_service import UserService
+    from database.repositories import GroupRepository
+    
+    user_group_ids = UserService.get_user_groups(current_user.id)
+    user_groups = [GroupRepository.get_group_by_id(gid) for gid in user_group_ids]
+    user_groups = [g for g in user_groups if g is not None]
+    is_admin = any(group['name'] == 'admin-users' for group in user_groups)
+    
+    if not is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required"
+        )
+    
+    return current_user
 
 
 # ========== Group Endpoints ==========
@@ -38,7 +57,7 @@ async def get_my_groups(current_user: User = Depends(get_current_user)):
 
 @router.get("/", response_model=List[Group])
 async def list_groups(
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     List all groups (admin only).
@@ -51,7 +70,7 @@ async def list_groups(
 @router.get("/{group_id}", response_model=Group)
 async def get_group(
     group_id: int,
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Get group details (admin only).
@@ -72,7 +91,7 @@ async def get_group(
 @router.post("/", response_model=Group, status_code=status.HTTP_201_CREATED)
 async def create_group(
     group_create: GroupCreate,
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Create a new group (admin only).
@@ -94,7 +113,7 @@ async def create_group(
 async def update_group(
     group_id: int,
     group_update: GroupUpdate,
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Update group (admin only).
@@ -116,7 +135,7 @@ async def update_group(
 @router.delete("/{group_id}")
 async def delete_group(
     group_id: int,
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Delete a group (admin only).
@@ -146,7 +165,7 @@ async def delete_group(
 @router.get("/{group_id}/users")
 async def get_group_users(
     group_id: int,
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Get all users in a group (admin only).
@@ -169,7 +188,7 @@ async def get_group_users(
 async def add_user_to_group(
     group_id: int,
     user_id: int,
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Add user to a group (admin only).
@@ -208,7 +227,7 @@ async def add_user_to_group(
 async def remove_user_from_group(
     group_id: int,
     user_id: int,
-    current_user: User = Depends(require_permission("manage:groups"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Remove user from a group (admin only).
@@ -231,7 +250,7 @@ async def remove_user_from_group(
 
 @router.get("/roles/", response_model=List[Role])
 async def list_roles(
-    current_user: User = Depends(require_permission("manage:roles"))
+    current_user: User = Depends(require_admin)
 ):
     """
     List all roles (admin only).
@@ -244,7 +263,7 @@ async def list_roles(
 @router.get("/roles/{role_id}", response_model=Role)
 async def get_role(
     role_id: int,
-    current_user: User = Depends(require_permission("manage:roles"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Get role details (admin only).
@@ -265,7 +284,7 @@ async def get_role(
 @router.post("/roles/", response_model=Role, status_code=status.HTTP_201_CREATED)
 async def create_role(
     role_create: RoleCreate,
-    current_user: User = Depends(require_permission("manage:roles"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Create a new role (admin only).
@@ -287,7 +306,7 @@ async def create_role(
 async def assign_role_to_group(
     group_id: int,
     role_id: int,
-    current_user: User = Depends(require_permission("manage:roles"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Assign role to a group (admin only).
@@ -326,7 +345,7 @@ async def assign_role_to_group(
 async def remove_role_from_group(
     group_id: int,
     role_id: int,
-    current_user: User = Depends(require_permission("manage:roles"))
+    current_user: User = Depends(require_admin)
 ):
     """
     Remove role from a group (admin only).

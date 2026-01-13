@@ -176,6 +176,38 @@ def user_exists(username: str) -> bool:
 # Initialize database on startup
 init_database()
 
+# Setup admin group automatically
+def setup_admin_group():
+    """Create admin-users group and add first user to it if needed."""
+    try:
+        from database.repositories import GroupRepository, UserRepository
+        from services.user_service import UserService
+        
+        # Create admin-users group if it doesn't exist
+        admin_group = GroupRepository.get_group_by_name('admin-users')
+        if not admin_group:
+            admin_group = GroupRepository.create_group(
+                name='admin-users',
+                description='Administrators with full system access'
+            )
+            admin_group_id = admin_group['id']
+            print(f"✅ Created admin-users group (ID: {admin_group_id})")
+        else:
+            admin_group_id = admin_group['id']
+        
+        # Get all users and add first user to admin group if they're not already
+        all_users = UserRepository.get_all()
+        if all_users:
+            first_user_id = all_users[0]['id']
+            user_groups = UserService.get_user_groups(first_user_id)
+            if admin_group_id not in user_groups:
+                UserService.add_user_to_group(first_user_id, admin_group_id)
+                print(f"✅ Added user '{all_users[0]['username']}' to admin-users group")
+    except Exception as e:
+        print(f"⚠️  Admin group setup error (non-critical): {e}")
+
+setup_admin_group()
+
 # Pydantic models for API requests/responses
 class UserProfile(BaseModel):
     name: str

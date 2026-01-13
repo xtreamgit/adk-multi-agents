@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/lib/api-enhanced';
 
 interface SessionData {
   session_id: string;
@@ -35,15 +35,10 @@ export default function SessionsPage() {
       setError(null);
       
       // Get all sessions
-      const sessionsResponse = await apiClient.getAllSessions();
+      const sessionsResponse = await apiClient.admin_getAllSessions();
       
-      // Handle response format
-      const sessions = Array.isArray(sessionsResponse) 
-        ? sessionsResponse 
-        : (sessionsResponse.sessions || []);
-      
-      // Show all sessions (admin can see all)
-      setUserSessions(sessions);
+      // API returns sessions array directly
+      setUserSessions(sessionsResponse);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');

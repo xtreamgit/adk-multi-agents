@@ -52,6 +52,17 @@ class UserService:
         # Create default profile
         UserRepository.create_profile(user_dict['id'])
         
+        # If this is the first user, add them to admin-users group
+        try:
+            all_users = UserRepository.get_all()
+            if len(all_users) == 1:  # This is the first user
+                admin_group = GroupRepository.get_group_by_name('admin-users')
+                if admin_group:
+                    UserService.add_user_to_group(user_dict['id'], admin_group['id'])
+                    logger.info(f"First user {user_create.username} added to admin-users group")
+        except Exception as e:
+            logger.warning(f"Failed to add first user to admin group: {e}")
+        
         logger.info(f"User created: {user_create.username} (ID: {user_dict['id']})")
         return User(**user_dict)
     

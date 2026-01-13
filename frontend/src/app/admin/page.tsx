@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/lib/api-enhanced';
 
 interface UserData {
   username: string;
@@ -43,15 +43,15 @@ export default function AdminPage() {
       setError(null);
       
       const [usersResponse, statsResponse, sessionsResponse] = await Promise.all([
-        apiClient.getAllUsers(),
-        apiClient.getUserStats(),
-        apiClient.getAllSessions()
+        apiClient.admin_getAllUsers(),
+        apiClient.admin_getUserStats(),
+        apiClient.admin_getAllSessions()
       ]);
       
-      // Handle response - API returns array directly or object with users property
-      setUsers(Array.isArray(usersResponse) ? usersResponse : (usersResponse.users || []));
+      // API returns data directly
+      setUsers(usersResponse);
       setStats(statsResponse);
-      setSessions(Array.isArray(sessionsResponse) ? sessionsResponse : (sessionsResponse.sessions || []));
+      setSessions(sessionsResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {

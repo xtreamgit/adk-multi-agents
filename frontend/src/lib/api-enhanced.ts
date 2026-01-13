@@ -125,8 +125,8 @@ class EnhancedApiClient {
   private baseUrl: string;
 
   constructor() {
-    // Use environment variable or default to localhost:8000
-    this.baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    // Use relative URLs when behind load balancer (production), localhost for development
+    this.baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
     
     // Load from localStorage if available
     if (typeof window !== 'undefined') {
@@ -202,6 +202,11 @@ class EnhancedApiClient {
 
     if (!response.ok) {
       const error = await response.json();
+      // Handle FastAPI validation errors (422) which return an array
+      if (Array.isArray(error.detail)) {
+        const messages = error.detail.map((err: any) => err.msg).join(', ');
+        throw new Error(messages || 'Registration failed');
+      }
       throw new Error(error.detail || 'Registration failed');
     }
 
@@ -1020,6 +1025,32 @@ class EnhancedApiClient {
         // Response is not JSON, use status text
       }
       throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async admin_getUserStats(): Promise<any> {
+    const response = await fetch(this.buildUrl('/api/admin/user-stats'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get user stats: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_getAllSessions(): Promise<any[]> {
+    const response = await fetch(this.buildUrl('/api/admin/sessions'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get sessions: ${response.statusText}`);
     }
 
     return response.json();
