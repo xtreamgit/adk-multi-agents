@@ -96,7 +96,7 @@ def run_all_migrations():
     # Skip migrations if using PostgreSQL (already applied to Cloud SQL)
     if os.getenv('DB_TYPE') == 'postgresql':
         logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
-        return
+        return True  # Return success
     
     logger.info("🔧 Running database migrations...")
     

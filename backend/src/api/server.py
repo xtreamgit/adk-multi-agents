@@ -380,8 +380,6 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(corpora_router)
     app.include_router(admin_router)
     app.include_router(iap_auth_router)
-    app.include_router(debug_auth_router)  # Temporary debug endpoint
-    app.include_router(db_admin_router)  # Temporary for password reset
     print("🚀 New API Routes Registered:")
     print("  ✅ /api/auth/*        - Authentication (register, login, refresh)")
     print("  ✅ /api/users/*       - User Management (profile, preferences)")
