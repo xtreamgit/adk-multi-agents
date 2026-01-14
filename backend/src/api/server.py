@@ -88,7 +88,12 @@ def get_user_from_db(username: str) -> Optional[Dict]:
     """Get user from database by username."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, username, email, full_name, hashed_password, created_at, last_login FROM users WHERE username = ?", (username,))
+        cursor.execute("""
+            SELECT id, username, email, full_name, hashed_password, 
+                   is_active, default_agent_id, google_id, auth_provider,
+                   created_at, updated_at, last_login 
+            FROM users WHERE username = ?
+        """, (username,))
         row = cursor.fetchone()
         if row:
             return dict(row)
@@ -254,12 +259,20 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if user_data is None:
         raise HTTPException(status_code=401, detail="User not found")
     
+    # Ensure updated_at has a value (use created_at if NULL)
+    updated_at = user_data.get("updated_at") or user_data.get("created_at")
+    
     return User(
         id=user_data["id"],
         username=user_data["username"],
         full_name=user_data["full_name"],
         email=user_data["email"],
+        is_active=bool(user_data.get("is_active", True)),
+        default_agent_id=user_data.get("default_agent_id"),
+        google_id=user_data.get("google_id"),
+        auth_provider=user_data.get("auth_provider", "local"),
         created_at=user_data["created_at"],
+        updated_at=updated_at,
         last_login=user_data.get("last_login"),
     )
 
