@@ -54,7 +54,7 @@ class CorpusRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             if active_only:
-                cursor.execute("SELECT * FROM corpora WHERE is_active = 1 ORDER BY display_name")
+                cursor.execute("SELECT * FROM corpora WHERE is_active = TRUE ORDER BY display_name")
             else:
                 cursor.execute("SELECT * FROM corpora ORDER BY display_name")
             return [dict(row) for row in cursor.fetchall()]
@@ -128,7 +128,7 @@ class CorpusRepository:
                 WHERE ug.user_id = ?
             """
             if active_only:
-                query += " AND c.is_active = 1"
+                query += " AND c.is_active = TRUE"
             query += " ORDER BY c.display_name"
             
             cursor.execute(query, (user_id,))

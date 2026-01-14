@@ -62,7 +62,7 @@ class AgentRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             if active_only:
-                cursor.execute("SELECT * FROM agents WHERE is_active = 1 ORDER BY display_name")
+                cursor.execute("SELECT * FROM agents WHERE is_active = TRUE ORDER BY display_name")
             else:
                 cursor.execute("SELECT * FROM agents ORDER BY display_name")
             return [dict(row) for row in cursor.fetchall()]
@@ -133,7 +133,7 @@ class AgentRepository:
                 WHERE uaa.user_id = ?
             """
             if active_only:
-                query += " AND a.is_active = 1"
+                query += " AND a.is_active = TRUE"
             query += " ORDER BY a.display_name"
             
             cursor.execute(query, (user_id,))

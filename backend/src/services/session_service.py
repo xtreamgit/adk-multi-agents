@@ -218,8 +218,8 @@ class SessionService:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE user_sessions 
-                SET is_active = 0 
-                WHERE expires_at < ? AND is_active = 1
+                SET is_active = FALSE 
+                WHERE expires_at < ? AND is_active = TRUE
             """, (now,))
             conn.commit()
             count = cursor.rowcount

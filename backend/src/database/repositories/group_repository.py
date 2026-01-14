@@ -70,7 +70,7 @@ class GroupRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             if active_only:
-                cursor.execute("SELECT * FROM groups WHERE is_active = 1 ORDER BY name")
+                cursor.execute("SELECT * FROM groups WHERE is_active = TRUE ORDER BY name")
             else:
                 cursor.execute("SELECT * FROM groups ORDER BY name")
             return [dict(row) for row in cursor.fetchall()]
@@ -81,7 +81,7 @@ class GroupRepository:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("UPDATE groups SET is_active = 0 WHERE id = ?", (group_id,))
+                cursor.execute("UPDATE groups SET is_active = FALSE WHERE id = ?", (group_id,))
                 conn.commit()
                 return cursor.rowcount > 0
         except Exception:

@@ -796,7 +796,7 @@ async def get_all_sessions(
                        COALESCE(us.user_query_count, 0) as user_query_count
                 FROM user_sessions us
                 LEFT JOIN users u ON us.user_id = u.id
-                WHERE us.is_active = 1
+                WHERE us.is_active = TRUE
                 ORDER BY us.last_activity DESC
                 LIMIT 50
             """)

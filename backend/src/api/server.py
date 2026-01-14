@@ -53,8 +53,6 @@ try:
         admin_router,
         iap_auth_router
     )
-    from api.routes.db_admin import router as db_admin_router
-    from api.routes.debug_auth import router as debug_auth_router
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
 except ImportError as e:
@@ -133,11 +131,8 @@ def user_exists(username: str) -> bool:
         return cursor.fetchone() is not None
 
 # Initialize database on startup
+logger = logging.getLogger(__name__)
 logger.info(f"🔍 Environment Check - DB_TYPE: {os.getenv('DB_TYPE', 'NOT SET')}")
-logger.info(f"🔍 Environment Check - DB_NAME: {os.getenv('DB_NAME', 'NOT SET')}")
-logger.info(f"🔍 Environment Check - CLOUD_SQL_CONNECTION_NAME: {os.getenv('CLOUD_SQL_CONNECTION_NAME', 'NOT SET')}")
-init_database()
-
 # Skip SQLite migrations if using PostgreSQL (migrations already applied to Cloud SQL)
 if os.getenv('DB_TYPE') == 'postgresql':
     logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
@@ -387,8 +382,6 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(iap_auth_router)
     app.include_router(debug_auth_router)  # Temporary debug endpoint
     app.include_router(db_admin_router)  # Temporary for password reset
-    
-    print("\n" + "="*70)
     print("🚀 New API Routes Registered:")
     print("  ✅ /api/auth/*        - Authentication (register, login, refresh)")
     print("  ✅ /api/users/*       - User Management (profile, preferences)")
