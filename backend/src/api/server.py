@@ -30,6 +30,9 @@ backend_src = os.path.join(os.path.dirname(os.path.dirname(__file__)))
 if backend_src not in sys.path:
     sys.path.insert(0, backend_src)
 
+# Now import after sys.path is set
+from middleware.auth_middleware import get_current_user as get_current_user_from_middleware
+
 # Import agent manager for dynamic agent loading (after path setup)
 try:
     from services.agent_manager import AgentManager
@@ -262,6 +265,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     # Ensure updated_at has a value (use created_at if NULL)
     updated_at = user_data.get("updated_at") or user_data.get("created_at")
     
+    # Convert datetime objects to ISO strings for Pydantic
+    def to_iso(dt):
+        if dt is None:
+            return None
+        if isinstance(dt, str):
+            return dt
+        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
+    
     return User(
         id=user_data["id"],
         username=user_data["username"],
@@ -271,9 +282,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         default_agent_id=user_data.get("default_agent_id"),
         google_id=user_data.get("google_id"),
         auth_provider=user_data.get("auth_provider", "local"),
-        created_at=user_data["created_at"],
-        updated_at=updated_at,
-        last_login=user_data.get("last_login"),
+        created_at=to_iso(user_data["created_at"]),
+        updated_at=to_iso(updated_at),
+        last_login=to_iso(user_data.get("last_login")),
     )
 
 # In-memory session storage (in production, use Redis or database)
@@ -432,7 +443,27 @@ async def register_user(user_data: UserCreate):
     created_user = create_user_in_db(user_data.username, user_data.full_name, user_data.email, hashed_password)
     
     # Return user without password
-    return User(**{k: v for k, v in created_user.items() if k != "hashed_password"})
+    # Convert datetime objects to ISO strings for Pydantic
+    def to_iso(dt):
+        if dt is None:
+            return None
+        if isinstance(dt, str):
+            return dt
+        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
+    
+    return User(
+        id=created_user["id"],
+        username=created_user["username"],
+        full_name=created_user["full_name"],
+        email=created_user["email"],
+        is_active=bool(created_user.get("is_active", True)),
+        default_agent_id=created_user.get("default_agent_id"),
+        google_id=created_user.get("google_id"),
+        auth_provider=created_user.get("auth_provider", "local"),
+        created_at=to_iso(created_user["created_at"]),
+        updated_at=to_iso(created_user.get("updated_at") or created_user.get("created_at")),
+        last_login=to_iso(created_user.get("last_login")),
+    )
 
 # Legacy endpoint - replaced by /api/auth/login in new routes
 @app.post("/api/auth/login-legacy", response_model=Token, include_in_schema=not NEW_ROUTES_AVAILABLE)
@@ -454,7 +485,30 @@ async def login_user(login_data: UserLogin):
     access_token = create_access_token(data={"sub": user_data["username"]})
     
     # Return token with user info
-    user_info = User(**{k: v for k, v in user_data.items() if k != "hashed_password"})
+    # Ensure updated_at has a value (use created_at if NULL)
+    updated_at = user_data.get("updated_at") or user_data.get("created_at")
+    
+    # Convert datetime objects to ISO strings for Pydantic
+    def to_iso(dt):
+        if dt is None:
+            return None
+        if isinstance(dt, str):
+            return dt
+        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
+    
+    user_info = User(
+        id=user_data["id"],
+        username=user_data["username"],
+        full_name=user_data["full_name"],
+        email=user_data["email"],
+        is_active=bool(user_data.get("is_active", True)),
+        default_agent_id=user_data.get("default_agent_id"),
+        google_id=user_data.get("google_id"),
+        auth_provider=user_data.get("auth_provider", "local"),
+        created_at=to_iso(user_data["created_at"]),
+        updated_at=to_iso(updated_at),
+        last_login=to_iso(user_data.get("last_login")),
+    )
     return Token(access_token=access_token, token_type="bearer", user=user_info)
 
 # Legacy endpoint - replaced by /api/auth/me in new routes
@@ -597,7 +651,7 @@ async def health_check():
     }
 
 @app.post("/api/sessions", response_model=SessionInfo)
-async def create_session(user_profile: Optional[UserProfile] = None, current_user: User = Depends(get_current_user)):
+async def create_session(user_profile: Optional[UserProfile] = None, current_user: User = Depends(get_current_user_from_middleware)):
     """Create a new user session with agent selection."""
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -680,7 +734,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
         raise
 
 @app.get("/api/sessions/{session_id}", response_model=SessionInfo)
-async def get_session(session_id: str, current_user: User = Depends(get_current_user)):
+async def get_session(session_id: str, current_user: User = Depends(get_current_user_from_middleware)):
     """Get session information."""
     if session_id not in sessions:
         # Create a new session if it doesn't exist (handles server restarts)
@@ -709,7 +763,7 @@ async def get_session(session_id: str, current_user: User = Depends(get_current_
     )
 
 @app.put("/api/sessions/{session_id}/profile")
-async def update_user_profile(session_id: str, user_profile: UserProfile, current_user: User = Depends(get_current_user)):
+async def update_user_profile(session_id: str, user_profile: UserProfile, current_user: User = Depends(get_current_user_from_middleware)):
     """Update user profile for a session."""
     if session_id not in sessions:
         # Create a new session if it doesn't exist (handles server restarts)
@@ -734,7 +788,7 @@ async def update_user_profile(session_id: str, user_profile: UserProfile, curren
     return {"message": "Profile updated successfully"}
 
 @app.post("/api/sessions/{session_id}/chat", response_model=ChatResponse)
-async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_user: User = Depends(get_current_user)):
+async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_user: User = Depends(get_current_user_from_middleware)):
     """Send a message to the RAG agent and get a response."""
     if session_id not in sessions:
         # Create a new session if it doesn't exist (handles server restarts)
@@ -918,7 +972,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         raise HTTPException(status_code=500, detail=error_details)
 
 @app.get("/api/sessions/{session_id}/history")
-async def get_chat_history(session_id: str, current_user: User = Depends(get_current_user)):
+async def get_chat_history(session_id: str, current_user: User = Depends(get_current_user_from_middleware)):
     """Get chat history for a session."""
     if session_id not in sessions:
         # Return empty history instead of 404 when session doesn't exist
@@ -928,7 +982,7 @@ async def get_chat_history(session_id: str, current_user: User = Depends(get_cur
     return {"chat_history": sessions[session_id]["chat_history"]}
 
 @app.delete("/api/sessions/{session_id}")
-async def delete_session(session_id: str, current_user: User = Depends(get_current_user)):
+async def delete_session(session_id: str, current_user: User = Depends(get_current_user_from_middleware)):
     """Delete a session."""
     if session_id not in sessions:
         # Return success even if session doesn't exist (idempotent operation)
