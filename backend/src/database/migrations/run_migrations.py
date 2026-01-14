@@ -91,12 +91,16 @@ def mark_migration_applied(conn, migration_name):
     conn.commit()
 
 
-def main():
-    """Run all pending migrations."""
-    logger.info(f"Starting database migrations")
-    logger.info(f"Database: {DATABASE_PATH}")
+def run_all_migrations():
+    """Run all migration files."""
+    # Skip migrations if using PostgreSQL (already applied to Cloud SQL)
+    if os.getenv('DB_TYPE') == 'postgresql':
+        logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
+        return
     
-    # Ensure database directory exists
+    logger.info("🔧 Running database migrations...")
+    
+    # Ensure database and directory exist
     db_dir = os.path.dirname(DATABASE_PATH)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
@@ -151,5 +155,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
-    success = main()
+    success = run_all_migrations()
     sys.exit(0 if success else 1)

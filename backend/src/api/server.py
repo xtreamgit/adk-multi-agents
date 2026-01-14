@@ -40,6 +40,9 @@ except ImportError as e:
     print(f"⚠️  AgentManager not available: {e}")
     print("   Using static agent loading instead")
 
+# Import database connection utilities (after path setup)
+from database.connection import init_database, get_db_connection
+
 try:
     from api.routes import (
         auth_router,
@@ -50,6 +53,8 @@ try:
         admin_router,
         iap_auth_router
     )
+    from api.routes.db_admin import router as db_admin_router
+    from api.routes.debug_auth import router as debug_auth_router
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
 except ImportError as e:
@@ -79,53 +84,7 @@ ACCESS_TOKEN_EXPIRE_DAYS = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
-# Database configuration
-DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "users.db"))
-
-# Database setup and management
-def init_database():
-    """Initialize the SQLite database and create tables if they don't exist."""
-    try:
-        # Ensure the directory exists
-        db_dir = os.path.dirname(DATABASE_PATH)
-        if db_dir and not os.path.exists(db_dir):
-            os.makedirs(db_dir, exist_ok=True)
-            logging.info(f"Created database directory: {db_dir}")
-        
-        # Create tables if they don't exist
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Create users table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    full_name TEXT NOT NULL,
-                    email TEXT NOT NULL,
-                    hashed_password TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    last_login TEXT
-                )
-            """)
-            
-            conn.commit()
-            logging.info(f"Database initialized successfully at {DATABASE_PATH}")
-            
-    except Exception as e:
-        logging.error(f"Failed to initialize database: {e}")
-        # Don't crash the app, but log the error
-        # In Cloud Run, the /app/data volume should be writable
-
-@contextmanager
-def get_db_connection():
-    """Context manager for database connections."""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row  # Enable dict-like access to rows
-    try:
-        yield conn
-    finally:
-        conn.close()
+# Database configuration (now handled in connection.py)
 
 def get_user_from_db(username: str) -> Optional[Dict]:
     """Get user from database by username."""
@@ -174,7 +133,14 @@ def user_exists(username: str) -> bool:
         return cursor.fetchone() is not None
 
 # Initialize database on startup
+logger.info(f"🔍 Environment Check - DB_TYPE: {os.getenv('DB_TYPE', 'NOT SET')}")
+logger.info(f"🔍 Environment Check - DB_NAME: {os.getenv('DB_NAME', 'NOT SET')}")
+logger.info(f"🔍 Environment Check - CLOUD_SQL_CONNECTION_NAME: {os.getenv('CLOUD_SQL_CONNECTION_NAME', 'NOT SET')}")
 init_database()
+
+# Skip SQLite migrations if using PostgreSQL (migrations already applied to Cloud SQL)
+if os.getenv('DB_TYPE') == 'postgresql':
+    logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
 
 # Setup admin group automatically
 def setup_admin_group():
@@ -419,6 +385,8 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(corpora_router)
     app.include_router(admin_router)
     app.include_router(iap_auth_router)
+    app.include_router(debug_auth_router)  # Temporary debug endpoint
+    app.include_router(db_admin_router)  # Temporary for password reset
     
     print("\n" + "="*70)
     print("🚀 New API Routes Registered:")
