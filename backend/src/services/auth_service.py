@@ -28,6 +28,15 @@ class AuthService:
     """Service for authentication operations."""
     
     @staticmethod
+    def _to_iso(dt):
+        """Convert datetime to ISO string for Pydantic validation."""
+        if dt is None:
+            return None
+        if isinstance(dt, str):
+            return dt
+        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
+    
+    @staticmethod
     def hash_password(password: str) -> str:
         """Hash a plain password."""
         return pwd_context.hash(password)
@@ -105,6 +114,11 @@ class AuthService:
         # Update last login
         UserRepository.update_last_login(user_dict['id'])
         
+        # Convert datetime objects to ISO strings for Pydantic
+        user_dict['created_at'] = AuthService._to_iso(user_dict.get('created_at'))
+        user_dict['updated_at'] = AuthService._to_iso(user_dict.get('updated_at'))
+        user_dict['last_login'] = AuthService._to_iso(user_dict.get('last_login'))
+        
         # Return user object
         return UserInDB(**user_dict)
     
@@ -126,6 +140,11 @@ class AuthService:
         user_dict = UserRepository.get_by_username(username)
         if not user_dict:
             return None
+        
+        # Convert datetime objects to ISO strings for Pydantic
+        user_dict['created_at'] = AuthService._to_iso(user_dict.get('created_at'))
+        user_dict['updated_at'] = AuthService._to_iso(user_dict.get('updated_at'))
+        user_dict['last_login'] = AuthService._to_iso(user_dict.get('last_login'))
         
         return User(**user_dict)
     
