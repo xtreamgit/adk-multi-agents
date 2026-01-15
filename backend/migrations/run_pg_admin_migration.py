@@ -83,21 +83,84 @@ def run_admin_tables_migration():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Execute table creation
-            statements = [s.strip() for s in migration_sql.split(';') if s.strip()]
-            for statement in statements:
-                cursor.execute(statement)
+            # Check if tables already exist
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'corpus_metadata'
+            """)
+            result = cursor.fetchone()
+            if result and (result['count'] if isinstance(result, dict) else result[0]) > 0:
+                logger.info("⏭️  corpus_metadata table already exists, skipping migration")
+                return
+            
+            # Execute table creation - one at a time with error handling
+            tables = [
+                ("corpus_audit_log", """
+                    CREATE TABLE corpus_audit_log (
+                        id SERIAL PRIMARY KEY,
+                        corpus_id INTEGER,
+                        user_id INTEGER,
+                        action VARCHAR(50) NOT NULL,
+                        changes JSONB,
+                        metadata JSONB,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (corpus_id) REFERENCES corpora(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                """),
+                ("corpus_metadata", """
+                    CREATE TABLE corpus_metadata (
+                        id SERIAL PRIMARY KEY,
+                        corpus_id INTEGER UNIQUE NOT NULL,
+                        created_by INTEGER,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_synced_at TIMESTAMP,
+                        last_synced_by INTEGER,
+                        document_count INTEGER DEFAULT 0,
+                        last_document_count_update TIMESTAMP,
+                        sync_status VARCHAR(50) DEFAULT 'active',
+                        sync_error_message TEXT,
+                        tags JSONB,
+                        notes TEXT,
+                        FOREIGN KEY (corpus_id) REFERENCES corpora(id) ON DELETE CASCADE,
+                        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+                        FOREIGN KEY (last_synced_by) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                """),
+                ("corpus_sync_schedule", """
+                    CREATE TABLE corpus_sync_schedule (
+                        id SERIAL PRIMARY KEY,
+                        corpus_id INTEGER,
+                        frequency VARCHAR(50),
+                        last_run TIMESTAMP,
+                        next_run TIMESTAMP,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        FOREIGN KEY (corpus_id) REFERENCES corpora(id) ON DELETE CASCADE
+                    )
+                """)
+            ]
+            
+            for table_name, create_sql in tables:
+                try:
+                    logger.info(f"Creating table: {table_name}")
+                    cursor.execute(create_sql)
+                except Exception as e:
+                    logger.warning(f"Table {table_name} error (may exist): {e}")
             
             # Execute indexes
             index_statements = [s.strip() for s in index_sql.split(';') if s.strip()]
             for statement in index_statements:
-                cursor.execute(statement)
+                try:
+                    cursor.execute(statement)
+                except Exception as e:
+                    logger.warning(f"Index creation warning: {e}")
             
             conn.commit()
             logger.info("✅ Admin tables migration completed successfully")
             
     except Exception as e:
-        logger.error(f"Admin tables migration error (may already exist): {e}")
+        logger.error(f"Admin tables migration error: {e}", exc_info=True)
         # Don't fail startup if tables already exist
 
 if __name__ == '__main__':
