@@ -47,9 +47,9 @@ def test_login():
                 print(f"   Token (first 40 chars): {token[:40]}...")
                 
                 # Test token with a protected endpoint
-                print("\n2. Testing token with /api/corpora endpoint...")
+                print("\n2. Testing token with /api/corpora/ endpoint...")
                 corpora_response = requests.get(
-                    f"{BACKEND_URL}/api/corpora",
+                    f"{BACKEND_URL}/api/corpora/",
                     headers={"Authorization": f"Bearer {token}"},
                     timeout=10
                 )
@@ -69,10 +69,8 @@ def test_login():
                 print("\n3. Testing session creation...")
                 session_response = requests.post(
                     f"{BACKEND_URL}/api/sessions",
-                    json={},
                     headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json"
+                        "Authorization": f"Bearer {token}"
                     },
                     timeout=10
                 )
