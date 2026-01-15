@@ -81,15 +81,17 @@ async def login(login_request: LoginRequest):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create access token
-    access_token = AuthService.create_user_token(User(**user.model_dump()))
+    # Create access token (user is UserInDB, convert to User for response)
+    user_dict = user.model_dump(exclude={'hashed_password'})
+    user_obj = User(**user_dict)
+    access_token = AuthService.create_user_token(user_obj)
     
     logger.info(f"User logged in: {user.username}")
     
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
-        user=User(**user.model_dump())
+        user=user_obj
     )
 
 
