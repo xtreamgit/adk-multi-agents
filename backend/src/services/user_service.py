@@ -17,6 +17,24 @@ class UserService:
     """Service for user operations."""
     
     @staticmethod
+    def _to_iso(dt):
+        """Convert datetime to ISO string for Pydantic validation."""
+        if dt is None:
+            return None
+        if isinstance(dt, str):
+            return dt
+        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
+    
+    @staticmethod
+    def _convert_user_dict(user_dict: dict) -> dict:
+        """Convert datetime fields in user dict to ISO strings."""
+        if user_dict:
+            user_dict['created_at'] = UserService._to_iso(user_dict.get('created_at'))
+            user_dict['updated_at'] = UserService._to_iso(user_dict.get('updated_at'))
+            user_dict['last_login'] = UserService._to_iso(user_dict.get('last_login'))
+        return user_dict
+    
+    @staticmethod
     def create_user(user_create: UserCreate) -> User:
         """
         Create a new user.
@@ -64,37 +82,37 @@ class UserService:
             logger.warning(f"Failed to add first user to admin group: {e}")
         
         logger.info(f"User created: {user_create.username} (ID: {user_dict['id']})")
-        return User(**user_dict)
+        return User(**UserService._convert_user_dict(user_dict))
     
     @staticmethod
     def get_user_by_id(user_id: int) -> Optional[User]:
         """Get user by ID."""
         user_dict = UserRepository.get_by_id(user_id)
-        return User(**user_dict) if user_dict else None
+        return User(**UserService._convert_user_dict(user_dict)) if user_dict else None
     
     @staticmethod
     def get_user_by_username(username: str) -> Optional[User]:
         """Get user by username."""
         user_dict = UserRepository.get_by_username(username)
-        return User(**user_dict) if user_dict else None
+        return User(**UserService._convert_user_dict(user_dict)) if user_dict else None
     
     @staticmethod
     def get_user_by_email(email: str) -> Optional[User]:
         """Get user by email address."""
         user_dict = UserRepository.get_by_email(email)
-        return User(**user_dict) if user_dict else None
+        return User(**UserService._convert_user_dict(user_dict)) if user_dict else None
     
     @staticmethod
     def get_user_by_google_id(google_id: str) -> Optional[User]:
         """Get user by Google ID (from IAP)."""
         user_dict = UserRepository.get_by_google_id(google_id)
-        return User(**user_dict) if user_dict else None
+        return User(**UserService._convert_user_dict(user_dict)) if user_dict else None
     
     @staticmethod
     def get_all_users() -> List[User]:
         """Get all users."""
         user_dicts = UserRepository.get_all()
-        return [User(**user_dict) for user_dict in user_dicts]
+        return [User(**UserService._convert_user_dict(user_dict)) for user_dict in user_dicts]
     
     @staticmethod
     def update_user(user_id: int, user_update: UserUpdate) -> Optional[User]:
@@ -113,7 +131,7 @@ class UserService:
             return UserService.get_user_by_id(user_id)
         
         user_dict = UserRepository.update(user_id, **update_data)
-        return User(**user_dict) if user_dict else None
+        return User(**UserService._convert_user_dict(user_dict)) if user_dict else None
     
     @staticmethod
     def get_user_profile(user_id: int) -> Optional[UserProfile]:
@@ -299,7 +317,7 @@ class UserService:
         UserRepository.create_profile(user_dict['id'])
         
         logger.info(f"User created from IAP: {email} (ID: {user_dict['id']})")
-        return User(**user_dict)
+        return User(**UserService._convert_user_dict(user_dict))
     
     @staticmethod
     def update_google_id(user_id: int, google_id: str) -> bool:

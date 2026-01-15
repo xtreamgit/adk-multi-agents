@@ -754,20 +754,22 @@ async def get_user_stats(
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Count users created today
+            # Count users created today (PostgreSQL syntax)
             cursor.execute("""
-                SELECT COUNT(*) FROM users 
-                WHERE date(created_at) = date('now')
+                SELECT COUNT(*) as count FROM users 
+                WHERE DATE(created_at) = CURRENT_DATE
             """)
-            users_created_today = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            users_created_today = result['count'] if result else 0
             
-            # Count active users in last week (with last_login)
+            # Count active users in last week (with last_login, PostgreSQL syntax)
             cursor.execute("""
-                SELECT COUNT(*) FROM users 
+                SELECT COUNT(*) as count FROM users 
                 WHERE last_login IS NOT NULL 
-                AND datetime(last_login) >= datetime('now', '-7 days')
+                AND last_login >= NOW() - INTERVAL '7 days'
             """)
-            active_users_last_week = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            active_users_last_week = result['count'] if result else 0
         
         return {
             "total_users": total_users,
@@ -792,8 +794,7 @@ async def get_all_sessions(
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT us.session_id, u.username, us.created_at, us.last_activity,
-                       COALESCE(us.message_count, 0) as message_count,
-                       COALESCE(us.user_query_count, 0) as user_query_count
+                       COALESCE(us.message_count, 0) as message_count
                 FROM user_sessions us
                 LEFT JOIN users u ON us.user_id = u.id
                 WHERE us.is_active = TRUE
@@ -810,8 +811,7 @@ async def get_all_sessions(
                 "username": row['username'] if row['username'] else 'Unknown',
                 "created_at": row['created_at'],
                 "last_activity": row['last_activity'] if row['last_activity'] else row['created_at'],
-                "chat_messages": row['message_count'],
-                "user_queries": row['user_query_count']
+                "chat_messages": row['message_count']
             })
         
         return formatted_sessions
