@@ -838,14 +838,13 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     }
     sessions[session_id]["chat_history"].append(user_message_entry)
     
-    # Update message count and user query count in database
+    # Update message count in database
     from database.connection import get_db_connection
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE user_sessions 
             SET message_count = message_count + 1,
-                user_query_count = user_query_count + 1,
                 last_activity = ?
             WHERE session_id = ?
         """, (datetime.now(timezone.utc).isoformat(), session_id))
