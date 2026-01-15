@@ -30,6 +30,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY config/ ./config/
 COPY migrations/ ./migrations/
+COPY add_missing_columns.py ./add_missing_columns.py
 COPY entrypoint.sh ./entrypoint.sh
 
 # Create directory for SQLite database

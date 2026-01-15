@@ -222,13 +222,12 @@ def execute_query(query: str, params: tuple = ()) -> list:
         cursor = conn.cursor()
         cursor.execute(query, params)
         
-        if DB_TYPE == 'postgresql':
-            columns = [desc[0] for desc in cursor.description] if cursor.description else []
-            rows = cursor.fetchall()
-            return [dict(zip(columns, row)) for row in rows]
-        else:
-            rows = cursor.fetchall()
+        # PostgreSQLCursorWrapper already returns dicts, no need to convert
+        rows = cursor.fetchall()
+        if DB_TYPE == 'sqlite':
             return [dict(row) for row in rows]
+        else:
+            return rows
 
 
 def execute_insert(query: str, params: tuple = ()) -> int:
