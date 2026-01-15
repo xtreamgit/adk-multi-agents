@@ -29,6 +29,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code
 COPY src/ ./src/
 COPY config/ ./config/
+COPY migrations/ ./migrations/
 COPY entrypoint.sh ./entrypoint.sh
 
 # Create directory for SQLite database
