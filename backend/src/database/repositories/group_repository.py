@@ -112,12 +112,15 @@ class GroupRepository:
             row = cursor.fetchone()
             if row:
                 role = dict(row)
-                # Parse JSON permissions
-                if role.get('permissions'):
+                # Parse JSON permissions - ensure it's always an array
+                permissions_str = role.get('permissions')
+                if permissions_str:
                     try:
-                        role['permissions'] = json.loads(role['permissions'])
+                        role['permissions'] = json.loads(permissions_str)
                     except (json.JSONDecodeError, TypeError):
                         role['permissions'] = []
+                else:
+                    role['permissions'] = []
                 return role
             return None
     
@@ -130,11 +133,15 @@ class GroupRepository:
             row = cursor.fetchone()
             if row:
                 role = dict(row)
-                if role.get('permissions'):
+                # Parse JSON permissions - ensure it's always an array
+                permissions_str = role.get('permissions')
+                if permissions_str:
                     try:
-                        role['permissions'] = json.loads(role['permissions'])
+                        role['permissions'] = json.loads(permissions_str)
                     except (json.JSONDecodeError, TypeError):
                         role['permissions'] = []
+                else:
+                    role['permissions'] = []
                 return role
             return None
     
@@ -165,11 +172,15 @@ class GroupRepository:
             roles = []
             for row in cursor.fetchall():
                 role = dict(row)
-                if role.get('permissions'):
+                # Parse JSON permissions - ensure it's always an array
+                permissions_str = role.get('permissions')
+                if permissions_str:
                     try:
-                        role['permissions'] = json.loads(role['permissions'])
+                        role['permissions'] = json.loads(permissions_str)
                     except (json.JSONDecodeError, TypeError):
                         role['permissions'] = []
+                else:
+                    role['permissions'] = []
                 roles.append(role)
             return roles
     

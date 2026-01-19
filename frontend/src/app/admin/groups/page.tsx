@@ -353,14 +353,18 @@ export default function AdminGroupsPage() {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-900">
                   <div className="flex flex-wrap gap-1">
-                    {role.permissions.map((perm, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
-                      >
-                        {perm}
-                      </span>
-                    ))}
+                    {role.permissions && role.permissions.length > 0 ? (
+                      role.permissions.map((perm, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+                        >
+                          {perm}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-400 italic">No permissions</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

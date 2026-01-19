@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 .coverage
 *.backup
+
+# Service Account Keys (NEVER commit these!)
+*-sa-key.json
+backend-sa-key.json
+service-account*.json

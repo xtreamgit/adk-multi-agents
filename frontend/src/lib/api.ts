@@ -336,6 +336,70 @@ class ApiClient {
 
     return await response.json();
   }
+
+  async retrieveDocument(corpusId: number, documentName: string, generateSignedUrl: boolean = false): Promise<DocumentRetrievalResponse> {
+    const params = new URLSearchParams({
+      corpus_id: corpusId.toString(),
+      document_name: documentName,
+      generate_signed_url: generateSignedUrl.toString(),
+    });
+
+    const response = await fetch(this.buildUrl(`/api/documents/retrieve?${params}`), {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to retrieve document');
+    }
+
+    return await response.json();
+  }
+
+  async getDocumentAccessLogs(limit: number = 50): Promise<DocumentAccessLog[]> {
+    const response = await fetch(this.buildUrl(`/api/documents/access-logs?limit=${limit}`), {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get access logs: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.logs || [];
+  }
 }
+
+export type DocumentRetrievalResponse = {
+  status: string;
+  document: {
+    id: string;
+    name: string;
+    corpus_id: number;
+    corpus_name: string;
+    file_type: string;
+    size_bytes?: number;
+    created_at?: string;
+    updated_at?: string;
+  };
+  access?: {
+    url: string;
+    expires_at: string;
+    valid_for_seconds: number;
+  };
+};
+
+export type DocumentAccessLog = {
+  id: number;
+  user_id: number;
+  corpus_id: number;
+  document_name: string;
+  document_file_id?: string;
+  access_type: string;
+  success: boolean;
+  error_message?: string;
+  source_uri?: string;
+  accessed_at: string;
+};
 
 export const apiClient = new ApiClient();

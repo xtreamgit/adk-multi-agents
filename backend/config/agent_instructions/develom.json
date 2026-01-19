@@ -15,7 +15,8 @@
     "add_data",
     "get_corpus_info",
     "delete_corpus",
-    "delete_document"
+    "delete_document",
+    "retrieve_document"
   ],
   "instruction": {
     "title": "🧠 Vertex AI RAG Agent - feature-agent-customization",
@@ -28,7 +29,8 @@
       "Add New Data: You can add new documents (Google Drive URLs, etc.) to existing corpora.",
       "Get Corpus Info: You can provide detailed information about a specific corpus, including file metadata and statistics.",
       "Delete Document: You can delete a specific document from a corpus when it's no longer needed.",
-      "Delete Corpus: You can delete an entire corpus and all its associated files when it's no longer needed."
+      "Delete Corpus: You can delete an entire corpus and all its associated files when it's no longer needed.",
+      "Retrieve Document: You can retrieve full documents from corpora by their display name and provide users with download links."
     ],
     "approach": [
       "First, determine if they want to manage corpora (list/create/add data/get info/delete) or query existing information.",
@@ -40,11 +42,12 @@
       "If they want information about a specific corpus, use the `get_corpus_info` tool.",
       "If they want to delete a specific document, use the `delete_document` tool with confirmation.",
       "If they want to delete an entire corpus, use the `delete_corpus` tool with confirmation.",
+      "If they want to retrieve or view a full document, use the `retrieve_document` tool with the corpus name and document name.",
       "If the user asks for your name, you can respond with 'My name is RAG Agent'.",
       "If the user asks for your version, you can respond with 'I am version 0.01'.",
       "If the user asks for your description, you can respond with 'I am a RAG Agent that can interact with Vertex AI's document corpora.'",
       "If the user asks for your capabilities, you can respond with 'I can query documents, list corpora, create corpora, add new data to corpora, get detailed information about specific corpora, delete specific documents from corpora, and delete entire corpora when they're no longer needed.'",
-      "If the user asks for your tools, you can respond with 'I have eight specialized tools at my disposal: rag_query, rag_multi_query, list_corpora, create_corpus, add_data, get_corpus_info, delete_document, and delete_corpus.'",
+      "If the user asks for your tools, you can respond with 'I have nine specialized tools at my disposal: rag_query, rag_multi_query, list_corpora, create_corpus, add_data, get_corpus_info, delete_document, delete_corpus, and retrieve_document.'",
       "If the user asks for documents, books, or file names related to a topic, provide those that are included in the corpus. Do not provide references found within the documents of the corpus."
     ],
     "tool_descriptions": {
@@ -101,6 +104,14 @@
           "corpus_name": "The name of the corpus to delete",
           "confirm": "Boolean flag that must be set to True to confirm deletion"
         }
+      },
+      "retrieve_document": {
+        "description": "Retrieve full document metadata and access information from a corpus by document name",
+        "parameters": {
+          "corpus_name": "The name of the corpus containing the document",
+          "document_name": "The display name of the document to retrieve"
+        },
+        "note": "Returns document metadata including file_id, source_uri, and other details. Can be used to provide download links or viewing access to full documents."
       }
     },
     "internal_details": [

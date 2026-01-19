@@ -54,7 +54,8 @@ try:
         agents_router,
         corpora_router,
         admin_router,
-        iap_auth_router
+        iap_auth_router,
+        documents_router
     )
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
@@ -404,6 +405,7 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(corpora_router)
     app.include_router(admin_router)
     app.include_router(iap_auth_router)
+    app.include_router(documents_router)
     print("🚀 New API Routes Registered:")
     print("  ✅ /api/auth/*        - Authentication (register, login, refresh)")
     print("  ✅ /api/users/*       - User Management (profile, preferences)")
@@ -412,6 +414,7 @@ if NEW_ROUTES_AVAILABLE:
     print("  ✅ /api/corpora/*     - Corpus Management (access, selection)")
     print("  ✅ /api/admin/*       - Admin Panel (corpus management, audit)")
     print("  ✅ /api/iap/*         - IAP Authentication (Google Cloud IAP)")
+    print("  ✅ /api/documents/*   - Document Retrieval (view, access)")
     print("="*70 + "\n")
     
     # Note: Old auth endpoints below are replaced by new routes
@@ -838,16 +841,15 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     }
     sessions[session_id]["chat_history"].append(user_message_entry)
     
-    # Update message count in database
+    # Update last activity in database
     from database.connection import get_db_connection
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE user_sessions 
-            SET message_count = message_count + 1,
-                last_activity = ?
-            WHERE session_id = ?
-        """, (datetime.now(timezone.utc).isoformat(), session_id))
+            SET last_activity = %s
+            WHERE session_id = %s
+        """, (datetime.now(timezone.utc), session_id))
         conn.commit()
     
     # Prepare context from user profile if available
@@ -944,16 +946,15 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         }
         sessions[session_id]["chat_history"].append(agent_message_entry)
         
-        # Update message count for agent response
+        # Update last activity for agent response
         from database.connection import get_db_connection
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE user_sessions 
-                SET message_count = message_count + 1,
-                    last_activity = ?
-                WHERE session_id = ?
-            """, (datetime.now(timezone.utc).isoformat(), session_id))
+                SET last_activity = %s
+                WHERE session_id = %s
+            """, (datetime.now(timezone.utc), session_id))
             conn.commit()
         
         return ChatResponse(

@@ -5,6 +5,8 @@ import { Message, apiClient } from '../lib/api-enhanced';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Image from 'next/image';
+import DocumentViewer from './DocumentViewer';
+import { useDocumentRetrieval } from '../hooks/useDocumentRetrieval';
 
 // UserProfile type for legacy compatibility
 type UserProfile = {
@@ -42,6 +44,7 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
   const [error, setError] = useState<string | null>(null);
   const [hasProcessedInitialMessage, setHasProcessedInitialMessage] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+  const { retrieveDocument, closeDocument, currentDocument, isRetrieving } = useDocumentRetrieval();
 
   // Use controlled input if provided, otherwise use local state
   const currentInputValue = onInputChange ? inputValue : localInputValue;
@@ -240,6 +243,14 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
         
         <div ref={messagesEndRef} />
       </main>
+
+      {/* Document Viewer Modal */}
+      {currentDocument && (
+        <DocumentViewer
+          document={currentDocument}
+          onClose={closeDocument}
+        />
+      )}
 
       {/* Input */}
       <footer className="bg-white dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">
