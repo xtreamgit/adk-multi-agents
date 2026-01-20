@@ -114,11 +114,13 @@ class GroupRepository:
             row = cursor.fetchone()
             if row:
                 role = dict(row)
-                # Parse JSON permissions - ensure it's always an array
-                permissions_str = role.get('permissions')
-                if permissions_str:
+                # PostgreSQL JSONB is already a Python list
+                permissions = role.get('permissions')
+                if isinstance(permissions, list):
+                    role['permissions'] = permissions
+                elif isinstance(permissions, str):
                     try:
-                        role['permissions'] = json.loads(permissions_str)
+                        role['permissions'] = json.loads(permissions)
                     except (json.JSONDecodeError, TypeError):
                         role['permissions'] = []
                 else:
@@ -135,13 +137,10 @@ class GroupRepository:
             row = cursor.fetchone()
             if row:
                 role = dict(row)
-                # Parse JSON permissions - ensure it's always an array
-                permissions_str = role.get('permissions')
-                if permissions_str:
-                    try:
-                        role['permissions'] = json.loads(permissions_str)
-                    except (json.JSONDecodeError, TypeError):
-                        role['permissions'] = []
+                # PostgreSQL JSONB is already a Python list
+                permissions = role.get('permissions')
+                if isinstance(permissions, list):
+                    role['permissions'] = permissions
                 else:
                     role['permissions'] = []
                 return role
@@ -176,11 +175,15 @@ class GroupRepository:
             roles = []
             for row in cursor.fetchall():
                 role = dict(row)
-                # Parse JSON permissions - ensure it's always an array
-                permissions_str = role.get('permissions')
-                if permissions_str:
+                # PostgreSQL JSONB columns are automatically converted to Python types
+                # So permissions is already a list, no need to parse JSON
+                permissions = role.get('permissions')
+                if isinstance(permissions, list):
+                    role['permissions'] = permissions
+                elif isinstance(permissions, str):
+                    # Fallback for string (shouldn't happen with JSONB)
                     try:
-                        role['permissions'] = json.loads(permissions_str)
+                        role['permissions'] = json.loads(permissions)
                     except (json.JSONDecodeError, TypeError):
                         role['permissions'] = []
                 else:
@@ -229,11 +232,17 @@ class GroupRepository:
             roles = []
             for row in cursor.fetchall():
                 role = dict(row)
-                if role.get('permissions'):
+                # PostgreSQL JSONB is already a Python list
+                permissions = role.get('permissions')
+                if isinstance(permissions, list):
+                    role['permissions'] = permissions
+                elif isinstance(permissions, str):
                     try:
-                        role['permissions'] = json.loads(role['permissions'])
+                        role['permissions'] = json.loads(permissions)
                     except (json.JSONDecodeError, TypeError):
                         role['permissions'] = []
+                else:
+                    role['permissions'] = []
                 roles.append(role)
             return roles
     
@@ -251,10 +260,16 @@ class GroupRepository:
             roles = []
             for row in cursor.fetchall():
                 role = dict(row)
-                if role.get('permissions'):
+                # PostgreSQL JSONB is already a Python list
+                permissions = role.get('permissions')
+                if isinstance(permissions, list):
+                    role['permissions'] = permissions
+                elif isinstance(permissions, str):
                     try:
-                        role['permissions'] = json.loads(role['permissions'])
+                        role['permissions'] = json.loads(permissions)
                     except (json.JSONDecodeError, TypeError):
                         role['permissions'] = []
+                else:
+                    role['permissions'] = []
                 roles.append(role)
             return roles
