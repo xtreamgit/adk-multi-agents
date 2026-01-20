@@ -17,7 +17,7 @@ class CorpusRepository:
         """Get corpus by ID."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM corpora WHERE id = ?", (corpus_id,))
+            cursor.execute("SELECT * FROM corpora WHERE id = %s", (corpus_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -26,7 +26,7 @@ class CorpusRepository:
         """Get corpus by name."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM corpora WHERE name = ?", (name,))
+            cursor.execute("SELECT * FROM corpora WHERE name = %s", (name,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -41,10 +41,12 @@ class CorpusRepository:
             cursor.execute("""
                 INSERT INTO corpora (name, display_name, description, gcs_bucket, 
                                     vertex_corpus_id, is_active, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
             """, (name, display_name, description, gcs_bucket, vertex_corpus_id, True, created_at))
+            result = cursor.fetchone()
+            corpus_id = result['id'] if isinstance(result, dict) else result[0]
             conn.commit()
-            corpus_id = cursor.lastrowid
         
         return CorpusRepository.get_by_id(corpus_id)
     
@@ -65,12 +67,12 @@ class CorpusRepository:
         if not kwargs:
             return CorpusRepository.get_by_id(corpus_id)
         
-        set_clause = ", ".join([f"{key} = ?" for key in kwargs.keys()])
+        set_clause = ", ".join([f"{key} = %s" for key in kwargs.keys()])
         values = list(kwargs.values()) + [corpus_id]
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(f"UPDATE corpora SET {set_clause} WHERE id = ?", values)
+            cursor.execute(f"UPDATE corpora SET {set_clause} WHERE id = %s", values)
             conn.commit()
         
         return CorpusRepository.get_by_id(corpus_id)
@@ -85,7 +87,7 @@ class CorpusRepository:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO group_corpus_access (group_id, corpus_id, permission)
-                    VALUES (?, ?, ?)
+                    VALUES (%s, %s, %s)
                 """, (group_id, corpus_id, permission))
                 conn.commit()
             return True
@@ -98,7 +100,7 @@ class CorpusRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                DELETE FROM group_corpus_access WHERE group_id = ? AND corpus_id = ?
+                DELETE FROM group_corpus_access WHERE group_id = %s AND corpus_id = %s
             """, (group_id, corpus_id))
             conn.commit()
             return cursor.rowcount > 0
@@ -111,7 +113,7 @@ class CorpusRepository:
             cursor.execute("""
                 SELECT gca.group_id, gca.permission, gca.granted_at
                 FROM group_corpus_access gca
-                WHERE gca.corpus_id = ?
+                WHERE gca.corpus_id = %s
             """, (corpus_id,))
             return [dict(row) for row in cursor.fetchall()]
     
@@ -125,7 +127,7 @@ class CorpusRepository:
                 FROM corpora c
                 JOIN group_corpus_access gca ON c.id = gca.corpus_id
                 JOIN user_groups ug ON gca.group_id = ug.group_id
-                WHERE ug.user_id = ?
+                WHERE ug.user_id = %s
             """
             if active_only:
                 query += " AND c.is_active = TRUE"
@@ -146,7 +148,7 @@ class CorpusRepository:
                 SELECT gca.permission
                 FROM group_corpus_access gca
                 JOIN user_groups ug ON gca.group_id = ug.group_id
-                WHERE ug.user_id = ? AND gca.corpus_id = ?
+                WHERE ug.user_id = %s AND gca.corpus_id = %s
                 ORDER BY 
                     CASE gca.permission 
                         WHEN 'admin' THEN 1 
@@ -169,9 +171,9 @@ class CorpusRepository:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO session_corpus_selections (user_id, corpus_id, last_selected_at)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
                 ON CONFLICT(user_id, corpus_id) 
-                DO UPDATE SET last_selected_at = ?
+                DO UPDATE SET last_selected_at = %s
             """, (user_id, corpus_id, last_selected_at, last_selected_at))
             conn.commit()
             return True
@@ -183,8 +185,8 @@ class CorpusRepository:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT corpus_id FROM session_corpus_selections
-                WHERE user_id = ?
+                WHERE user_id = %s
                 ORDER BY last_selected_at DESC
-                LIMIT ?
+                LIMIT %s
             """, (user_id, limit))
             return [row['corpus_id'] for row in cursor.fetchall()]

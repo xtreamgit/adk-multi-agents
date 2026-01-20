@@ -34,7 +34,7 @@ class CorpusMetadataRepository:
         query = """
             INSERT INTO corpus_metadata 
             (corpus_id, created_by, created_at, sync_status, tags, notes)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
         """
         
         return execute_insert(query, (
@@ -65,7 +65,7 @@ class CorpusMetadataRepository:
             FROM corpus_metadata cm
             LEFT JOIN users u1 ON cm.created_by = u1.id
             LEFT JOIN users u2 ON cm.last_synced_by = u2.id
-            WHERE cm.corpus_id = ?
+            WHERE cm.corpus_id = %s
         """
         
         results = execute_query(query, (corpus_id,))
@@ -90,31 +90,31 @@ class CorpusMetadataRepository:
             tags = updates['tags']
             if isinstance(tags, (list, dict)):
                 tags = json.dumps(tags)
-            set_clauses.append("tags = ?")
+            set_clauses.append("tags = %s")
             params.append(tags)
         
         if 'notes' in updates:
-            set_clauses.append("notes = ?")
+            set_clauses.append("notes = %s")
             params.append(updates['notes'])
         
         if 'sync_status' in updates:
-            set_clauses.append("sync_status = ?")
+            set_clauses.append("sync_status = %s")
             params.append(updates['sync_status'])
         
         if 'sync_error_message' in updates:
-            set_clauses.append("sync_error_message = ?")
+            set_clauses.append("sync_error_message = %s")
             params.append(updates['sync_error_message'])
         
         if 'document_count' in updates:
-            set_clauses.append("document_count = ?")
+            set_clauses.append("document_count = %s")
             params.append(updates['document_count'])
-            set_clauses.append("last_document_count_update = ?")
+            set_clauses.append("last_document_count_update = %s")
             params.append(datetime.utcnow().isoformat())
         
         if 'last_synced_by' in updates:
-            set_clauses.append("last_synced_by = ?")
+            set_clauses.append("last_synced_by = %s")
             params.append(updates['last_synced_by'])
-            set_clauses.append("last_synced_at = ?")
+            set_clauses.append("last_synced_at = %s")
             params.append(datetime.utcnow().isoformat())
         
         if not set_clauses:
@@ -123,7 +123,7 @@ class CorpusMetadataRepository:
         query = f"""
             UPDATE corpus_metadata
             SET {', '.join(set_clauses)}
-            WHERE corpus_id = ?
+            WHERE corpus_id = %s
         """
         params.append(corpus_id)
         
@@ -150,11 +150,11 @@ class CorpusMetadataRepository:
         """
         query = """
             UPDATE corpus_metadata
-            SET sync_status = ?,
-                sync_error_message = ?,
-                last_synced_at = ?,
-                last_synced_by = ?
-            WHERE corpus_id = ?
+            SET sync_status = %s,
+                sync_error_message = %s,
+                last_synced_at = %s,
+                last_synced_by = %s
+            WHERE corpus_id = %s
         """
         
         return execute_update(query, (
@@ -179,9 +179,9 @@ class CorpusMetadataRepository:
         """
         query = """
             UPDATE corpus_metadata
-            SET document_count = ?,
-                last_document_count_update = ?
-            WHERE corpus_id = ?
+            SET document_count = %s,
+                last_document_count_update = %s
+            WHERE corpus_id = %s
         """
         
         return execute_update(query, (
@@ -213,7 +213,7 @@ class CorpusMetadataRepository:
                 LEFT JOIN corpora c ON cm.corpus_id = c.id
                 LEFT JOIN users u1 ON cm.created_by = u1.id
                 LEFT JOIN users u2 ON cm.last_synced_by = u2.id
-                WHERE cm.sync_status = ?
+                WHERE cm.sync_status = %s
                 ORDER BY cm.last_synced_at DESC
             """
             return execute_query(query, (status,))

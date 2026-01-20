@@ -17,25 +17,31 @@ class UserRepository:
         """Get user by ID."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
     @staticmethod
-    def get_by_username(username: str) -> Optional[Dict]:
-        """Get user by username."""
+    def get_by_username(username: str, active_only: bool = True) -> Optional[Dict]:
+        """Get user by username. By default, only returns active users."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+            if active_only:
+                cursor.execute("SELECT * FROM users WHERE username = %s AND is_active = TRUE", (username,))
+            else:
+                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
     @staticmethod
-    def get_by_email(email: str) -> Optional[Dict]:
-        """Get user by email."""
+    def get_by_email(email: str, active_only: bool = True) -> Optional[Dict]:
+        """Get user by email. By default, only returns active users."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            if active_only:
+                cursor.execute("SELECT * FROM users WHERE email = %s AND is_active = TRUE", (email,))
+            else:
+                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -44,7 +50,7 @@ class UserRepository:
         """Get user by Google ID (from IAP authentication)."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users WHERE google_id = ?", (google_id,))
+            cursor.execute("SELECT * FROM users WHERE google_id = %s", (google_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -59,10 +65,12 @@ class UserRepository:
             cursor.execute("""
                 INSERT INTO users (username, email, full_name, hashed_password, 
                                    is_active, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
             """, (username, email, full_name, hashed_password, True, created_at, updated_at))
+            result = cursor.fetchone()
+            user_id = result['id'] if isinstance(result, dict) else result[0]
             conn.commit()
-            user_id = cursor.lastrowid
         
         return UserRepository.get_by_id(user_id)
     
@@ -77,10 +85,12 @@ class UserRepository:
             cursor.execute("""
                 INSERT INTO users (username, email, full_name, google_id, auth_provider,
                                    is_active, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
             """, (username, email, full_name, google_id, 'iap', True, created_at, updated_at))
+            result = cursor.fetchone()
+            user_id = result['id'] if isinstance(result, dict) else result[0]
             conn.commit()
-            user_id = cursor.lastrowid
         
         return UserRepository.get_by_id(user_id)
     
@@ -94,12 +104,12 @@ class UserRepository:
         kwargs['updated_at'] = datetime.now(timezone.utc).isoformat()
         
         # Build UPDATE query
-        set_clause = ", ".join([f"{key} = ?" for key in kwargs.keys()])
+        set_clause = ", ".join([f"{key} = %s" for key in kwargs.keys()])
         values = list(kwargs.values()) + [user_id]
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
+            cursor.execute(f"UPDATE users SET {set_clause} WHERE id = %s", values)
             conn.commit()
         
         return UserRepository.get_by_id(user_id)
@@ -110,7 +120,7 @@ class UserRepository:
         last_login = datetime.now(timezone.utc).isoformat()
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET last_login = ? WHERE id = ?", (last_login, user_id))
+            cursor.execute("UPDATE users SET last_login = %s WHERE id = %s", (last_login, user_id))
             conn.commit()
             return cursor.rowcount > 0
     
@@ -119,7 +129,7 @@ class UserRepository:
         """Check if a user exists."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM users WHERE username = ? LIMIT 1", (username,))
+            cursor.execute("SELECT 1 FROM users WHERE username = %s LIMIT 1", (username,))
             return cursor.fetchone() is not None
     
     @staticmethod
@@ -127,7 +137,7 @@ class UserRepository:
         """Get user profile."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM user_profiles WHERE user_id = ?", (user_id,))
+            cursor.execute("SELECT * FROM user_profiles WHERE user_id = %s", (user_id,))
             row = cursor.fetchone()
             if row:
                 profile = dict(row)
@@ -150,7 +160,7 @@ class UserRepository:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO user_profiles (user_id, theme, language, timezone, preferences)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
             """, (user_id, theme, language, timezone, preferences_json))
             conn.commit()
         
@@ -167,12 +177,12 @@ class UserRepository:
             kwargs['preferences'] = json.dumps(kwargs['preferences'])
         
         # Build UPDATE query
-        set_clause = ", ".join([f"{key} = ?" for key in kwargs.keys()])
+        set_clause = ", ".join([f"{key} = %s" for key in kwargs.keys()])
         values = list(kwargs.values()) + [user_id]
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(f"UPDATE user_profiles SET {set_clause} WHERE user_id = ?", values)
+            cursor.execute(f"UPDATE user_profiles SET {set_clause} WHERE user_id = %s", values)
             conn.commit()
         
         return UserRepository.get_profile(user_id)
@@ -182,18 +192,19 @@ class UserRepository:
         """Get group IDs for a user."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT group_id FROM user_groups WHERE user_id = ?", (user_id,))
+            cursor.execute("SELECT group_id FROM user_groups WHERE user_id = %s", (user_id,))
             return [row['group_id'] for row in cursor.fetchall()]
     
     @staticmethod
     def add_to_group(user_id: int, group_id: int) -> bool:
-        """Add user to a group."""
+        """Add user to a group. Idempotent - safe to call multiple times."""
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO user_groups (user_id, group_id)
-                    VALUES (?, ?)
+                    VALUES (%s, %s)
+                    ON CONFLICT (user_id, group_id) DO NOTHING
                 """, (user_id, group_id))
                 conn.commit()
             return True
@@ -206,17 +217,20 @@ class UserRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                DELETE FROM user_groups WHERE user_id = ? AND group_id = ?
+                DELETE FROM user_groups WHERE user_id = %s AND group_id = %s
             """, (user_id, group_id))
             conn.commit()
             return cursor.rowcount > 0
     
     @staticmethod
-    def get_all() -> List[Dict]:
-        """Get all users."""
+    def get_all(active_only: bool = True) -> List[Dict]:
+        """Get all users, optionally filtering by active status."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users ORDER BY created_at DESC")
+            if active_only:
+                cursor.execute("SELECT * FROM users WHERE is_active = TRUE ORDER BY created_at DESC")
+            else:
+                cursor.execute("SELECT * FROM users ORDER BY created_at DESC")
             return [dict(row) for row in cursor.fetchall()]
     
     @staticmethod
@@ -226,7 +240,7 @@ class UserRepository:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    UPDATE users SET hashed_password = ?, updated_at = ? WHERE id = ?
+                    UPDATE users SET hashed_password = %s, updated_at = %s WHERE id = %s
                 """, (hashed_password, datetime.now(timezone.utc).isoformat(), user_id))
                 conn.commit()
             return True

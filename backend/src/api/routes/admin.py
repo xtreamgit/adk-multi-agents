@@ -380,7 +380,7 @@ async def trigger_corpus_sync(
                     
                     added_count += 1
                 except Exception as e:
-                    logger.error(f"Failed to add corpus {vertex_corpus.display_name}: {e}")
+                    logger.error(f"Failed to add corpus {vertex_corpus['display_name']}: {e}")
                     errors.append(str(e))
         
         # Deactivate corpora not in Vertex AI
@@ -470,6 +470,7 @@ async def create_user(
     current_user: User = Depends(require_admin)
 ):
     """Create a new user (admin only)."""
+    logger.info(f"Creating user with data: username={user_create.username}, email={user_create.email}, groups={user_create.group_ids}")
     try:
         from services.user_service import UserService
         from models.user import UserCreate
@@ -794,12 +795,12 @@ async def get_all_sessions(
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT us.session_id, u.username, us.created_at, us.last_activity,
-                       COALESCE(us.message_count, 0) as message_count
+                       us.active_agent_id, us.active_corpora
                 FROM user_sessions us
                 LEFT JOIN users u ON us.user_id = u.id
                 WHERE us.is_active = TRUE
                 ORDER BY us.last_activity DESC
-                LIMIT 50
+                LIMIT 100
             """)
             rows = cursor.fetchall()
         
@@ -811,7 +812,9 @@ async def get_all_sessions(
                 "username": row['username'] if row['username'] else 'Unknown',
                 "created_at": row['created_at'],
                 "last_activity": row['last_activity'] if row['last_activity'] else row['created_at'],
-                "chat_messages": row['message_count']
+                "chat_messages": 0,  # Message count not tracked in sessions table
+                "agent_id": row['active_agent_id'],
+                "active_corpora": row['active_corpora']
             })
         
         return formatted_sessions
@@ -846,8 +849,13 @@ async def delete_user(
                 detail="User not found"
             )
         
-        # Deactivate instead of deleting
-        updated_user = UserService.update_user(user_id, BaseUserUpdate(is_active=False))
+        # Deactivate and rename username to avoid unique constraint conflicts
+        # This allows reusing usernames for new users
+        deleted_username = f"{user.username}_deleted_{user_id}"
+        updated_user = UserService.update_user(
+            user_id, 
+            BaseUserUpdate(is_active=False, username=deleted_username)
+        )
         if not updated_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
