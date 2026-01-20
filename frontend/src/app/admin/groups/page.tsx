@@ -522,8 +522,8 @@ export default function AdminGroupsPage() {
 
       {/* Role Management Dialog */}
       {showRoleDialog && selectedGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl my-8">
             <h2 className="text-xl font-bold mb-4">
               Manage Roles: {selectedGroup.name}
             </h2>
@@ -531,21 +531,45 @@ export default function AdminGroupsPage() {
             <div className="grid grid-cols-2 gap-6">
               {/* Current Roles */}
               <div>
-                <h3 className="font-semibold mb-2">Current Roles</h3>
-                <div className="space-y-2">
+                <h3 className="font-semibold mb-3 text-gray-700">Current Roles</h3>
+                <div className="space-y-3">
                   {selectedGroup.roles && selectedGroup.roles.length > 0 ? (
                     selectedGroup.roles.map((role) => (
                       <div
                         key={role.id}
-                        className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                        className="p-3 bg-gray-50 rounded-lg border border-gray-200"
                       >
-                        <span>{role.name}</span>
-                        <button
-                          onClick={() => handleRemoveRole(role.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900">{role.name}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveRole(role.id)}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium ml-2"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        {role.permissions && role.permissions.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {role.permissions.slice(0, 3).map((perm, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800"
+                              >
+                                {perm}
+                              </span>
+                            ))}
+                            {role.permissions.length > 3 && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-600">
+                                +{role.permissions.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -556,22 +580,46 @@ export default function AdminGroupsPage() {
 
               {/* Available Roles */}
               <div>
-                <h3 className="font-semibold mb-2">Available Roles</h3>
-                <div className="space-y-2">
+                <h3 className="font-semibold mb-3 text-gray-700">Available Roles</h3>
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                   {roles
                     .filter((r) => !selectedGroup.roles?.find((gr) => gr.id === r.id))
                     .map((role) => (
                       <div
                         key={role.id}
-                        className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                        className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
                       >
-                        <span>{role.name}</span>
-                        <button
-                          onClick={() => handleAssignRole(role.id)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          Assign
-                        </button>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900">{role.name}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleAssignRole(role.id)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium ml-2 px-3 py-1 rounded border border-blue-600 hover:bg-blue-50"
+                          >
+                            Assign
+                          </button>
+                        </div>
+                        {role.permissions && role.permissions.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {role.permissions.slice(0, 4).map((perm, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                {perm}
+                              </span>
+                            ))}
+                            {role.permissions.length > 4 && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-600">
+                                +{role.permissions.length - 4} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   {roles.filter((r) => !selectedGroup.roles?.find((gr) => gr.id === r.id))

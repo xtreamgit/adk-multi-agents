@@ -195,13 +195,14 @@ class GroupRepository:
     
     @staticmethod
     def assign_role_to_group(group_id: int, role_id: int) -> bool:
-        """Assign a role to a group."""
+        """Assign a role to a group. Idempotent - safe to call multiple times."""
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO group_roles (group_id, role_id)
                     VALUES (%s, %s)
+                    ON CONFLICT (group_id, role_id) DO NOTHING
                 """, (group_id, role_id))
                 conn.commit()
             return True
