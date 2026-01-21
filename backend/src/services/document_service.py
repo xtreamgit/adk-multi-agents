@@ -5,11 +5,13 @@ Handles document search, GCS signed URL generation, and access logging.
 
 import logging
 import re
+import time
 from typing import Optional, Dict, Tuple
 from datetime import datetime, timedelta, timezone
 
 from google.cloud import storage
 from vertexai import rag
+from google.api_core import exceptions as google_exceptions
 
 from database.connection import get_db_connection
 
@@ -20,67 +22,152 @@ class DocumentService:
     """Service for document operations including retrieval and access control."""
     
     @staticmethod
-    def find_document(corpus_resource_name: str, document_name: str) -> Optional[Dict]:
+    def find_document(corpus_resource_name: str, document_name: str, max_retries: int = 3) -> Optional[Dict]:
         """
-        Search for document in corpus by display name.
+        Search for document in corpus by display name with retry logic.
         
         Args:
             corpus_resource_name: Full Vertex AI corpus resource name
             document_name: Display name of the document
+            max_retries: Maximum retry attempts for rate limit errors (default: 3)
             
         Returns:
             Dictionary with document metadata or None if not found
         """
-        try:
-            files = rag.list_files(corpus_resource_name)
+        for attempt in range(max_retries + 1):
+            try:
+                files = rag.list_files(corpus_resource_name)
+                
+                for rag_file in files:
+                    # Case-insensitive match on display name
+                    if rag_file.display_name.strip().lower() == document_name.strip().lower():
+                        # Extract file ID from resource name
+                        # Format: projects/.../locations/.../ragCorpora/.../ragFiles/{file_id}
+                        file_id = rag_file.name.split('/')[-1]
+                        
+                        # Determine file type from display name
+                        file_extension = document_name.split('.')[-1].lower() if '.' in document_name else 'unknown'
+                        
+                        # DEBUG: Log all attributes of rag_file object
+                        logger.info(f"[DEBUG] RAG file object type: {type(rag_file)}")
+                        logger.info(f"[DEBUG] RAG file attributes: {dir(rag_file)}")
+                        logger.info(f"[DEBUG] RAG file dict representation: {rag_file.__dict__ if hasattr(rag_file, '__dict__') else 'no __dict__'}")
+                        
+                        # Extract source_uri - try different attribute access methods
+                        source_uri = None
+                        if hasattr(rag_file, 'rag_file_source'):
+                            logger.info(f"[DEBUG] Has rag_file_source: {rag_file.rag_file_source}")
+                            if hasattr(rag_file.rag_file_source, 'gcs_source'):
+                                logger.info(f"[DEBUG] Has gcs_source: {rag_file.rag_file_source.gcs_source}")
+                                source_uri = rag_file.rag_file_source.gcs_source.uris[0] if rag_file.rag_file_source.gcs_source.uris else None
+                        elif hasattr(rag_file, 'source_uri'):
+                            logger.info(f"[DEBUG] Has source_uri attribute")
+                            source_uri = rag_file.source_uri
+                        elif hasattr(rag_file, 'gcs_source'):
+                            logger.info(f"[DEBUG] Has gcs_source attribute")
+                            source_uri = rag_file.gcs_source.uris[0] if rag_file.gcs_source.uris else None
+                        
+                        logger.info(f"[DEBUG] Found document '{document_name}': source_uri={source_uri}")
+                        
+                        return {
+                            'file_id': file_id,
+                            'display_name': rag_file.display_name,
+                            'source_uri': source_uri,
+                            'resource_name': rag_file.name,
+                            'file_type': file_extension,
+                            'created_at': str(rag_file.create_time) if hasattr(rag_file, 'create_time') else None,
+                            'updated_at': str(rag_file.update_time) if hasattr(rag_file, 'update_time') else None,
+                        }
+                
+                logger.info(f"Document '{document_name}' not found in corpus {corpus_resource_name}")
+                return None
+                
+            except google_exceptions.ResourceExhausted as e:
+                # 429 RESOURCE_EXHAUSTED - retry with exponential backoff
+                if attempt < max_retries:
+                    wait_time = (2 ** attempt) + (0.1 * attempt)  # 1s, 2.1s, 4.2s
+                    logger.warning(
+                        f"Rate limit hit while searching for '{document_name}' "
+                        f"(attempt {attempt + 1}/{max_retries + 1}). Retrying in {wait_time:.1f}s..."
+                    )
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Rate limit exceeded after {max_retries + 1} attempts: {e}")
+                    raise
+                    
+            except Exception as e:
+                logger.error(f"Error searching for document '{document_name}': {e}")
+                return None
+    
+    @staticmethod
+    def list_documents(corpus_resource_name: str, max_retries: int = 3) -> list:
+        """
+        List all documents in a corpus with retry logic.
+        
+        Args:
+            corpus_resource_name: Full Vertex AI corpus resource name
+            max_retries: Maximum retry attempts for rate limit errors (default: 3)
             
-            for rag_file in files:
-                # Case-insensitive match on display name
-                if rag_file.display_name.strip().lower() == document_name.strip().lower():
-                    # Extract file ID from resource name
-                    # Format: projects/.../locations/.../ragCorpora/.../ragFiles/{file_id}
+        Returns:
+            List of dictionaries with document metadata
+        """
+        for attempt in range(max_retries + 1):
+            try:
+                files = rag.list_files(corpus_resource_name)
+                documents = []
+                
+                for rag_file in files:
+                    # Extract file ID
                     file_id = rag_file.name.split('/')[-1]
                     
-                    # Determine file type from display name
-                    file_extension = document_name.split('.')[-1].lower() if '.' in document_name else 'unknown'
+                    # Determine file type
+                    display_name = rag_file.display_name
+                    file_extension = display_name.split('.')[-1].lower() if '.' in display_name else 'unknown'
                     
-                    # DEBUG: Log all attributes of rag_file object
-                    logger.info(f"[DEBUG] RAG file object type: {type(rag_file)}")
-                    logger.info(f"[DEBUG] RAG file attributes: {dir(rag_file)}")
-                    logger.info(f"[DEBUG] RAG file dict representation: {rag_file.__dict__ if hasattr(rag_file, '__dict__') else 'no __dict__'}")
-                    
-                    # Extract source_uri - try different attribute access methods
+                    # Extract source URI
                     source_uri = None
                     if hasattr(rag_file, 'rag_file_source'):
-                        logger.info(f"[DEBUG] Has rag_file_source: {rag_file.rag_file_source}")
                         if hasattr(rag_file.rag_file_source, 'gcs_source'):
-                            logger.info(f"[DEBUG] Has gcs_source: {rag_file.rag_file_source.gcs_source}")
                             source_uri = rag_file.rag_file_source.gcs_source.uris[0] if rag_file.rag_file_source.gcs_source.uris else None
                     elif hasattr(rag_file, 'source_uri'):
-                        logger.info(f"[DEBUG] Has source_uri attribute")
                         source_uri = rag_file.source_uri
                     elif hasattr(rag_file, 'gcs_source'):
-                        logger.info(f"[DEBUG] Has gcs_source attribute")
                         source_uri = rag_file.gcs_source.uris[0] if rag_file.gcs_source.uris else None
                     
-                    logger.info(f"[DEBUG] Found document '{document_name}': source_uri={source_uri}")
-                    
-                    return {
+                    documents.append({
                         'file_id': file_id,
-                        'display_name': rag_file.display_name,
+                        'display_name': display_name,
                         'source_uri': source_uri,
                         'resource_name': rag_file.name,
                         'file_type': file_extension,
                         'created_at': str(rag_file.create_time) if hasattr(rag_file, 'create_time') else None,
                         'updated_at': str(rag_file.update_time) if hasattr(rag_file, 'update_time') else None,
-                    }
-            
-            logger.info(f"Document '{document_name}' not found in corpus {corpus_resource_name}")
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error searching for document '{document_name}': {e}")
-            return None
+                    })
+                
+                # Sort alphabetically by display name
+                documents.sort(key=lambda x: x['display_name'].lower())
+                
+                logger.info(f"Listed {len(documents)} documents from corpus {corpus_resource_name}")
+                return documents
+                
+            except google_exceptions.ResourceExhausted as e:
+                # 429 RESOURCE_EXHAUSTED - retry with exponential backoff
+                if attempt < max_retries:
+                    wait_time = (2 ** attempt) + (0.1 * attempt)  # 1s, 2.1s, 4.2s
+                    logger.warning(
+                        f"Rate limit hit while listing documents from corpus "
+                        f"(attempt {attempt + 1}/{max_retries + 1}). Retrying in {wait_time:.1f}s..."
+                    )
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Rate limit exceeded after {max_retries + 1} attempts: {e}")
+                    raise
+                    
+            except Exception as e:
+                logger.error(f"Error listing documents from corpus {corpus_resource_name}: {e}")
+                raise
     
     @staticmethod
     def generate_signed_url(

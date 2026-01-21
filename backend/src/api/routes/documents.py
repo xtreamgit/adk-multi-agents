@@ -207,6 +207,68 @@ async def retrieve_document(
     )
 
 
+@router.get("/corpus/{corpus_id}/list")
+async def list_corpus_documents(
+    corpus_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List all documents in a corpus.
+    
+    **Security**: User must have access to the corpus.
+    
+    **Parameters**:
+    - **corpus_id**: ID of the corpus
+    
+    **Returns**: List of documents with metadata
+    """
+    # Validate corpus access
+    if not CorpusService.validate_corpus_access(current_user.id, corpus_id):
+        logger.warning(
+            f"User {current_user.username} (ID: {current_user.id}) "
+            f"denied access to list documents in corpus {corpus_id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this corpus"
+        )
+    
+    # Get corpus details
+    corpus = CorpusService.get_corpus_by_id(corpus_id)
+    if not corpus:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Corpus not found"
+        )
+    
+    if not corpus.vertex_corpus_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Corpus is not properly configured"
+        )
+    
+    # Get documents from Vertex AI
+    try:
+        documents = DocumentService.list_documents(corpus.vertex_corpus_id)
+        logger.info(
+            f"Listed {len(documents)} documents from corpus '{corpus.name}' "
+            f"for user {current_user.username}"
+        )
+        return {
+            "status": "success",
+            "corpus_id": corpus_id,
+            "corpus_name": corpus.name,
+            "documents": documents,
+            "count": len(documents)
+        }
+    except Exception as e:
+        logger.error(f"Error listing documents in corpus {corpus_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list documents: {str(e)}"
+        )
+
+
 @router.get("/access-logs")
 async def get_document_access_logs(
     limit: int = 100,

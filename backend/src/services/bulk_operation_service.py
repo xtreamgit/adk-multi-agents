@@ -164,7 +164,8 @@ class BulkOperationService:
         for corpus_id in corpus_ids:
             try:
                 # Update status
-                rows = CorpusRepository.update(corpus_id, {'is_active': is_active})
+                result = CorpusRepository.update(corpus_id, is_active=is_active)
+                rows = 1 if result else 0
                 
                 if rows > 0:
                     # Log the action

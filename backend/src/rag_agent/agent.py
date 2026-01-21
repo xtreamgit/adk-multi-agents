@@ -9,6 +9,7 @@ from .tools.delete_corpus import delete_corpus
 from .tools.delete_document import delete_document
 from .tools.get_corpus_info import get_corpus_info
 from .tools.list_corpora import list_corpora
+from .tools.browse_documents import browse_documents
 # from .tools.get_text_from_corpus import get_text_from_corpus
 from .tools.rag_query import rag_query
 
@@ -34,6 +35,7 @@ root_agent = Agent(
         get_corpus_info,
         delete_corpus,
         delete_document,
+        browse_documents,
         # get_text_from_corpus,
     ],
     instruction="""
@@ -55,8 +57,9 @@ root_agent = Agent(
     3. **Create Corpus**: You can create new document corpora for organizing information.
     4. **Add New Data**: You can add new documents (Google Drive URLs, etc.) to existing corpora.
     5. **Get Corpus Info**: You can provide detailed information about a specific corpus, including file metadata and statistics.
-    6. **Delete Document**: You can delete a specific document from a corpus when it's no longer needed.
-    7. **Delete Corpus**: You can delete an entire corpus and all its associated files when it's no longer needed.
+    6. **Browse Documents**: You can provide a user-friendly link to browse and preview/download documents in a corpus.
+    7. **Delete Document**: You can delete a specific document from a corpus when it's no longer needed.
+    8. **Delete Corpus**: You can delete an entire corpus and all its associated files when it's no longer needed.
    
     
     
@@ -69,8 +72,9 @@ root_agent = Agent(
     4. If they want to create a new corpus, use the `create_corpus` tool.
     5. If they want to add data, ensure you know which corpus to add to, then use the `add_data` tool.
     6. If they want information about a specific corpus, use the `get_corpus_info` tool.
-    7. If they want to delete a specific document, use the `delete_document` tool with confirmation.
-    8. If they want to delete an entire corpus, use the `delete_corpus` tool with confirmation.
+    7. If they want to browse, view, or open documents in a corpus, use the `browse_documents` tool to provide a clickable link.
+    8. If they want to delete a specific document, use the `delete_document` tool with confirmation.
+    9. If they want to delete an entire corpus, use the `delete_corpus` tool with confirmation.
     9. If the user asks for your name, you can respone with "My name is RAG Agent".
     10. If the user asks for your version, you can respone with "I am version 0.01".
     11. If the user asks for your description, you can respone with "I am a RAG Agent that can interact with Vertex AI's document corpora."   
@@ -81,7 +85,7 @@ root_agent = Agent(
         
     ## Using Tools
     
-    You have seven specialized tools at your disposal:
+    You have eight specialized tools at your disposal:
     
     1. `rag_query`: Query a corpus to answer questions
        - Parameters:
@@ -103,14 +107,19 @@ root_agent = Agent(
     5. `get_corpus_info`: Get detailed information about a specific corpus
        - Parameters:
          - corpus_name: The name of the corpus to get information about
+    
+    6. `browse_documents`: Provide a user-friendly link to browse documents in a corpus
+       - Parameters:
+         - corpus_name: The name of the corpus to browse
+       - Returns a clickable link that opens a document browser where users can view and download files
          
-    6. `delete_document`: Delete a specific document from a corpus
+    7. `delete_document`: Delete a specific document from a corpus
        - Parameters:
          - corpus_name: The name of the corpus containing the document
          - document_id: The ID of the document to delete (can be obtained from get_corpus_info results)
          - confirm: Boolean flag that must be set to True to confirm deletion
          
-    7. `delete_corpus`: Delete an entire corpus and all its associated files
+    8. `delete_corpus`: Delete an entire corpus and all its associated files
        - Parameters:
          - corpus_name: The name of the corpus to delete
          - confirm: Boolean flag that must be set to True to confirm deletion

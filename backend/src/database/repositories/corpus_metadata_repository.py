@@ -55,7 +55,7 @@ class CorpusMetadataRepository:
             corpus_id: Corpus ID
         
         Returns:
-            Metadata dictionary or None
+            Metadata dictionary or None (with datetime objects converted to ISO strings)
         """
         query = """
             SELECT 
@@ -69,7 +69,16 @@ class CorpusMetadataRepository:
         """
         
         results = execute_query(query, (corpus_id,))
-        return results[0] if results else None
+        if not results:
+            return None
+        
+        # Convert datetime objects to ISO strings for JSON serialization
+        result = results[0]
+        for key, value in result.items():
+            if isinstance(value, datetime):
+                result[key] = value.isoformat()
+        
+        return result
     
     @staticmethod
     def update(corpus_id: int, updates: Dict[str, Any]) -> int:
@@ -199,7 +208,7 @@ class CorpusMetadataRepository:
             status: Optional status filter
         
         Returns:
-            List of metadata entries
+            List of metadata entries (with datetime objects converted to ISO strings)
         """
         if status:
             query = """
@@ -216,7 +225,7 @@ class CorpusMetadataRepository:
                 WHERE cm.sync_status = %s
                 ORDER BY cm.last_synced_at DESC
             """
-            return execute_query(query, (status,))
+            results = execute_query(query, (status,))
         else:
             query = """
                 SELECT 
@@ -231,7 +240,15 @@ class CorpusMetadataRepository:
                 LEFT JOIN users u2 ON cm.last_synced_by = u2.id
                 ORDER BY cm.last_synced_at DESC
             """
-            return execute_query(query)
+            results = execute_query(query)
+        
+        # Convert datetime objects to ISO strings for JSON serialization
+        for result in results:
+            for key, value in result.items():
+                if isinstance(value, datetime):
+                    result[key] = value.isoformat()
+        
+        return results
     
     @staticmethod
     def ensure_exists(corpus_id: int, created_by: Optional[int] = None) -> None:

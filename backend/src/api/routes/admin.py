@@ -383,11 +383,53 @@ async def trigger_corpus_sync(
                     logger.error(f"Failed to add corpus {vertex_corpus['display_name']}: {e}")
                     errors.append(str(e))
         
+        # Update sync timestamp and document count for existing corpora that are still in Vertex AI
+        for db_corpus in db_corpora:
+            if db_corpus['name'] in vertex_corpus_names:
+                try:
+                    # Get vertex_corpus_id for this corpus
+                    vertex_corpus = next(
+                        (vc for vc in vertex_corpora if vc['display_name'] == db_corpus['name']),
+                        None
+                    )
+                    vertex_corpus_id = vertex_corpus['resource_name'] if vertex_corpus else None
+                    
+                    # Fetch document count from Vertex AI
+                    try:
+                        if vertex_corpus_id:
+                            from vertexai import rag
+                            files = list(rag.list_files(vertex_corpus_id))
+                            doc_count = len(files)
+                        else:
+                            doc_count = 0
+                    except Exception as doc_err:
+                        logger.warning(f"Failed to fetch document count for {db_corpus['name']}: {doc_err}")
+                        doc_count = None  # Don't update if fetch fails
+                    
+                    # Update last synced timestamp
+                    CorpusMetadataRepository.update_sync_status(
+                        corpus_id=db_corpus['id'],
+                        status='active',
+                        user_id=current_user.id
+                    )
+                    
+                    # Update document count if we successfully fetched it
+                    if doc_count is not None:
+                        CorpusMetadataRepository.update_document_count(
+                            corpus_id=db_corpus['id'],
+                            count=doc_count
+                        )
+                    
+                    updated_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to update sync data for corpus {db_corpus['name']}: {e}")
+                    errors.append(str(e))
+        
         # Deactivate corpora not in Vertex AI
         for db_corpus in db_corpora:
             if db_corpus['name'] not in vertex_corpus_names and db_corpus['is_active']:
                 try:
-                    CorpusRepository.update(db_corpus['id'], {'is_active': False})
+                    CorpusRepository.update(db_corpus['id'], is_active=False)
                     
                     # Log the action
                     AuditRepository.create({
@@ -790,12 +832,14 @@ async def get_all_sessions(
     try:
         from database.connection import get_db_connection
         
-        # Get all sessions from database
+        # Get all sessions from database with message counts
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT us.session_id, u.username, us.created_at, us.last_activity,
-                       us.active_agent_id, us.active_corpora
+                       us.active_agent_id, us.active_corpora,
+                       COALESCE(us.message_count, 0) as message_count,
+                       COALESCE(us.user_query_count, 0) as user_query_count
                 FROM user_sessions us
                 LEFT JOIN users u ON us.user_id = u.id
                 WHERE us.is_active = TRUE
@@ -812,7 +856,8 @@ async def get_all_sessions(
                 "username": row['username'] if row['username'] else 'Unknown',
                 "created_at": row['created_at'],
                 "last_activity": row['last_activity'] if row['last_activity'] else row['created_at'],
-                "chat_messages": 0,  # Message count not tracked in sessions table
+                "chat_messages": row['message_count'],
+                "user_queries": row['user_query_count'],
                 "agent_id": row['active_agent_id'],
                 "active_corpora": row['active_corpora']
             })

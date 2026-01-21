@@ -427,6 +427,15 @@ class EnhancedApiClient {
     }
   }
 
+  async listCorpusDocuments(corpusId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/documents/corpus/${corpusId}/list`), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to list documents');
+    return response.json();
+  }
+
   // ========== Group Endpoints ==========
 
   async getMyGroups(): Promise<Group[]> {
