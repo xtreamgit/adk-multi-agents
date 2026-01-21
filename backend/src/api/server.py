@@ -55,6 +55,7 @@ except ImportError as e:
 
 # Import database connection utilities (after path setup)
 from database.connection import init_database, get_db_connection
+from database.schema_init import initialize_schema
 
 try:
     from api.routes import (
@@ -155,6 +156,8 @@ logger.info(f"🔍 Environment Check - DB_TYPE: {os.getenv('DB_TYPE', 'NOT SET')
 # Skip SQLite migrations if using PostgreSQL (migrations already applied to Cloud SQL)
 if os.getenv('DB_TYPE') == 'postgresql':
     logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
+    # Initialize PostgreSQL schema (idempotent - safe to run on every startup)
+    initialize_schema()
 
 # Setup admin group automatically
 def setup_admin_group():
