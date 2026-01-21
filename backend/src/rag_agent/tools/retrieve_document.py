@@ -118,6 +118,13 @@ def retrieve_document(
             logger.warning(f"[{account_env}] Could not fetch source URI: {e}")
             source_uri = None
         
+        # Get the frontend URL from environment or use default
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+        
+        # Generate the document viewer URL with corpus and document pre-selected
+        from urllib.parse import quote
+        viewer_url = f"{frontend_url}/test-documents?corpus={quote(corpus_name)}&document={quote(document_name)}"
+        
         logger.info(
             f"[{account_env}] Document found: '{document_name}' (file_id: {file_id})",
             extra={
@@ -131,13 +138,18 @@ def retrieve_document(
         
         return {
             "status": "success",
-            "message": f"Document '{document_name}' found in corpus '{corpus_name}'. I'll open it for you.",
+            "message": f"I found '{document_name}' in the '{corpus_name}' corpus. Click the link below to open it.",
             "corpus_name": corpus_name,
             "document_name": document_name,
             "file_id": file_id,
             "source_uri": source_uri,
             "file_type": file_type,
-            "instructions": "Use the backend API endpoint /api/documents/retrieve to generate a signed URL for this document."
+            "viewer_url": viewer_url,
+            "instructions": [
+                f"Click here to open the document: {viewer_url}",
+                "The page will automatically load the corpus and highlight the document",
+                "Click the document name to preview it (PDFs) or download it (other formats)"
+            ]
         }
         
     except Exception as e:

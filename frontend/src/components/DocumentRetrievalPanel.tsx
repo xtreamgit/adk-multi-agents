@@ -14,6 +14,7 @@ interface Corpus {
 interface DocumentRetrievalPanelProps {
   defaultCorpusId?: number;
   preselectedCorpusName?: string;
+  preselectedDocumentName?: string;
 }
 
 interface Document {
@@ -23,7 +24,7 @@ interface Document {
   created_at?: string;
 }
 
-export default function DocumentRetrievalPanel({ defaultCorpusId = 1, preselectedCorpusName }: DocumentRetrievalPanelProps) {
+export default function DocumentRetrievalPanel({ defaultCorpusId = 1, preselectedCorpusName, preselectedDocumentName }: DocumentRetrievalPanelProps) {
   const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [loadingCorpora, setLoadingCorpora] = useState(true);
   const [corpusId, setCorpusId] = useState(defaultCorpusId.toString());
@@ -47,6 +48,24 @@ export default function DocumentRetrievalPanel({ defaultCorpusId = 1, preselecte
       }
     }
   }, [preselectedCorpusName, corpora]);
+
+  // Auto-fill document name and auto-retrieve when document is pre-selected
+  useEffect(() => {
+    if (preselectedDocumentName && documents.length > 0) {
+      // Find matching document in the list
+      const matchedDoc = documents.find(
+        d => d.display_name === preselectedDocumentName
+      );
+      if (matchedDoc) {
+        setDocumentName(matchedDoc.display_name);
+        // Auto-retrieve the document with signed URL generation enabled
+        retrieveDocument(parseInt(corpusId), matchedDoc.display_name, true);
+      } else {
+        // If not found in list, still set the name for manual retrieval
+        setDocumentName(preselectedDocumentName);
+      }
+    }
+  }, [preselectedDocumentName, documents, corpusId]);
 
   useEffect(() => {
     if (corpusId) {

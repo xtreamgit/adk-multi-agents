@@ -15,7 +15,7 @@ export default function WelcomeModal({ onDismiss, userName }: WelcomeModalProps)
       title: `Welcome, ${userName}!`,
       content: "Let's take a quick tour of ADK RAG Assistant to help you get started.",
       icon: (
-        <svg className="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-16 h-16 mx-auto" style={{ color: '#005440' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
         </svg>
       )
@@ -24,7 +24,7 @@ export default function WelcomeModal({ onDismiss, userName }: WelcomeModalProps)
       title: "Query Multiple Knowledge Bases",
       content: "Select one or more corpora from the sidebar to query across different knowledge sources simultaneously. Currently available: AI Books, Design, Management, and Test Corpus.",
       icon: (
-        <svg className="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-16 h-16 mx-auto" style={{ color: '#005440' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
       )
@@ -33,7 +33,7 @@ export default function WelcomeModal({ onDismiss, userName }: WelcomeModalProps)
       title: "Multi-Agent Architecture",
       content: "Your queries are processed by parallel agents that search across all selected corpora simultaneously for faster, more comprehensive results.",
       icon: (
-        <svg className="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-16 h-16 mx-auto" style={{ color: '#005440' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       )
@@ -42,7 +42,7 @@ export default function WelcomeModal({ onDismiss, userName }: WelcomeModalProps)
       title: "Your Conversations are Saved",
       content: "All your chat sessions are automatically saved and accessible across devices. You can continue conversations anytime from the sidebar history.",
       icon: (
-        <svg className="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-16 h-16 mx-auto" style={{ color: '#005440' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       )
@@ -89,9 +89,8 @@ export default function WelcomeModal({ onDismiss, userName }: WelcomeModalProps)
             {steps.map((_, index) => (
               <div
                 key={index}
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  index === currentStep ? 'bg-indigo-600' : 'bg-gray-300'
-                }`}
+                className={`h-2 w-2 rounded-full transition-colors`}
+                style={index === currentStep ? { backgroundColor: '#005440' } : { backgroundColor: '#d1d5db' }}
               />
             ))}
           </div>
@@ -106,7 +105,10 @@ export default function WelcomeModal({ onDismiss, userName }: WelcomeModalProps)
             </button>
             <button
               onClick={handleNext}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="px-6 py-2 text-white rounded-lg transition-colors"
+              style={{ backgroundColor: '#005440' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#005440'}
             >
               {currentStep < steps.length - 1 ? 'Next' : 'Get Started'}
             </button>

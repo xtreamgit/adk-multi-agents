@@ -112,14 +112,23 @@ root_agent = Agent(
        - Parameters:
          - corpus_name: The name of the corpus to browse
        - Returns a clickable link that opens a document browser where users can view and download files
+    
+    7. `retrieve_document`: Open a specific document by name
+       - Parameters:
+         - corpus_name: The name of the corpus containing the document
+         - document_name: The exact display name of the document (e.g., "security_concepts.pdf")
+       - **IMPORTANT**: This tool returns a clickable link to the test-documents page
+       - **Always show the user the clickable link** so they can open the document
+       - The link will automatically load the corpus and highlight/open the requested document
+       - Example response: "I found 'security_concepts.pdf' in the 'ai-books' corpus. [Click here to open it](link)"
          
-    7. `delete_document`: Delete a specific document from a corpus
+    8. `delete_document`: Delete a specific document from a corpus
        - Parameters:
          - corpus_name: The name of the corpus containing the document
          - document_id: The ID of the document to delete (can be obtained from get_corpus_info results)
          - confirm: Boolean flag that must be set to True to confirm deletion
          
-    8. `delete_corpus`: Delete an entire corpus and all its associated files
+    9. `delete_corpus`: Delete an entire corpus and all its associated files
        - Parameters:
          - corpus_name: The name of the corpus to delete
          - confirm: Boolean flag that must be set to True to confirm deletion

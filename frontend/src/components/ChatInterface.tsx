@@ -189,16 +189,19 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
       <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`rounded-lg px-4 py-3 max-w-3xl ${
-              msg.sender === 'user'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
-            }`}>
+            <div 
+              className={`rounded-lg px-4 py-3 max-w-3xl ${
+                msg.sender === 'user'
+                  ? 'text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+              }`}
+              style={msg.sender === 'user' ? { backgroundColor: '#005440' } : undefined}
+            >
               {msg.sender === 'user' ? (
                 <div>
                   <p>{msg.text}</p>
                   {msg.timestamp && (
-                    <p className="text-xs text-blue-200 mt-1">
+                    <p className="text-xs text-gray-300 mt-1">
                       {msg.timestamp.toLocaleTimeString()}
                     </p>
                   )}
@@ -207,7 +210,21 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
                 <div>
                   <ReactMarkdown 
                     className="prose prose-sm dark:prose-invert max-w-none"
-                    remarkPlugins={[remarkGfm]}>
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ node, ...props }) => (
+                        <a
+                          {...props}
+                          style={{ 
+                            color: '#005440', 
+                            fontWeight: 'bold',
+                            textDecoration: 'underline'
+                          }}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        />
+                      ),
+                    }}>
                     {msg.text}
                   </ReactMarkdown>
                   {msg.timestamp && (

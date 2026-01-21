@@ -6,6 +6,7 @@ import DocumentRetrievalPanel from '@/components/DocumentRetrievalPanel';
 export default function TestDocumentsPage() {
   const searchParams = useSearchParams();
   const corpusParam = searchParams.get('corpus');
+  const documentParam = searchParams.get('document');
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -16,6 +17,7 @@ export default function TestDocumentsPage() {
         <DocumentRetrievalPanel 
           defaultCorpusId={1} 
           preselectedCorpusName={corpusParam || undefined}
+          preselectedDocumentName={documentParam || undefined}
         />
       </div>
     </div>
