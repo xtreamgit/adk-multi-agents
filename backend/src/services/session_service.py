@@ -38,11 +38,13 @@ class SessionService:
             cursor.execute("""
                 INSERT INTO user_sessions 
                 (session_id, user_id, active_agent_id, active_corpora, 
-                 created_at, last_activity, expires_at, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 created_at, last_activity, expires_at, is_active,
+                 message_count, user_query_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (session_create.session_id, session_create.user_id, 
                   session_create.active_agent_id, active_corpora_json,
-                  created_at, created_at, expires_at, True))
+                  created_at, created_at, expires_at, True,
+                  0, 0))
             conn.commit()
             session_id_db = cursor.lastrowid
         

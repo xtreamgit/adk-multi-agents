@@ -10,6 +10,8 @@ from .get_corpus_info import get_corpus_info
 from .list_corpora import list_corpora
 from .rag_query import rag_query
 from .rag_multi_query import rag_multi_query
+from .retrieve_document import retrieve_document
+from .browse_documents import browse_documents
 from .utils import (
     check_corpus_exists,
     get_corpus_resource_name,
@@ -25,6 +27,8 @@ __all__ = [
     "get_corpus_info",
     "delete_corpus",
     "delete_document",
+    "retrieve_document",
+    "browse_documents",
     "check_corpus_exists",
     "get_corpus_resource_name",
     "set_current_corpus",

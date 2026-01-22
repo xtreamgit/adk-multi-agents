@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-enhanced';
 
+interface Corpus {
+  id: number;
+  name: string;
+  display_name: string;
+}
+
 interface AuditLog {
   id: number;
   corpus_id: number | null;
@@ -17,7 +23,9 @@ interface AuditLog {
 
 export default function AdminAuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingCorpora, setLoadingCorpora] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState({
@@ -27,8 +35,24 @@ export default function AdminAuditPage() {
   });
 
   useEffect(() => {
+    loadCorpora();
+  }, []);
+
+  useEffect(() => {
     loadLogs();
   }, [page]);
+
+  const loadCorpora = async () => {
+    try {
+      setLoadingCorpora(true);
+      const data = await apiClient.admin_getAllCorpora(true);
+      setCorpora(data);
+    } catch (err) {
+      console.error('Failed to load corpora:', err);
+    } finally {
+      setLoadingCorpora(false);
+    }
+  };
 
   const loadLogs = async () => {
     try {
@@ -151,15 +175,21 @@ export default function AdminAuditPage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              Corpus ID
+              Corpus
             </label>
-            <input
-              type="text"
+            <select
               value={filter.corpusId}
               onChange={(e) => setFilter({ ...filter, corpusId: e.target.value })}
-              placeholder="Filter by corpus ID"
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
-            />
+              disabled={loadingCorpora}
+            >
+              <option value="">All corpora</option>
+              {corpora.map((corpus) => (
+                <option key={corpus.id} value={corpus.id}>
+                  {corpus.display_name || corpus.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="mt-3 flex justify-end">

@@ -253,7 +253,11 @@ def execute_insert(query: str, params: tuple = ()) -> int:
             cursor.execute(query, params)
             result = cursor.fetchone()
             conn.commit()
-            return result[0] if result else None
+            # Result is a dict from PostgreSQLCursorWrapper
+            if result:
+                # Try to get 'id' key, fallback to first column
+                return result.get('id') or result.get(list(result.keys())[0])
+            return None
     else:
         with get_db_connection() as conn:
             cursor = conn.cursor()

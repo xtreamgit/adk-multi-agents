@@ -29,6 +29,8 @@ def register_tools():
         from rag_agent.tools.get_corpus_info import get_corpus_info
         from rag_agent.tools.delete_corpus import delete_corpus
         from rag_agent.tools.delete_document import delete_document
+        from rag_agent.tools.retrieve_document import retrieve_document
+        from rag_agent.tools.utils import set_current_corpus
         
         TOOL_REGISTRY.update({
             "rag_query": rag_query,
@@ -39,6 +41,8 @@ def register_tools():
             "get_corpus_info": get_corpus_info,
             "delete_corpus": delete_corpus,
             "delete_document": delete_document,
+            "retrieve_document": retrieve_document,
+            "set_current_corpus": set_current_corpus,
         })
         
         logger.info(f"Registered {len(TOOL_REGISTRY)} tools in registry")

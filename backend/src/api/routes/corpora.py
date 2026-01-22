@@ -14,6 +14,7 @@ from models.corpus import Corpus, CorpusCreate, CorpusUpdate, CorpusWithAccess
 from models.user import User
 from middleware.auth_middleware import get_current_user
 from middleware.authorization_middleware import require_permission
+from database.repositories import AuditRepository
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,20 @@ async def create_corpus(
     try:
         corpus = CorpusService.create_corpus(corpus_create)
         logger.info(f"Corpus created by {current_user.username}: {corpus.name}")
+        
+        # Create audit log entry
+        AuditRepository.create({
+            'corpus_id': corpus.id,
+            'user_id': current_user.id,
+            'action': 'created',
+            'changes': {
+                'name': corpus.name,
+                'display_name': corpus.display_name,
+                'gcs_bucket': corpus.gcs_bucket
+            },
+            'metadata': {'source': 'user_api', 'username': current_user.username}
+        })
+        
         return corpus
     except ValueError as e:
         raise HTTPException(
@@ -135,6 +150,16 @@ async def update_corpus(
         )
     
     logger.info(f"Corpus updated by {current_user.username}: {updated_corpus.name}")
+    
+    # Create audit log entry
+    AuditRepository.create({
+        'corpus_id': corpus_id,
+        'user_id': current_user.id,
+        'action': 'updated',
+        'changes': corpus_update.dict(exclude_unset=True),
+        'metadata': {'source': 'user_api', 'username': current_user.username}
+    })
+    
     return updated_corpus
 
 
@@ -194,6 +219,19 @@ async def grant_corpus_access(
         f"to corpus {corpus.name} by {current_user.username}"
     )
     
+    # Create audit log entry
+    AuditRepository.create({
+        'corpus_id': corpus_id,
+        'user_id': current_user.id,
+        'action': 'granted_access',
+        'changes': {
+            'group_id': access_request.group_id,
+            'group_name': group.name,
+            'permission': access_request.permission
+        },
+        'metadata': {'source': 'user_api', 'username': current_user.username}
+    })
+    
     return {"message": "Access granted successfully"}
 
 
@@ -217,6 +255,16 @@ async def revoke_corpus_access(
         )
     
     logger.info(f"Group {group_id} access revoked for corpus {corpus_id} by {current_user.username}")
+    
+    # Create audit log entry
+    AuditRepository.create({
+        'corpus_id': corpus_id,
+        'user_id': current_user.id,
+        'action': 'revoked_access',
+        'changes': {'group_id': group_id},
+        'metadata': {'source': 'user_api', 'username': current_user.username}
+    })
+    
     return {"message": "Access revoked successfully"}
 
 

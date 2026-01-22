@@ -427,6 +427,15 @@ class EnhancedApiClient {
     }
   }
 
+  async listCorpusDocuments(corpusId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/documents/corpus/${corpusId}/list`), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to list documents');
+    return response.json();
+  }
+
   // ========== Group Endpoints ==========
 
   async getMyGroups(): Promise<Group[]> {
@@ -934,7 +943,17 @@ class EnhancedApiClient {
       let errorMessage = `Failed to create user: ${response.statusText}`;
       try {
         const error = await response.json();
-        errorMessage = error.detail || errorMessage;
+        // Handle FastAPI validation errors (422)
+        if (typeof error.detail === 'string') {
+          errorMessage = error.detail;
+        } else if (Array.isArray(error.detail)) {
+          // Pydantic validation errors are arrays
+          errorMessage = `Validation error: ${error.detail.map((e: any) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+        } else if (typeof error.detail === 'object') {
+          errorMessage = `Failed to create user: ${JSON.stringify(error.detail)}`;
+        } else {
+          errorMessage = error.detail || errorMessage;
+        }
       } catch (e) {
         // Response is not JSON, use status text
       }
@@ -960,7 +979,17 @@ class EnhancedApiClient {
       let errorMessage = `Failed to update user: ${response.statusText}`;
       try {
         const error = await response.json();
-        errorMessage = error.detail || errorMessage;
+        // Handle FastAPI validation errors (422)
+        if (typeof error.detail === 'string') {
+          errorMessage = error.detail;
+        } else if (Array.isArray(error.detail)) {
+          // Pydantic validation errors are arrays
+          errorMessage = `Validation error: ${error.detail.map((e: any) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+        } else if (typeof error.detail === 'object') {
+          errorMessage = `Failed to update user: ${JSON.stringify(error.detail)}`;
+        } else {
+          errorMessage = error.detail || errorMessage;
+        }
       } catch (e) {
         // Response is not JSON, use status text
       }

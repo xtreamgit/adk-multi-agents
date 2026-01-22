@@ -11,8 +11,18 @@ import json
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Depends
+# Auto-load environment variables from .env.local if it exists
+from dotenv import load_dotenv
+env_path = Path(__file__).parent.parent.parent / '.env.local'
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path, override=True)
+    print(f"✅ Loaded environment variables from {env_path}")
+else:
+    print(f"⚠️  No .env.local found at {env_path}")
+
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -45,6 +55,7 @@ except ImportError as e:
 
 # Import database connection utilities (after path setup)
 from database.connection import init_database, get_db_connection
+from database.schema_init import initialize_schema
 
 try:
     from api.routes import (
@@ -54,7 +65,8 @@ try:
         agents_router,
         corpora_router,
         admin_router,
-        iap_auth_router
+        iap_auth_router,
+        documents_router
     )
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
@@ -144,6 +156,8 @@ logger.info(f"🔍 Environment Check - DB_TYPE: {os.getenv('DB_TYPE', 'NOT SET')
 # Skip SQLite migrations if using PostgreSQL (migrations already applied to Cloud SQL)
 if os.getenv('DB_TYPE') == 'postgresql':
     logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
+    # Initialize PostgreSQL schema (idempotent - safe to run on every startup)
+    initialize_schema()
 
 # Setup admin group automatically
 def setup_admin_group():
@@ -404,6 +418,7 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(corpora_router)
     app.include_router(admin_router)
     app.include_router(iap_auth_router)
+    app.include_router(documents_router)
     print("🚀 New API Routes Registered:")
     print("  ✅ /api/auth/*        - Authentication (register, login, refresh)")
     print("  ✅ /api/users/*       - User Management (profile, preferences)")
@@ -412,6 +427,7 @@ if NEW_ROUTES_AVAILABLE:
     print("  ✅ /api/corpora/*     - Corpus Management (access, selection)")
     print("  ✅ /api/admin/*       - Admin Panel (corpus management, audit)")
     print("  ✅ /api/iap/*         - IAP Authentication (Google Cloud IAP)")
+    print("  ✅ /api/documents/*   - Document Retrieval (view, access)")
     print("="*70 + "\n")
     
     # Note: Old auth endpoints below are replaced by new routes
@@ -838,16 +854,17 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     }
     sessions[session_id]["chat_history"].append(user_message_entry)
     
-    # Update message count in database
+    # Update last activity and increment message counters in database
     from database.connection import get_db_connection
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE user_sessions 
-            SET message_count = message_count + 1,
-                last_activity = ?
-            WHERE session_id = ?
-        """, (datetime.now(timezone.utc).isoformat(), session_id))
+            SET last_activity = %s,
+                message_count = COALESCE(message_count, 0) + 2,
+                user_query_count = COALESCE(user_query_count, 0) + 1
+            WHERE session_id = %s
+        """, (datetime.now(timezone.utc), session_id))
         conn.commit()
     
     # Prepare context from user profile if available
@@ -924,17 +941,45 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
             parts=[types.Part(text=full_message)]
         )
         
-        # Run the agent and collect response
+        # Run the agent and collect response with retry logic for rate limits
         response_text = ""
-        async for event in session_runner.run_async(
-            user_id="api_user", 
-            session_id=session_id, 
-            new_message=user_content
-        ):
-            if event.is_final_response() and event.content and event.content.parts:
-                for part in event.content.parts:
-                    if hasattr(part, 'text') and part.text:
-                        response_text += part.text
+        max_retries = 3
+        
+        for attempt in range(max_retries + 1):
+            try:
+                async for event in session_runner.run_async(
+                    user_id="api_user", 
+                    session_id=session_id, 
+                    new_message=user_content
+                ):
+                    if event.is_final_response() and event.content and event.content.parts:
+                        for part in event.content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                response_text += part.text
+                break  # Success, exit retry loop
+                
+            except Exception as e:
+                error_str = str(e)
+                # Check if it's a 429 rate limit error
+                if "429" in error_str and "RESOURCE_EXHAUSTED" in error_str:
+                    if attempt < max_retries:
+                        import asyncio
+                        wait_time = (2 ** attempt) + (0.1 * attempt)  # 1s, 2.1s, 4.2s
+                        logger.warning(
+                            f"Rate limit hit for agent chat (attempt {attempt + 1}/{max_retries + 1}). "
+                            f"Retrying in {wait_time:.1f}s..."
+                        )
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(f"Rate limit exceeded after {max_retries + 1} attempts for agent chat")
+                        raise HTTPException(
+                            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Service temporarily unavailable due to rate limiting. Please try again in a few moments."
+                        )
+                else:
+                    # Not a rate limit error, re-raise immediately
+                    raise
         
         # Store the agent response in chat history
         agent_message_entry = {
@@ -944,16 +989,15 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         }
         sessions[session_id]["chat_history"].append(agent_message_entry)
         
-        # Update message count for agent response
+        # Update last activity for agent response
         from database.connection import get_db_connection
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE user_sessions 
-                SET message_count = message_count + 1,
-                    last_activity = ?
-                WHERE session_id = ?
-            """, (datetime.now(timezone.utc).isoformat(), session_id))
+                SET last_activity = %s
+                WHERE session_id = %s
+            """, (datetime.now(timezone.utc), session_id))
             conn.commit()
         
         return ChatResponse(

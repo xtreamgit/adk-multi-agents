@@ -68,7 +68,7 @@ class AdminCorpusDetail(BaseModel):
     name: str
     display_name: str
     description: Optional[str] = None
-    gcs_bucket: str
+    gcs_bucket: Optional[str] = None
     vertex_corpus_id: Optional[str] = None
     is_active: bool
     created_at: datetime

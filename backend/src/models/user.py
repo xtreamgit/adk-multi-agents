@@ -21,8 +21,10 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     """Model for updating user information."""
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
     email: Optional[EmailStr] = None
     full_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    is_active: Optional[bool] = None
     default_agent_id: Optional[int] = None
 
 
