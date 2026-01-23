@@ -197,51 +197,91 @@ class DocumentService:
             bucket_name = match.group(1)
             object_path = match.group(2)
             
-            # Initialize GCS client with explicit service account credentials
+            # Initialize GCS client
             from google.auth import default
-            from google.auth.transport import requests as auth_requests
+            from google.auth import compute_engine
+            from google.auth import impersonated_credentials
             
             credentials, project = default()
             
-            # Check if credentials support signing (service account)
-            if not hasattr(credentials, 'sign_bytes'):
-                logger.warning(
-                    f"Current credentials don't support signing. "
-                    f"Using public access URL instead of signed URL for {source_uri}"
+            # Check if credentials support signing directly
+            if hasattr(credentials, 'sign_bytes'):
+                # Direct signing supported (service account key)
+                storage_client = storage.Client(credentials=credentials, project=project)
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(object_path)
+                
+                expiration = timedelta(minutes=expiration_minutes)
+                expires_at = datetime.now(timezone.utc) + expiration
+                
+                signed_url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=expiration,
+                    method="GET"
                 )
-                # Return public URL if bucket is public
-                public_url = f"https://storage.googleapis.com/{bucket_name}/{object_path}"
-                expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
-                return public_url, expires_at
-            
-            storage_client = storage.Client(credentials=credentials, project=project)
-            bucket = storage_client.bucket(bucket_name)
-            blob = bucket.blob(object_path)
-            
-            # Generate signed URL (v4 signing)
-            expiration = timedelta(minutes=expiration_minutes)
-            expires_at = datetime.now(timezone.utc) + expiration
-            
-            signed_url = blob.generate_signed_url(
-                version="v4",
-                expiration=expiration,
-                method="GET"
-            )
-            
-            logger.info(f"Generated signed URL for {source_uri}, expires at {expires_at}")
-            return signed_url, expires_at
+                
+                logger.info(f"Generated signed URL (direct) for {source_uri}")
+                return signed_url, expires_at
+            else:
+                # Use IAM signBlob for Cloud Run / Compute Engine credentials
+                logger.info(f"Using IAM signBlob for {source_uri}")
+                
+                # Get service account email from credentials or metadata server
+                service_account_email = None
+                
+                # Try to get from credentials object
+                if hasattr(credentials, 'service_account_email'):
+                    service_account_email = credentials.service_account_email
+                    logger.info(f"Got SA email from credentials: {service_account_email}")
+                
+                # If not available, query metadata server (Cloud Run / GCE)
+                if not service_account_email or service_account_email == 'default':
+                    try:
+                        import requests as req
+                        metadata_url = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email'
+                        headers = {'Metadata-Flavor': 'Google'}
+                        response = req.get(metadata_url, headers=headers, timeout=2)
+                        if response.status_code == 200:
+                            service_account_email = response.text.strip()
+                            logger.info(f"Got SA email from metadata: {service_account_email}")
+                    except Exception as e:
+                        logger.error(f"Failed to get SA email from metadata: {e}")
+                
+                if not service_account_email or service_account_email == 'default':
+                    logger.error("Could not determine service account email")
+                    return None, None
+                
+                logger.info(f"Using service account: {service_account_email}")
+                
+                # Use impersonated credentials for signing
+                target_scopes = ['https://www.googleapis.com/auth/devstorage.read_only']
+                signing_credentials = impersonated_credentials.Credentials(
+                    source_credentials=credentials,
+                    target_principal=service_account_email,
+                    target_scopes=target_scopes,
+                    lifetime=500  # seconds
+                )
+                
+                storage_client = storage.Client(credentials=signing_credentials, project=project)
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(object_path)
+                
+                expiration = timedelta(minutes=expiration_minutes)
+                expires_at = datetime.now(timezone.utc) + expiration
+                
+                signed_url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=expiration,
+                    method="GET",
+                    service_account_email=service_account_email
+                )
+                
+                logger.info(f"Generated signed URL (IAM) for {source_uri}, expires at {expires_at}")
+                return signed_url, expires_at
             
         except Exception as e:
-            logger.error(f"Error generating signed URL for {source_uri}: {e}")
-            # Fallback to public URL
-            try:
-                public_url = f"https://storage.googleapis.com/{bucket_name}/{object_path}"
-                expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
-                logger.info(f"Falling back to public URL: {public_url}")
-                return public_url, expires_at
-            except Exception as fallback_error:
-                logger.error(f"Fallback to public URL also failed: {fallback_error}")
-                return None, None
+            logger.error(f"Error generating signed URL for {source_uri}: {e}", exc_info=True)
+            return None, None
     
     @staticmethod
     def get_document_metadata(source_uri: str) -> Dict:
