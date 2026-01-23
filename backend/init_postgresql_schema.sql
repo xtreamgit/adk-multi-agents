@@ -127,6 +127,8 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
+    message_count INTEGER DEFAULT 0,
+    user_query_count INTEGER DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (active_agent_id) REFERENCES agents(id)
 );
@@ -180,6 +182,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_agent_id ON chat_sessions(agent_id);
 CREATE INDEX IF NOT EXISTS idx_corpora_active ON corpora(is_active);
 CREATE INDEX IF NOT EXISTS idx_agents_active ON agents(is_active);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_query_count ON user_sessions(user_query_count);
 
 -- Insert default data
 -- Default role
