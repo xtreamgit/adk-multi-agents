@@ -15,8 +15,8 @@ class AuditLogEntry(BaseModel):
     user_id: Optional[int] = None
     user_name: Optional[str] = None
     action: str
-    changes: Optional[str] = None  # JSON string
-    metadata: Optional[str] = None  # JSON string
+    changes: Optional[Any] = None  # Can be JSON string or dict
+    metadata: Optional[Any] = None  # Can be JSON string or dict
     timestamp: datetime
 
     class Config:

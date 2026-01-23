@@ -16,8 +16,8 @@ interface AuditLog {
   user_id: number | null;
   user_name: string | null;
   action: string;
-  changes: string | null;
-  metadata: string | null;
+  changes: any;
+  metadata: any;
   timestamp: string;
 }
 
@@ -58,7 +58,9 @@ export default function AdminAuditPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.admin_getAuditLog({ offset: page, limit: 50 });
+      // Calculate offset: (page - 1) * limit
+      const offset = (page - 1) * 50;
+      const data = await apiClient.admin_getAuditLog({ offset, limit: 50 });
       setLogs(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -73,8 +75,19 @@ export default function AdminAuditPage() {
     return new Date(dateString).toLocaleString();
   };
 
-  const formatChanges = (changes: string | null) => {
+  const formatChanges = (changes: any) => {
     if (!changes) return null;
+    
+    // If already an object, stringify it directly
+    if (typeof changes === 'object') {
+      return (
+        <pre className="text-xs bg-gray-100 p-2 rounded max-w-md overflow-auto">
+          {JSON.stringify(changes, null, 2)}
+        </pre>
+      );
+    }
+    
+    // If string, try to parse it
     try {
       const parsed = JSON.parse(changes);
       return (
@@ -83,7 +96,7 @@ export default function AdminAuditPage() {
         </pre>
       );
     } catch {
-      return <span className="text-xs text-gray-600">{changes}</span>;
+      return <span className="text-xs text-gray-600">{String(changes)}</span>;
     }
   };
 

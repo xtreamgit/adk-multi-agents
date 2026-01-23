@@ -5,9 +5,9 @@ Requires admin permissions.
 
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, status
+from fastapi import APIRouter, HTTPException, Depends, Query, status, Request
 
-from middleware.auth_middleware import get_current_user
+from middleware.hybrid_auth_middleware import get_current_user_hybrid
 from models.user import User
 from models.admin import (
     AdminCorpusDetail,
@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 
-def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Dependency to require admin privileges."""
+async def require_admin(current_user: User = Depends(get_current_user_hybrid)) -> User:
+    """Dependency to require admin privileges. Supports both IAP and Bearer token authentication."""
     # Check if user is in admin-users group
     from services.user_service import UserService
     from database.repositories import GroupRepository
