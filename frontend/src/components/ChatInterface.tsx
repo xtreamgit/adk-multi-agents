@@ -290,7 +290,22 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
           <button
             type="submit"
             disabled={isLoading || !currentInputValue.trim()}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-3 text-white rounded-lg focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-2"
+            style={{
+              backgroundColor: '#005440',
+              borderColor: '#005440',
+              ...(isLoading || !currentInputValue.trim() ? {} : { ':hover': { backgroundColor: '#004030' } })
+            }}
+            onMouseEnter={(e) => {
+              if (!isLoading && currentInputValue.trim()) {
+                e.currentTarget.style.backgroundColor = '#004030';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isLoading && currentInputValue.trim()) {
+                e.currentTarget.style.backgroundColor = '#005440';
+              }
+            }}
           >
             Send
           </button>
