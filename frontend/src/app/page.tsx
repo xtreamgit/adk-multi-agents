@@ -678,7 +678,18 @@ export default function Home() {
               <button 
                 onClick={handleStartChat}
                 disabled={!chatInputValue.trim()}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-green-600 text-white px-6 py-2 rounded-full hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white px-6 py-2 rounded-full transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#005440' }}
+                onMouseEnter={(e) => {
+                  if (chatInputValue.trim()) {
+                    e.currentTarget.style.backgroundColor = '#00755e';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (chatInputValue.trim()) {
+                    e.currentTarget.style.backgroundColor = '#005440';
+                  }
+                }}
               >
                 Ask
               </button>
