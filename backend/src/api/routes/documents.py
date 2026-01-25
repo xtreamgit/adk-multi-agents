@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from services.corpus_service import CorpusService
 from services.document_service import DocumentService
 from models.user import User
-from middleware.auth_middleware import get_current_user
+from middleware.hybrid_auth_middleware import get_current_user_hybrid
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ async def retrieve_document(
     document_name: str,
     generate_url: bool = True,
     request: Request = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_hybrid)
 ):
     """
     Retrieve a document from a corpus and generate signed access URL.
@@ -210,7 +210,8 @@ async def retrieve_document(
 @router.get("/corpus/{corpus_id}/list")
 async def list_corpus_documents(
     corpus_id: int,
-    current_user: User = Depends(get_current_user)
+    request: Request = None,
+    current_user: User = Depends(get_current_user_hybrid)
 ):
     """
     List all documents in a corpus.
@@ -272,7 +273,8 @@ async def list_corpus_documents(
 @router.get("/access-logs")
 async def get_document_access_logs(
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    request: Request = None,
+    current_user: User = Depends(get_current_user_hybrid)
 ):
     """
     Get document access logs for current user.
@@ -301,7 +303,8 @@ async def get_document_access_logs(
 async def get_corpus_access_logs(
     corpus_id: int,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    request: Request = None,
+    current_user: User = Depends(get_current_user_hybrid)
 ):
     """
     Get document access logs for a specific corpus.
