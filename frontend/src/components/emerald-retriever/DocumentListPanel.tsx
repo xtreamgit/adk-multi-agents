@@ -15,6 +15,7 @@ interface DocumentListPanelProps {
   documents: Document[];
   selectedDocumentId: string | null;
   onSelectDocument: (document: Document) => void;
+  onOpenDocument: (document: Document) => void;
   loading: boolean;
 }
 
@@ -23,6 +24,7 @@ export default function DocumentListPanel({
   documents,
   selectedDocumentId,
   onSelectDocument,
+  onOpenDocument,
   loading
 }: DocumentListPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,6 +127,7 @@ export default function DocumentListPanel({
                 <button
                   key={doc.file_id}
                   onClick={() => onSelectDocument(doc)}
+                  onDoubleClick={() => onOpenDocument(doc)}
                   className={`
                     w-full text-left p-4 rounded-lg border-2 transition-all
                     ${isSelected 

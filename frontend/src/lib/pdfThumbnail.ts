@@ -5,6 +5,8 @@
  * NOTE: This module should only be used on the client side
  */
 
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+
 // Dynamic import to avoid SSR issues
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
 
@@ -51,10 +53,34 @@ export async function generatePdfThumbnail(
     scale = 1.5
   } = options;
 
+  type GetDocumentArg = Parameters<(typeof import('pdfjs-dist'))['getDocument']>[0];
+
   try {
     // Load the PDF document
-    const loadingTask = pdfjsLib.getDocument(url);
-    const pdf = await loadingTask.promise;
+    let pdf: PDFDocumentProxy;
+    try {
+      const loadingTask = pdfjsLib.getDocument({
+        url,
+        disableRange: true,
+        disableStream: true,
+        disableAutoFetch: true,
+        withCredentials: false,
+      } as GetDocumentArg);
+      pdf = await loadingTask.promise;
+    } catch {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`PDF fetch failed: ${res.status} ${res.statusText}`);
+      }
+      const data = await res.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({
+        data,
+        disableRange: true,
+        disableStream: true,
+        disableAutoFetch: true,
+      } as GetDocumentArg);
+      pdf = await loadingTask.promise;
+    }
 
     // Get the first page
     const page = await pdf.getPage(1);
@@ -106,7 +132,8 @@ export async function generatePdfThumbnail(
     return dataUrl;
   } catch (error) {
     console.error('Error generating PDF thumbnail:', error);
-    throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`PDF thumbnail generation failed: ${message}`);
   }
 }
 
