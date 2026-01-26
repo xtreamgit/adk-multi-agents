@@ -126,7 +126,16 @@ class EnhancedApiClient {
 
   constructor() {
     // Use relative URLs when behind load balancer (production), localhost for development
-    this.baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+    const envBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+    if (envBaseUrl) {
+      this.baseUrl = envBaseUrl;
+    } else if (typeof window !== 'undefined') {
+      // Local dev fallback: Next.js on :3000, FastAPI on :8000
+      const isLocalDev = window.location.hostname === 'localhost' && window.location.port === '3000';
+      this.baseUrl = isLocalDev ? 'http://localhost:8000' : '';
+    } else {
+      this.baseUrl = '';
+    }
     
     // Load from localStorage if available
     if (typeof window !== 'undefined') {
@@ -432,7 +441,10 @@ class EnhancedApiClient {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to list documents');
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to list documents: ${response.status} ${errorText}`);
+    }
     return response.json();
   }
 

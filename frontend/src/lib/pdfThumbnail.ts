@@ -23,6 +23,7 @@ interface ThumbnailOptions {
   maxWidth?: number;
   maxHeight?: number;
   scale?: number;
+  httpHeaders?: Record<string, string>;
 }
 
 /**
@@ -50,7 +51,8 @@ export async function generatePdfThumbnail(
   const {
     maxWidth = 280,
     maxHeight = 380,
-    scale = 1.5
+    scale = 1.5,
+    httpHeaders
   } = options;
 
   type GetDocumentArg = Parameters<(typeof import('pdfjs-dist'))['getDocument']>[0];
@@ -65,10 +67,13 @@ export async function generatePdfThumbnail(
         disableStream: true,
         disableAutoFetch: true,
         withCredentials: false,
+        httpHeaders,
       } as GetDocumentArg);
       pdf = await loadingTask.promise;
     } catch {
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: httpHeaders,
+      });
       if (!res.ok) {
         throw new Error(`PDF fetch failed: ${res.status} ${res.statusText}`);
       }
