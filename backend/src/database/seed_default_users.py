@@ -69,7 +69,7 @@ def seed_default_users():
             
             # Add to admin-users group
             if admin_group:
-                GroupRepository.add_user_to_group(user['id'], admin_group['id'])
+                UserRepository.add_to_group(user['id'], admin_group['id'])
                 logger.info(f"   Added {user_data['username']} to admin-users group")
         
         logger.info("✅ Default users seeded successfully")
