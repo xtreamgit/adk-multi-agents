@@ -6,7 +6,7 @@ import uuid
 import logging
 import warnings
 import os
-import sqlite3
+# import sqlite3
 import json
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
@@ -159,12 +159,13 @@ if os.getenv('DB_TYPE') == 'postgresql':
     # Initialize PostgreSQL schema (idempotent - safe to run on every startup)
     initialize_schema()
 
-# Setup admin group automatically
+# Setup admin group and seed default users automatically
 def setup_admin_group():
-    """Create admin-users group and add first user to it if needed."""
+    """Create admin-users group and seed default users if needed."""
     try:
         from database.repositories import GroupRepository, UserRepository
         from services.user_service import UserService
+        from database.seed_default_users import seed_default_users
         
         # Create admin-users group if it doesn't exist
         admin_group = GroupRepository.get_group_by_name('admin-users')
@@ -177,6 +178,9 @@ def setup_admin_group():
             print(f"✅ Created admin-users group (ID: {admin_group_id})")
         else:
             admin_group_id = admin_group['id']
+        
+        # Seed default users if none exist
+        seed_default_users()
         
         # Get all users and add first user to admin group if they're not already
         all_users = UserRepository.get_all()
