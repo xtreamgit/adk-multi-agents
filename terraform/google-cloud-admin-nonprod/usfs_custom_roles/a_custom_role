@@ -1,0 +1,18 @@
+
+# gcloud iam roles describe roles/<role.name>
+
+# Role information
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# output "usfs_api_role" {
+#   value = {
+#     name    = "USFSRoleNameLikeThis"
+#     out_name = "usfs_api_role"
+#     disp_name = "USFS Role Name Like This"
+#     desc = "Description"
+#     gcp_role = "roles/api.role"
+#     perms = [
+  
+#     ]
+#   }
+# }

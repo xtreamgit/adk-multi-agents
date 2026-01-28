@@ -1,0 +1,8 @@
+
+# gcloud iam roles describe roles/<role.name>
+
+GCP pre-defined Role Notes
+
+notebooks.runner
+    Includes compute.viewer permissions.
+
