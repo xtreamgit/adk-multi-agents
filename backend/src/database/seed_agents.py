@@ -71,7 +71,7 @@ def seed_default_agents():
                     cursor.execute(
                         f"""
                         INSERT INTO agents (name, display_name, description, config_path, is_active, created_at)
-                        VALUES ({PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER})
+                        VALUES (%%s{PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER})
                         """,
                         (
                             agent_data["name"],

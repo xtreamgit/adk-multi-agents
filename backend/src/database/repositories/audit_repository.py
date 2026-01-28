@@ -41,7 +41,7 @@ class AuditRepository:
         query = """
             INSERT INTO corpus_audit_log 
             (corpus_id, user_id, action, changes, metadata, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
         """
         
         return execute_insert(query, (
@@ -74,7 +74,7 @@ class AuditRepository:
             FROM corpus_audit_log cal
             LEFT JOIN corpora c ON cal.corpus_id = c.id
             LEFT JOIN users u ON cal.user_id = u.id
-            WHERE cal.corpus_id = ?
+            WHERE cal.corpus_id = %s
             ORDER BY cal.timestamp DESC
             LIMIT ?
         """
@@ -102,7 +102,7 @@ class AuditRepository:
             FROM corpus_audit_log cal
             LEFT JOIN corpora c ON cal.corpus_id = c.id
             LEFT JOIN users u ON cal.user_id = u.id
-            WHERE cal.user_id = ?
+            WHERE cal.user_id = %s
             ORDER BY cal.timestamp DESC
             LIMIT ?
         """
@@ -134,15 +134,15 @@ class AuditRepository:
         params = []
         
         if corpus_id is not None:
-            conditions.append("cal.corpus_id = ?")
+            conditions.append("cal.corpus_id = %s")
             params.append(corpus_id)
         
         if user_id is not None:
-            conditions.append("cal.user_id = ?")
+            conditions.append("cal.user_id = %s")
             params.append(user_id)
         
         if action:
-            conditions.append("cal.action = ?")
+            conditions.append("cal.action = %s")
             params.append(action)
         
         where_clause = ""
@@ -195,7 +195,7 @@ class AuditRepository:
         params = ()
         
         if corpus_id is not None:
-            where_clause = "WHERE corpus_id = ?"
+            where_clause = "WHERE corpus_id = %s"
             params = (corpus_id,)
         
         query = f"""

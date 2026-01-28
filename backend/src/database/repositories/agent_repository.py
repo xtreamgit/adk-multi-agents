@@ -16,7 +16,7 @@ class AgentRepository:
         """Get agent by ID."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM agents WHERE id = ?", (agent_id,))
+            cursor.execute("SELECT * FROM agents WHERE id = %s", (agent_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -25,7 +25,7 @@ class AgentRepository:
         """Get agent by name."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM agents WHERE name = ?", (name,))
+            cursor.execute("SELECT * FROM agents WHERE name = %s", (name,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -34,7 +34,7 @@ class AgentRepository:
         """Get agent by config path."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM agents WHERE config_path = ?", (config_path,))
+            cursor.execute("SELECT * FROM agents WHERE config_path = %s", (config_path,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -49,7 +49,7 @@ class AgentRepository:
             cursor.execute("""
                 INSERT INTO agents (name, display_name, description, config_path, 
                                    is_active, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (name, display_name, description, config_path, True, created_at))
             result = cursor.fetchone()
@@ -75,12 +75,12 @@ class AgentRepository:
         if not kwargs:
             return AgentRepository.get_by_id(agent_id)
         
-        set_clause = ", ".join([f"{key} = ?" for key in kwargs.keys()])
+        set_clause = ", ".join([f"{key} = %s" for key in kwargs.keys()])
         values = list(kwargs.values()) + [agent_id]
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(f"UPDATE agents SET {set_clause} WHERE id = ?", values)
+            cursor.execute(f"UPDATE agents SET {set_clause} WHERE id = %s", values)
             conn.commit()
         
         return AgentRepository.get_by_id(agent_id)
@@ -95,7 +95,7 @@ class AgentRepository:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO user_agent_access (user_id, agent_id)
-                    VALUES (?, ?)
+                    VALUES (%s, %s)
                 """, (user_id, agent_id))
                 conn.commit()
             return True
@@ -108,7 +108,7 @@ class AgentRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                DELETE FROM user_agent_access WHERE user_id = ? AND agent_id = ?
+                DELETE FROM user_agent_access WHERE user_id = %s AND agent_id = %s
             """, (user_id, agent_id))
             conn.commit()
             return cursor.rowcount > 0
@@ -120,7 +120,7 @@ class AgentRepository:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT 1 FROM user_agent_access 
-                WHERE user_id = ? AND agent_id = ? LIMIT 1
+                WHERE user_id = %s AND agent_id = %s LIMIT 1
             """, (user_id, agent_id))
             return cursor.fetchone() is not None
     
@@ -132,7 +132,7 @@ class AgentRepository:
             query = """
                 SELECT a.* FROM agents a
                 JOIN user_agent_access uaa ON a.id = uaa.agent_id
-                WHERE uaa.user_id = ?
+                WHERE uaa.user_id = %s
             """
             if active_only:
                 query += " AND a.is_active = TRUE"
@@ -147,6 +147,6 @@ class AgentRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT user_id FROM user_agent_access WHERE agent_id = ?
+                SELECT user_id FROM user_agent_access WHERE agent_id = %s
             """, (agent_id,))
             return [row['user_id'] for row in cursor.fetchall()]
