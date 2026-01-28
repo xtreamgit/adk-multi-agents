@@ -22,13 +22,17 @@ else:
 DATABASE_PATH = os.getenv("DATABASE_PATH", DEFAULT_SQLITE_PATH)
 
 # PostgreSQL configuration (for Cloud SQL)
+db_host = os.getenv('DB_HOST', '/cloudsql/' + os.getenv('CLOUD_SQL_CONNECTION_NAME', ''))
 PG_CONFIG = {
-    'host': os.getenv('DB_HOST', '/cloudsql/' + os.getenv('CLOUD_SQL_CONNECTION_NAME', '')),
-    'port': int(os.getenv('DB_PORT', '5432')),
+    'host': db_host,
     'database': os.getenv('DB_NAME', 'adk_agents_db'),
     'user': os.getenv('DB_USER', 'adk_app_user'),
     'password': os.getenv('DB_PASSWORD', ''),
 }
+
+# Only add port if not using Unix socket (Cloud SQL)
+if not db_host.startswith('/cloudsql/'):
+    PG_CONFIG['port'] = int(os.getenv('DB_PORT', '5432'))
 
 # PostgreSQL connection pool
 _pg_pool = None
