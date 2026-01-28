@@ -3,7 +3,7 @@
 -- Created: 2026-01-16
 
 CREATE TABLE IF NOT EXISTS document_access_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     corpus_id INTEGER NOT NULL REFERENCES corpora(id) ON DELETE CASCADE,
     document_name VARCHAR(255) NOT NULL,
@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_document_access_corpus ON document_access_log(cor
 CREATE INDEX IF NOT EXISTS idx_document_access_time ON document_access_log(accessed_at);
 CREATE INDEX IF NOT EXISTS idx_document_access_success ON document_access_log(success, accessed_at);
 
--- Comments (PostgreSQL only - SQLite ignores these)
+-- Comments
 -- TABLE: Audit trail for all document retrieval and access attempts
 -- COLUMN access_type: Type of access: view, download, preview
 -- COLUMN success: Whether the access attempt was successful

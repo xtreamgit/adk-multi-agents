@@ -6,7 +6,6 @@ import uuid
 import logging
 import warnings
 import os
-# import sqlite3
 import json
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
@@ -152,12 +151,9 @@ def user_exists(username: str) -> bool:
 
 # Initialize database on startup
 logger = logging.getLogger(__name__)
-logger.info(f"🔍 Environment Check - DB_TYPE: {os.getenv('DB_TYPE', 'NOT SET')}")
-# Skip SQLite migrations if using PostgreSQL (migrations already applied to Cloud SQL)
-if os.getenv('DB_TYPE') == 'postgresql':
-    logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
-    # Initialize PostgreSQL schema (idempotent - safe to run on every startup)
-    initialize_schema()
+logger.info("🔍 Initializing PostgreSQL database schema...")
+# Initialize PostgreSQL schema (idempotent - safe to run on every startup)
+initialize_schema()
 
 # Setup admin group and seed default users automatically
 def setup_admin_group():

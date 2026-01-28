@@ -4,7 +4,7 @@ Automatically creates tables on first run.
 """
 
 import logging
-from .connection import get_db_connection, DB_TYPE
+from .connection import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -166,10 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_agents_active ON agents(is_active);
 
 
 def initialize_schema():
-    """Initialize database schema if using PostgreSQL."""
-    if DB_TYPE != "postgresql":
-        logger.info("Skipping schema initialization (not PostgreSQL)")
-        return
+    """Initialize PostgreSQL database schema."""
     
     try:
         logger.info("Initializing PostgreSQL schema...")

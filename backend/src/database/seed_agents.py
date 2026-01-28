@@ -4,12 +4,12 @@ Auto-seed agents into database on startup.
 
 import logging
 from datetime import datetime, timezone
-from .connection import get_db_connection, DB_TYPE
+from .connection import get_db_connection
 
 logger = logging.getLogger(__name__)
 
-# Use correct SQL placeholder based on database type
-PLACEHOLDER = "%s" if DB_TYPE == "postgresql" else "?"
+# PostgreSQL placeholder
+PLACEHOLDER = "%s"
 
 # Default agents to seed
 DEFAULT_AGENTS = [

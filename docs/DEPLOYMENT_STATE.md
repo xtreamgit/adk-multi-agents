@@ -1,8 +1,16 @@
 # DEPLOYMENT STATE - READ THIS FIRST
 
 **Current Environment**: ☁️ PRODUCTION (Google Cloud Run)  
-**Last Updated**: January 15, 2026  
+**Last Updated**: January 28, 2026  
 **Status**: ✅ PRODUCTION READY
+
+## ⚠️ CRITICAL: PostgreSQL-Only Architecture
+
+**This application uses PostgreSQL EXCLUSIVELY.** All SQLite code has been removed as of January 28, 2026.
+
+- **Production:** Cloud SQL PostgreSQL
+- **Local Development:** Docker PostgreSQL
+- **No SQLite Support:** SQLite references have been completely removed from the codebase
 
 ---
 
