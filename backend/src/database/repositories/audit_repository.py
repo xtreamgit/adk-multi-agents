@@ -41,7 +41,7 @@ class AuditRepository:
         query = """
             INSERT INTO corpus_audit_log 
             (corpus_id, user_id, action, changes, metadata, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (?, ?, ?, ?, ?, ?)
         """
         
         return execute_insert(query, (
@@ -74,9 +74,9 @@ class AuditRepository:
             FROM corpus_audit_log cal
             LEFT JOIN corpora c ON cal.corpus_id = c.id
             LEFT JOIN users u ON cal.user_id = u.id
-            WHERE cal.corpus_id = %s
+            WHERE cal.corpus_id = ?
             ORDER BY cal.timestamp DESC
-            LIMIT %s
+            LIMIT ?
         """
         
         return execute_query(query, (corpus_id, limit))
@@ -102,9 +102,9 @@ class AuditRepository:
             FROM corpus_audit_log cal
             LEFT JOIN corpora c ON cal.corpus_id = c.id
             LEFT JOIN users u ON cal.user_id = u.id
-            WHERE cal.user_id = %s
+            WHERE cal.user_id = ?
             ORDER BY cal.timestamp DESC
-            LIMIT %s
+            LIMIT ?
         """
         
         return execute_query(query, (user_id, limit))
@@ -134,15 +134,15 @@ class AuditRepository:
         params = []
         
         if corpus_id is not None:
-            conditions.append("cal.corpus_id = %s")
+            conditions.append("cal.corpus_id = ?")
             params.append(corpus_id)
         
         if user_id is not None:
-            conditions.append("cal.user_id = %s")
+            conditions.append("cal.user_id = ?")
             params.append(user_id)
         
         if action:
-            conditions.append("cal.action = %s")
+            conditions.append("cal.action = ?")
             params.append(action)
         
         where_clause = ""
@@ -160,7 +160,7 @@ class AuditRepository:
             LEFT JOIN users u ON cal.user_id = u.id
             {where_clause}
             ORDER BY cal.timestamp DESC
-            LIMIT %s OFFSET %s
+            LIMIT ? OFFSET ?
         """
         
         params.extend([limit, offset])
@@ -195,7 +195,7 @@ class AuditRepository:
         params = ()
         
         if corpus_id is not None:
-            where_clause = "WHERE corpus_id = %s"
+            where_clause = "WHERE corpus_id = ?"
             params = (corpus_id,)
         
         query = f"""

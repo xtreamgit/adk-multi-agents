@@ -19,7 +19,7 @@ class GroupRepository:
         """Get group by ID."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM groups WHERE id = %s", (group_id,))
+            cursor.execute("SELECT * FROM groups WHERE id = ?", (group_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -28,7 +28,7 @@ class GroupRepository:
         """Get group by name."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM groups WHERE name = %s", (name,))
+            cursor.execute("SELECT * FROM groups WHERE name = ?", (name,))
             row = cursor.fetchone()
             return dict(row) if row else None
     
@@ -41,7 +41,7 @@ class GroupRepository:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO groups (name, description, is_active, created_at)
-                VALUES (%s, %s, %s, %s)
+                VALUES (?, ?, ?, ?)
                 RETURNING id
             """, (name, description, True, created_at))
             result = cursor.fetchone()
@@ -56,12 +56,12 @@ class GroupRepository:
         if not kwargs:
             return GroupRepository.get_group_by_id(group_id)
         
-        set_clause = ", ".join([f"{key} = %s" for key in kwargs.keys()])
+        set_clause = ", ".join([f"{key} = ?" for key in kwargs.keys()])
         values = list(kwargs.values()) + [group_id]
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(f"UPDATE groups SET {set_clause} WHERE id = %s", values)
+            cursor.execute(f"UPDATE groups SET {set_clause} WHERE id = ?", values)
             conn.commit()
         
         return GroupRepository.get_group_by_id(group_id)
@@ -83,7 +83,7 @@ class GroupRepository:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("UPDATE groups SET is_active = FALSE WHERE id = %s", (group_id,))
+                cursor.execute("UPDATE groups SET is_active = FALSE WHERE id = ?", (group_id,))
                 conn.commit()
                 return cursor.rowcount > 0
         except Exception:
@@ -98,7 +98,7 @@ class GroupRepository:
                 SELECT u.id, u.username, u.email, u.full_name, u.is_active, u.created_at
                 FROM users u
                 INNER JOIN user_groups ug ON u.id = ug.user_id
-                WHERE ug.group_id = %s
+                WHERE ug.group_id = ?
                 ORDER BY u.username
             """, (group_id,))
             return [dict(row) for row in cursor.fetchall()]
@@ -110,7 +110,7 @@ class GroupRepository:
         """Get role by ID."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM roles WHERE id = %s", (role_id,))
+            cursor.execute("SELECT * FROM roles WHERE id = ?", (role_id,))
             row = cursor.fetchone()
             if row:
                 role = dict(row)
@@ -133,7 +133,7 @@ class GroupRepository:
         """Get role by name."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM roles WHERE name = %s", (name,))
+            cursor.execute("SELECT * FROM roles WHERE name = ?", (name,))
             row = cursor.fetchone()
             if row:
                 role = dict(row)
@@ -157,7 +157,7 @@ class GroupRepository:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO roles (name, description, permissions, created_at)
-                VALUES (%s, %s, %s, %s)
+                VALUES (?, ?, ?, ?)
                 RETURNING id
             """, (name, description, permissions_json, created_at))
             result = cursor.fetchone()
@@ -201,7 +201,7 @@ class GroupRepository:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO group_roles (group_id, role_id)
-                    VALUES (%s, %s)
+                    VALUES (?, ?)
                     ON CONFLICT (group_id, role_id) DO NOTHING
                 """, (group_id, role_id))
                 conn.commit()
@@ -215,7 +215,7 @@ class GroupRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                DELETE FROM group_roles WHERE group_id = %s AND role_id = %s
+                DELETE FROM group_roles WHERE group_id = ? AND role_id = ?
             """, (group_id, role_id))
             conn.commit()
             return cursor.rowcount > 0
@@ -228,7 +228,7 @@ class GroupRepository:
             cursor.execute("""
                 SELECT r.* FROM roles r
                 JOIN group_roles gr ON r.id = gr.role_id
-                WHERE gr.group_id = %s
+                WHERE gr.group_id = ?
             """, (group_id,))
             roles = []
             for row in cursor.fetchall():
@@ -256,7 +256,7 @@ class GroupRepository:
                 SELECT DISTINCT r.* FROM roles r
                 JOIN group_roles gr ON r.id = gr.role_id
                 JOIN user_groups ug ON gr.group_id = ug.group_id
-                WHERE ug.user_id = %s
+                WHERE ug.user_id = ?
             """, (user_id,))
             roles = []
             for row in cursor.fetchall():
