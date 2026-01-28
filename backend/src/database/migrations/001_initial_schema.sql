@@ -1,15 +1,16 @@
 -- Migration 001: Initial Schema
--- Description: Enhanced users table with existing structure
--- Date: 2025-12-31
+-- Purpose: Create core user tables
+-- Created: 2026-01-10
+-- Updated: 2026-01-28 - Converted to PostgreSQL syntax
 
 -- Users table (existing, enhanced with new fields)
 CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    full_name TEXT NOT NULL,
-    hashed_password TEXT NOT NULL,
-    is_active BOOLEAN DEFAULT 1,
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    hashed_password VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
     default_agent_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
