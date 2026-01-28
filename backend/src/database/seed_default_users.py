@@ -15,7 +15,7 @@ def seed_default_users():
     """Create default users if none exist."""
     try:
         # Check if any users exist
-        all_users = UserRepository.get_all_users()
+        all_users = UserRepository.get_all()
         if all_users:
             logger.info(f"Users already exist ({len(all_users)} users), skipping seed")
             return
