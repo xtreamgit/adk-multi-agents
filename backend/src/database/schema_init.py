@@ -4,11 +4,34 @@ Automatically creates tables on first run.
 """
 
 import logging
-from database.connection import get_db_connection, DB_TYPE
+from .connection import get_db_connection, DB_TYPE
 
 logger = logging.getLogger(__name__)
 
-POSTGRESQL_SCHEMA = """
+# Document access log table (for audit trail)
+DOCUMENT_ACCESS_LOG_TABLE = """
+CREATE TABLE IF NOT EXISTS document_access_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    corpus_id INTEGER NOT NULL REFERENCES corpora(id) ON DELETE CASCADE,
+    document_name VARCHAR(255) NOT NULL,
+    document_file_id VARCHAR(255),
+    access_type VARCHAR(50) DEFAULT 'view',
+    success BOOLEAN NOT NULL,
+    error_message TEXT,
+    source_uri TEXT,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_document_access_user ON document_access_log(user_id, accessed_at);
+CREATE INDEX IF NOT EXISTS idx_document_access_corpus ON document_access_log(corpus_id, accessed_at);
+CREATE INDEX IF NOT EXISTS idx_document_access_time ON document_access_log(accessed_at);
+CREATE INDEX IF NOT EXISTS idx_document_access_success ON document_access_log(success, accessed_at);
+"""
+
+POSTGRESQL_SCHEMA = DOCUMENT_ACCESS_LOG_TABLE + """
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -153,6 +176,16 @@ def initialize_schema():
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            
+            # First, create document_access_log table if it doesn't exist
+            try:
+                logger.info("Creating document_access_log table...")
+                cursor.execute(DOCUMENT_ACCESS_LOG_TABLE)
+                conn.commit()
+                logger.info("✅ document_access_log table ready")
+            except Exception as e:
+                logger.warning(f"⚠️  document_access_log table creation: {e}")
+                conn.rollback()
             
             statements = [stmt.strip() for stmt in POSTGRESQL_SCHEMA.split(';') if stmt.strip()]
             
