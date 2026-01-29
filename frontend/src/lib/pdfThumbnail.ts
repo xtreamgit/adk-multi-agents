@@ -126,11 +126,18 @@ export async function generatePdfThumbnail(
     }
     
     // Load the PDF document with timeout
-    const loadingTask = pdfjs.getDocument({
-      data: pdfData,
-      isEvalSupported: false,
-      verbosity: 0, // Reduce console noise
-    });
+    // Use correct property: 'data' for binary, 'url' for URL strings
+    const loadingTask = typeof pdfData === 'string'
+      ? pdfjs.getDocument({
+          url: pdfData,
+          isEvalSupported: false,
+          verbosity: 0,
+        })
+      : pdfjs.getDocument({
+          data: pdfData,
+          isEvalSupported: false,
+          verbosity: 0,
+        });
     
     // Add timeout for loading (30 seconds)
     const timeoutPromise = new Promise<never>((_, reject) => {
