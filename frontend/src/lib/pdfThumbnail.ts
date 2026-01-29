@@ -81,9 +81,18 @@ export async function generatePdfThumbnail(
     
     if (options.headers) {
       console.log('[PDF Thumbnail] Fetching PDF with authentication...');
+      console.log('[PDF Thumbnail] URL:', url);
+      console.log('[PDF Thumbnail] Headers:', JSON.stringify(options.headers));
+      
       const response = await fetch(url, {
         headers: options.headers,
         credentials: 'include',
+      });
+      
+      console.log('[PDF Thumbnail] Response status:', response.status, response.statusText);
+      console.log('[PDF Thumbnail] Response headers:', {
+        'content-type': response.headers.get('content-type'),
+        'content-length': response.headers.get('content-length'),
       });
       
       if (!response.ok) {
@@ -91,6 +100,7 @@ export async function generatePdfThumbnail(
         let errorMessage = `${response.status} ${response.statusText}`;
         try {
           const errorData = await response.json();
+          console.error('[PDF Thumbnail] Error response:', errorData);
           errorMessage = errorData.detail || errorMessage;
         } catch {
           // Not JSON, use status text
@@ -107,6 +117,11 @@ export async function generatePdfThumbnail(
       
       const arrayBuffer = await response.arrayBuffer();
       pdfData = new Uint8Array(arrayBuffer);
+      
+      // Log first few bytes to verify it's a PDF
+      const firstBytes = Array.from(pdfData.slice(0, 10)).map(b => String.fromCharCode(b)).join('');
+      console.log('[PDF Thumbnail] First 10 bytes:', firstBytes);
+      console.log('[PDF Thumbnail] Starts with %PDF:', firstBytes.startsWith('%PDF'));
       console.log('[PDF Thumbnail] PDF fetched successfully, size:', arrayBuffer.byteLength, 'bytes');
     }
     
