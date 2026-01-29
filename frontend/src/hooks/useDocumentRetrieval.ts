@@ -1,5 +1,24 @@
 import { useState } from 'react';
-import { apiClient, DocumentRetrievalResponse } from '../lib/api';
+import { apiClient } from '../lib/api-enhanced';
+
+export interface DocumentRetrievalResponse {
+  status: string;
+  document: {
+    id: string;
+    name: string;
+    corpus_id: number;
+    corpus_name: string;
+    file_type: string;
+    size_bytes?: number;
+    created_at?: string;
+    updated_at?: string;
+  };
+  access?: {
+    url: string;
+    expires_at: string;
+    valid_for_seconds: number;
+  };
+}
 
 export function useDocumentRetrieval() {
   const [isRetrieving, setIsRetrieving] = useState(false);

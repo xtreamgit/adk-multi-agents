@@ -436,6 +436,26 @@ class EnhancedApiClient {
     return response.json();
   }
 
+  async retrieveDocument(corpusId: number, documentName: string, generateUrl: boolean = true): Promise<any> {
+    const params = new URLSearchParams({
+      corpus_id: corpusId.toString(),
+      document_name: documentName,
+      generate_url: generateUrl.toString(),
+    });
+
+    const response = await fetch(this.buildUrl(`/api/documents/retrieve?${params}`), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to retrieve document: ${errorText}`);
+    }
+
+    return response.json();
+  }
+
   // ========== Group Endpoints ==========
 
   async getMyGroups(): Promise<Group[]> {
