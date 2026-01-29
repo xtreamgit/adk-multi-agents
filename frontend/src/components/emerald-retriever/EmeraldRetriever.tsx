@@ -109,13 +109,6 @@ export default function EmeraldRetriever() {
       setGeneratingThumbnail(true);
       setThumbnailUrl(null);
       
-      // Retrieve document with signed URL
-      const response = await retrieveDocument(
-        selectedCorpusId!,
-        document.display_name,
-        true
-      );
-
       // Use backend proxy endpoint to avoid CORS issues with GCS signed URLs
       const proxyUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/api/documents/proxy/${selectedCorpusId}/${encodeURIComponent(document.display_name)}`;
       
