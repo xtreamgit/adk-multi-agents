@@ -87,7 +87,22 @@ export async function generatePdfThumbnail(
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+        // Try to get error message from JSON response
+        let errorMessage = `${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch {
+          // Not JSON, use status text
+        }
+        throw new Error(`Failed to fetch PDF: ${errorMessage}`);
+      }
+      
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.includes('application/pdf')) {
+        console.error('[PDF Thumbnail] Unexpected content type:', contentType);
+        throw new Error(`Expected PDF but got ${contentType}`);
       }
       
       const arrayBuffer = await response.arrayBuffer();
