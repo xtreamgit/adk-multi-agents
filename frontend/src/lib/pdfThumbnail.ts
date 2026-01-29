@@ -75,17 +75,30 @@ export async function generatePdfThumbnail(
   try {
     console.log('[PDF Thumbnail] Loading PDF from URL:', url.substring(0, 100) + '...');
     
-    // If headers are provided (authenticated request), fetch the PDF first
-    // then pass it to PDF.js as a blob to avoid CORS/auth issues
+    // Determine if this is a proxy URL that requires authentication
+    const isProxyUrl = url.includes('/api/documents/proxy/');
+    
+    // Get headers - use provided headers or get token from localStorage for proxy URLs
+    let headers = options.headers;
+    if (!headers && isProxyUrl) {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        headers = { 'Authorization': `Bearer ${token}` };
+        console.log('[PDF Thumbnail] Using token from localStorage for proxy URL');
+      }
+    }
+    
+    // For authenticated requests (proxy URLs), fetch the PDF first
+    // then pass it to PDF.js as binary data to avoid CORS/auth issues
     let pdfData: string | ArrayBuffer | Uint8Array = url;
     
-    if (options.headers) {
+    if (headers) {
       console.log('[PDF Thumbnail] Fetching PDF with authentication...');
       console.log('[PDF Thumbnail] URL:', url);
-      console.log('[PDF Thumbnail] Headers:', JSON.stringify(options.headers));
+      console.log('[PDF Thumbnail] Headers:', JSON.stringify(headers));
       
       const response = await fetch(url, {
-        headers: options.headers,
+        headers: headers,
         credentials: 'include',
       });
       
