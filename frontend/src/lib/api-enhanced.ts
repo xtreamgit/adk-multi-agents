@@ -444,7 +444,10 @@ class EnhancedApiClient {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to list documents');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(errorData.detail || `Failed to list documents (${response.status})`);
+    }
     return response.json();
   }
 
