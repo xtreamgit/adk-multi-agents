@@ -45,6 +45,7 @@ interface ThumbnailOptions {
   maxWidth?: number;
   maxHeight?: number;
   scale?: number;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -77,7 +78,8 @@ export async function generatePdfThumbnail(
     
     const loadingTask = pdfjs.getDocument({
       url,
-      withCredentials: false,
+      withCredentials: options.headers ? true : false,
+      httpHeaders: options.headers || {},
       isEvalSupported: false,
       verbosity: 0, // Reduce console noise
     });

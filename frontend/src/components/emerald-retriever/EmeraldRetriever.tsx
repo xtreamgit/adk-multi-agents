@@ -116,17 +116,21 @@ export default function EmeraldRetriever() {
         true
       );
 
-      if (response.access?.url) {
-        // Generate thumbnail from signed URL with retry logic
-        const thumbnail = await generatePdfThumbnailWithRetry(response.access.url, {
-          maxWidth: 260,
-          maxHeight: 360
-        }, 2); // Max 2 retries
-        setThumbnailUrl(thumbnail);
-      } else {
-        console.error('No URL in response:', response);
-        throw new Error('No signed URL in document response');
-      }
+      // Use backend proxy endpoint to avoid CORS issues with GCS signed URLs
+      const proxyUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/api/documents/proxy/${selectedCorpusId}/${encodeURIComponent(document.display_name)}`;
+      
+      console.log('[Thumbnail] Using proxy URL:', proxyUrl);
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('access_token');
+      
+      // Generate thumbnail from proxied PDF with retry logic
+      const thumbnail = await generatePdfThumbnailWithRetry(proxyUrl, {
+        maxWidth: 260,
+        maxHeight: 360,
+        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+      }, 2); // Max 2 retries
+      setThumbnailUrl(thumbnail);
     } catch (error) {
       console.error('Failed to generate thumbnail:', error);
       console.error('Error details:', error instanceof Error ? error.message : error);
