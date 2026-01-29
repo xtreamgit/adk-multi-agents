@@ -116,14 +116,43 @@ export default function EmeraldRetriever() {
       
       // Get auth token from localStorage
       const token = localStorage.getItem('access_token');
+      console.log('[Thumbnail] Token available:', !!token);
       
-      // Generate thumbnail from proxied PDF with retry logic
-      const thumbnail = await generatePdfThumbnailWithRetry(proxyUrl, {
-        maxWidth: 260,
-        maxHeight: 360,
-        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
-      }, 2); // Max 2 retries
-      setThumbnailUrl(thumbnail);
+      if (!token) {
+        console.error('[Thumbnail] No auth token available');
+        setThumbnailUrl(null);
+        return;
+      }
+      
+      // Fetch PDF with authentication FIRST, then pass blob URL to thumbnail generator
+      console.log('[Thumbnail] Fetching PDF with auth...');
+      const response = await fetch(proxyUrl, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+      
+      console.log('[Thumbnail] Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+      }
+      
+      // Create blob URL from response
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      console.log('[Thumbnail] Created blob URL, size:', blob.size);
+      
+      try {
+        // Generate thumbnail from blob URL (no auth needed for blob URLs)
+        const thumbnail = await generatePdfThumbnailWithRetry(blobUrl, {
+          maxWidth: 260,
+          maxHeight: 360,
+        }, 2);
+        setThumbnailUrl(thumbnail);
+      } finally {
+        // Clean up blob URL
+        URL.revokeObjectURL(blobUrl);
+      }
     } catch (error) {
       console.error('Failed to generate thumbnail:', error);
       console.error('Error details:', error instanceof Error ? error.message : error);
