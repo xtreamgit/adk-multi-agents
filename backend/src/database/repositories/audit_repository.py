@@ -76,7 +76,7 @@ class AuditRepository:
             LEFT JOIN users u ON cal.user_id = u.id
             WHERE cal.corpus_id = %s
             ORDER BY cal.timestamp DESC
-            LIMIT ?
+            LIMIT %s
         """
         
         return execute_query(query, (corpus_id, limit))
@@ -104,7 +104,7 @@ class AuditRepository:
             LEFT JOIN users u ON cal.user_id = u.id
             WHERE cal.user_id = %s
             ORDER BY cal.timestamp DESC
-            LIMIT ?
+            LIMIT %s
         """
         
         return execute_query(query, (user_id, limit))
@@ -160,7 +160,7 @@ class AuditRepository:
             LEFT JOIN users u ON cal.user_id = u.id
             {where_clause}
             ORDER BY cal.timestamp DESC
-            LIMIT ? OFFSET ?
+            LIMIT %s OFFSET %s
         """
         
         params.extend([limit, offset])

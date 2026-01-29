@@ -415,7 +415,7 @@ class DocumentService:
                     query += " AND corpus_id = %s"
                     params.append(corpus_id)
                 
-                query += " ORDER BY accessed_at DESC LIMIT ?"
+                query += " ORDER BY accessed_at DESC LIMIT %s"
                 params.append(limit)
                 
                 cursor.execute(query, params)

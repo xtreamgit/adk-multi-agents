@@ -584,7 +584,7 @@ async def get_user_stats(current_user: User = Depends(get_current_user)):
             
             # Users with recent login (last 7 days)
             week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            cursor.execute("SELECT COUNT(*) as active FROM users WHERE last_login > ?", (week_ago,))
+            cursor.execute("SELECT COUNT(*) as active FROM users WHERE last_login > %s", (week_ago,))
             active_users = cursor.fetchone()["active"]
             
             return {

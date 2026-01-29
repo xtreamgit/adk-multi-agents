@@ -187,6 +187,6 @@ class CorpusRepository:
                 SELECT corpus_id FROM session_corpus_selections
                 WHERE user_id = %s
                 ORDER BY last_selected_at DESC
-                LIMIT ?
+                LIMIT %s
             """, (user_id, limit))
             return [row['corpus_id'] for row in cursor.fetchall()]
