@@ -7,14 +7,38 @@
 
 // Dynamic import to avoid SSR issues
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+let pdfjsInitPromise: Promise<typeof import('pdfjs-dist')> | null = null;
 
 // Initialize PDF.js only in browser environment
 if (typeof window !== 'undefined') {
-  import('pdfjs-dist').then((pdfjs) => {
+  pdfjsInitPromise = import('pdfjs-dist').then((pdfjs) => {
     pdfjsLib = pdfjs;
     // Use unpkg CDN as fallback (more reliable than cdnjs)
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+    console.log('[PDF.js] Worker initialized:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+    return pdfjs;
   });
+}
+
+/**
+ * Ensure PDF.js is fully initialized before use
+ */
+async function ensurePdfjsLoaded(): Promise<typeof import('pdfjs-dist')> {
+  if (pdfjsLib) {
+    return pdfjsLib;
+  }
+  
+  if (pdfjsInitPromise) {
+    console.log('[PDF.js] Waiting for initialization...');
+    return await pdfjsInitPromise;
+  }
+  
+  // Fallback: initialize now if not already started
+  console.log('[PDF.js] Initializing on-demand...');
+  const pdfjs = await import('pdfjs-dist');
+  pdfjsLib = pdfjs;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  return pdfjs;
 }
 
 interface ThumbnailOptions {
@@ -38,12 +62,8 @@ export async function generatePdfThumbnail(
     throw new Error('generatePdfThumbnail can only be called in browser environment');
   }
 
-  // Ensure pdfjs is loaded
-  if (!pdfjsLib) {
-    pdfjsLib = await import('pdfjs-dist');
-    // Use unpkg CDN as fallback (more reliable than cdnjs)
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-  }
+  // Ensure pdfjs is fully loaded (fixes race condition)
+  const pdfjs = await ensurePdfjsLoaded();
 
   const {
     maxWidth = 280,
@@ -52,14 +72,22 @@ export async function generatePdfThumbnail(
   } = options;
 
   try {
-    // Load the PDF document
+    // Load the PDF document with timeout
     console.log('[PDF Thumbnail] Loading PDF from URL:', url.substring(0, 100) + '...');
-    const loadingTask = pdfjsLib.getDocument({
+    
+    const loadingTask = pdfjs.getDocument({
       url,
       withCredentials: false,
       isEvalSupported: false,
+      verbosity: 0, // Reduce console noise
     });
-    const pdf = await loadingTask.promise;
+    
+    // Add timeout for loading (30 seconds)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('PDF loading timeout (30s)')), 30000);
+    });
+    
+    const pdf = await Promise.race([loadingTask.promise, timeoutPromise]);
     console.log('[PDF Thumbnail] PDF loaded successfully, pages:', pdf.numPages);
 
     // Get the first page
@@ -119,10 +147,57 @@ export async function generatePdfThumbnail(
     
     // Re-throw with more context
     if (error instanceof Error) {
+      // Check for specific error types
+      if (error.message.includes('timeout')) {
+        throw new Error('PDF loading timed out. The file may be too large or network is slow.');
+      } else if (error.message.includes('fetch')) {
+        throw new Error('Failed to fetch PDF. Please check your network connection.');
+      } else if (error.message.includes('CORS')) {
+        throw new Error('CORS error loading PDF. The file may not be accessible.');
+      }
       throw new Error(`Failed to generate PDF thumbnail: ${error.message}`);
     }
     throw new Error('Failed to generate PDF thumbnail: Unknown error');
   }
+}
+
+/**
+ * Generate thumbnail with retry logic for transient failures
+ */
+export async function generatePdfThumbnailWithRetry(
+  url: string,
+  options: ThumbnailOptions = {},
+  maxRetries: number = 2
+): Promise<string> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`[PDF Thumbnail] Retry attempt ${attempt}/${maxRetries}`);
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+      
+      return await generatePdfThumbnail(url, options);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Don't retry on certain errors
+      if (lastError.message.includes('CORS') || 
+          lastError.message.includes('not accessible') ||
+          lastError.message.includes('browser environment')) {
+        throw lastError;
+      }
+      
+      // Continue to next retry
+      if (attempt < maxRetries) {
+        console.warn(`[PDF Thumbnail] Attempt ${attempt + 1} failed, retrying...`);
+      }
+    }
+  }
+  
+  throw lastError || new Error('Failed to generate thumbnail after retries');
 }
 
 /**

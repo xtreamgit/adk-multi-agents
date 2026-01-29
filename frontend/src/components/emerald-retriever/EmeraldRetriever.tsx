@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-enhanced';
 import { useDocumentRetrieval } from '@/hooks/useDocumentRetrieval';
-import { generatePdfThumbnail } from '@/lib/pdfThumbnail';
+import { generatePdfThumbnailWithRetry } from '@/lib/pdfThumbnail';
 import CorpusSidebar from './CorpusSidebar';
 import DocumentListPanel from './DocumentListPanel';
 import DocumentPreview from './DocumentPreview';
@@ -117,14 +117,15 @@ export default function EmeraldRetriever() {
       );
 
       if (response.access?.url) {
-        // Generate thumbnail from signed URL
-        const thumbnail = await generatePdfThumbnail(response.access.url, {
+        // Generate thumbnail from signed URL with retry logic
+        const thumbnail = await generatePdfThumbnailWithRetry(response.access.url, {
           maxWidth: 260,
           maxHeight: 360
-        });
+        }, 2); // Max 2 retries
         setThumbnailUrl(thumbnail);
       } else {
         console.error('No URL in response:', response);
+        throw new Error('No signed URL in document response');
       }
     } catch (error) {
       console.error('Failed to generate thumbnail:', error);
