@@ -365,7 +365,7 @@ class DocumentService:
                         user_id, corpus_id, document_name, document_file_id,
                         access_type, success, error_message, source_uri,
                         ip_address, user_agent, accessed_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     user_id, corpus_id, document_name, document_file_id,
                     access_type, success, error_message, source_uri,
@@ -408,14 +408,14 @@ class DocumentService:
                 params = []
                 
                 if user_id:
-                    query += " AND user_id = ?"
+                    query += " AND user_id = %s"
                     params.append(user_id)
                 
                 if corpus_id:
-                    query += " AND corpus_id = ?"
+                    query += " AND corpus_id = %s"
                     params.append(corpus_id)
                 
-                query += " ORDER BY accessed_at DESC LIMIT ?"
+                query += " ORDER BY accessed_at DESC LIMIT %s"
                 params.append(limit)
                 
                 cursor.execute(query, params)

@@ -6,7 +6,6 @@ import uuid
 import logging
 import warnings
 import os
-# import sqlite3
 import json
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
@@ -107,7 +106,7 @@ def get_user_from_db(username: str) -> Optional[Dict]:
             SELECT id, username, email, full_name, hashed_password, 
                    is_active, default_agent_id, google_id, auth_provider,
                    created_at, updated_at, last_login 
-            FROM users WHERE username = ?
+            FROM users WHERE username = %s
         """, (username,))
         row = cursor.fetchone()
         if row:
@@ -122,7 +121,7 @@ def create_user_in_db(username: str, full_name: str, email: str, hashed_password
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO users (username, full_name, email, hashed_password, created_at, last_login)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
         """, (username, full_name, email, hashed_password, created_at, None))
         conn.commit()
     
@@ -140,24 +139,21 @@ def update_last_login(username: str):
     
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET last_login = ? WHERE username = ?", (last_login, username))
+        cursor.execute("UPDATE users SET last_login = %s WHERE username = %s", (last_login, username))
         conn.commit()
 
 def user_exists(username: str) -> bool:
     """Check if a user exists in the database."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM users WHERE username = ? LIMIT 1", (username,))
+        cursor.execute("SELECT 1 FROM users WHERE username = %s LIMIT 1", (username,))
         return cursor.fetchone() is not None
 
 # Initialize database on startup
 logger = logging.getLogger(__name__)
-logger.info(f"🔍 Environment Check - DB_TYPE: {os.getenv('DB_TYPE', 'NOT SET')}")
-# Skip SQLite migrations if using PostgreSQL (migrations already applied to Cloud SQL)
-if os.getenv('DB_TYPE') == 'postgresql':
-    logger.info("⏭️  Skipping SQLite migrations (using PostgreSQL Cloud SQL)")
-    # Initialize PostgreSQL schema (idempotent - safe to run on every startup)
-    initialize_schema()
+logger.info("🔍 Initializing PostgreSQL database schema...")
+# Initialize PostgreSQL schema (idempotent - safe to run on every startup)
+initialize_schema()
 
 # Setup admin group and seed default users automatically
 def setup_admin_group():
@@ -583,12 +579,12 @@ async def get_user_stats(current_user: User = Depends(get_current_user)):
             
             # Users created today
             today = datetime.now(timezone.utc).date().isoformat()
-            cursor.execute("SELECT COUNT(*) as today FROM users WHERE DATE(created_at) = ?", (today,))
+            cursor.execute("SELECT COUNT(*) as today FROM users WHERE DATE(created_at) = %s", (today,))
             users_today = cursor.fetchone()["today"]
             
             # Users with recent login (last 7 days)
             week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            cursor.execute("SELECT COUNT(*) as active FROM users WHERE last_login > ?", (week_ago,))
+            cursor.execute("SELECT COUNT(*) as active FROM users WHERE last_login > %s", (week_ago,))
             active_users = cursor.fetchone()["active"]
             
             return {

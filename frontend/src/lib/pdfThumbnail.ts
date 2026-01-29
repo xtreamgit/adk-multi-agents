@@ -5,25 +5,47 @@
  * NOTE: This module should only be used on the client side
  */
 
-import type { PDFDocumentProxy } from 'pdfjs-dist';
-
 // Dynamic import to avoid SSR issues
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+let pdfjsInitPromise: Promise<typeof import('pdfjs-dist')> | null = null;
 
 // Initialize PDF.js only in browser environment
 if (typeof window !== 'undefined') {
-  import('pdfjs-dist').then((pdfjs) => {
+  pdfjsInitPromise = import('pdfjs-dist').then((pdfjs) => {
     pdfjsLib = pdfjs;
     // Use unpkg CDN as fallback (more reliable than cdnjs)
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+    console.log('[PDF.js] Worker initialized:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+    return pdfjs;
   });
+}
+
+/**
+ * Ensure PDF.js is fully initialized before use
+ */
+async function ensurePdfjsLoaded(): Promise<typeof import('pdfjs-dist')> {
+  if (pdfjsLib) {
+    return pdfjsLib;
+  }
+  
+  if (pdfjsInitPromise) {
+    console.log('[PDF.js] Waiting for initialization...');
+    return await pdfjsInitPromise;
+  }
+  
+  // Fallback: initialize now if not already started
+  console.log('[PDF.js] Initializing on-demand...');
+  const pdfjs = await import('pdfjs-dist');
+  pdfjsLib = pdfjs;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  return pdfjs;
 }
 
 interface ThumbnailOptions {
   maxWidth?: number;
   maxHeight?: number;
   scale?: number;
-  httpHeaders?: Record<string, string>;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -41,54 +63,106 @@ export async function generatePdfThumbnail(
     throw new Error('generatePdfThumbnail can only be called in browser environment');
   }
 
-  // Ensure pdfjs is loaded
-  if (!pdfjsLib) {
-    pdfjsLib = await import('pdfjs-dist');
-    // Use unpkg CDN as fallback (more reliable than cdnjs)
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-  }
+  // Ensure pdfjs is fully loaded (fixes race condition)
+  const pdfjs = await ensurePdfjsLoaded();
 
   const {
     maxWidth = 280,
     maxHeight = 380,
-    scale = 1.5,
-    httpHeaders
+    scale = 1.5
   } = options;
 
-  type GetDocumentArg = Parameters<(typeof import('pdfjs-dist'))['getDocument']>[0];
-
   try {
-    // Load the PDF document
-    let pdf: PDFDocumentProxy;
-    try {
-      const loadingTask = pdfjsLib.getDocument({
-        url,
-        disableRange: true,
-        disableStream: true,
-        disableAutoFetch: true,
-        withCredentials: false,
-        httpHeaders,
-      } as GetDocumentArg);
-      pdf = await loadingTask.promise;
-    } catch {
-      const res = await fetch(url, {
-        headers: httpHeaders,
-      });
-      if (!res.ok) {
-        throw new Error(`PDF fetch failed: ${res.status} ${res.statusText}`);
+    console.log('[PDF Thumbnail] Loading PDF from URL:', url.substring(0, 100) + '...');
+    
+    // Determine if this is a proxy URL that requires authentication
+    const isProxyUrl = url.includes('/api/documents/proxy/');
+    
+    // Get headers - use provided headers or get token from localStorage for proxy URLs
+    let headers = options.headers;
+    if (!headers && isProxyUrl) {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        headers = { 'Authorization': `Bearer ${token}` };
+        console.log('[PDF Thumbnail] Using token from localStorage for proxy URL');
       }
-      const data = await res.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({
-        data,
-        disableRange: true,
-        disableStream: true,
-        disableAutoFetch: true,
-      } as GetDocumentArg);
-      pdf = await loadingTask.promise;
     }
+    
+    // For authenticated requests (proxy URLs), fetch the PDF first
+    // then pass it to PDF.js as binary data to avoid CORS/auth issues
+    let pdfData: string | ArrayBuffer | Uint8Array = url;
+    
+    if (headers) {
+      console.log('[PDF Thumbnail] Fetching PDF with authentication...');
+      console.log('[PDF Thumbnail] URL:', url);
+      console.log('[PDF Thumbnail] Headers:', JSON.stringify(headers));
+      
+      const response = await fetch(url, {
+        headers: headers,
+        credentials: 'include',
+      });
+      
+      console.log('[PDF Thumbnail] Response status:', response.status, response.statusText);
+      console.log('[PDF Thumbnail] Response headers:', {
+        'content-type': response.headers.get('content-type'),
+        'content-length': response.headers.get('content-length'),
+      });
+      
+      if (!response.ok) {
+        // Try to get error message from JSON response
+        let errorMessage = `${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error('[PDF Thumbnail] Error response:', errorData);
+          errorMessage = errorData.detail || errorMessage;
+        } catch {
+          // Not JSON, use status text
+        }
+        throw new Error(`Failed to fetch PDF: ${errorMessage}`);
+      }
+      
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.includes('application/pdf')) {
+        console.error('[PDF Thumbnail] Unexpected content type:', contentType);
+        throw new Error(`Expected PDF but got ${contentType}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      pdfData = new Uint8Array(arrayBuffer);
+      
+      // Log first few bytes to verify it's a PDF
+      const firstBytes = Array.from(pdfData.slice(0, 10)).map(b => String.fromCharCode(b)).join('');
+      console.log('[PDF Thumbnail] First 10 bytes:', firstBytes);
+      console.log('[PDF Thumbnail] Starts with %PDF:', firstBytes.startsWith('%PDF'));
+      console.log('[PDF Thumbnail] PDF fetched successfully, size:', arrayBuffer.byteLength, 'bytes');
+    }
+    
+    // Load the PDF document with timeout
+    // Use correct property: 'data' for binary, 'url' for URL strings
+    const loadingTask = typeof pdfData === 'string'
+      ? pdfjs.getDocument({
+          url: pdfData,
+          isEvalSupported: false,
+          verbosity: 0,
+        })
+      : pdfjs.getDocument({
+          data: pdfData,
+          isEvalSupported: false,
+          verbosity: 0,
+        });
+    
+    // Add timeout for loading (30 seconds)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('PDF loading timeout (30s)')), 30000);
+    });
+    
+    const pdf = await Promise.race([loadingTask.promise, timeoutPromise]);
+    console.log('[PDF Thumbnail] PDF loaded successfully, pages:', pdf.numPages);
 
     // Get the first page
     const page = await pdf.getPage(1);
+    console.log('[PDF Thumbnail] First page retrieved');
 
     // Calculate viewport
     const viewport = page.getViewport({ scale });
@@ -136,10 +210,64 @@ export async function generatePdfThumbnail(
 
     return dataUrl;
   } catch (error) {
-    console.error('Error generating PDF thumbnail:', error);
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`PDF thumbnail generation failed: ${message}`);
+    console.error('[PDF Thumbnail] Error generating PDF thumbnail:', error);
+    console.error('[PDF Thumbnail] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[PDF Thumbnail] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[PDF Thumbnail] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Re-throw with more context
+    if (error instanceof Error) {
+      // Check for specific error types
+      if (error.message.includes('timeout')) {
+        throw new Error('PDF loading timed out. The file may be too large or network is slow.');
+      } else if (error.message.includes('fetch')) {
+        throw new Error('Failed to fetch PDF. Please check your network connection.');
+      } else if (error.message.includes('CORS')) {
+        throw new Error('CORS error loading PDF. The file may not be accessible.');
+      }
+      throw new Error(`Failed to generate PDF thumbnail: ${error.message}`);
+    }
+    throw new Error('Failed to generate PDF thumbnail: Unknown error');
   }
+}
+
+/**
+ * Generate thumbnail with retry logic for transient failures
+ */
+export async function generatePdfThumbnailWithRetry(
+  url: string,
+  options: ThumbnailOptions = {},
+  maxRetries: number = 2
+): Promise<string> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`[PDF Thumbnail] Retry attempt ${attempt}/${maxRetries}`);
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+      
+      return await generatePdfThumbnail(url, options);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Don't retry on certain errors
+      if (lastError.message.includes('CORS') || 
+          lastError.message.includes('not accessible') ||
+          lastError.message.includes('browser environment')) {
+        throw lastError;
+      }
+      
+      // Continue to next retry
+      if (attempt < maxRetries) {
+        console.warn(`[PDF Thumbnail] Attempt ${attempt + 1} failed, retrying...`);
+      }
+    }
+  }
+  
+  throw lastError || new Error('Failed to generate thumbnail after retries');
 }
 
 /**

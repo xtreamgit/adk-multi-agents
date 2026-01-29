@@ -319,16 +319,102 @@ if not db_host.startswith('/cloudsql/'):
 
 ---
 
+---
+
+## 🌙 **Evening Session: PDF Thumbnail Fix**
+
+**Time:** 8:00 PM - 9:24 PM  
+**Focus:** Fix `InvalidPDFException` and 401 Unauthorized errors for PDF thumbnail generation
+
+### Problem Description
+PDF thumbnails in the document browser (`/open-document`) were failing with multiple errors:
+1. `InvalidPDFException: Invalid PDF structure` - PDF.js couldn't parse the response
+2. `401 Unauthorized` - Backend proxy endpoint rejecting requests
+3. CORS errors - Frontend trying to access GCS signed URLs directly
+
+### Root Cause Analysis
+
+**Layer 1: CORS Issues**
+- Original code used direct GCS signed URLs for PDF loading
+- GCS doesn't include CORS headers, causing browser to block requests
+- **Fix:** Implemented backend proxy endpoint (`/api/documents/proxy/{corpus_id}/{document_name}`)
+
+**Layer 2: PDF.js Authentication**
+- PDF.js makes its own HTTP requests and doesn't automatically include auth headers
+- Even with `httpHeaders` option, PDF.js wasn't sending the `Authorization` header correctly
+- **Fix:** Fetch PDF with `fetch()` API first, then pass binary data to PDF.js
+
+**Layer 3: Token Key Mismatch (Final Fix)**
+- The API client stores the JWT token as `auth_token` in localStorage
+- Our code was trying to read `access_token` which doesn't exist
+- Result: `localStorage.getItem('access_token')` returned `null`
+- **Fix:** Changed to `localStorage.getItem('auth_token')`
+
+### Solution Implementation
+
+**Files Modified:**
+1. `frontend/src/components/emerald-retriever/EmeraldRetriever.tsx`
+   - Fetch PDF directly with authentication before passing to thumbnail generator
+   - Create blob URL from response for PDF.js (no auth needed for blob URLs)
+   - Fixed token key: `auth_token` instead of `access_token`
+
+2. `frontend/src/lib/pdfThumbnail.ts`
+   - Added automatic token retrieval from localStorage for proxy URLs
+   - Fixed token key: `auth_token` instead of `access_token`
+
+3. `frontend/src/components/DocumentViewer.tsx`
+   - Fetch PDF via proxy with authentication
+   - Create blob URL for iframe display
+   - Fixed token key: `auth_token` instead of `access_token`
+
+**Key Code Change:**
+```typescript
+// WRONG - token stored as 'auth_token', not 'access_token'
+const token = localStorage.getItem('access_token'); // Returns null!
+
+// CORRECT
+const token = localStorage.getItem('auth_token'); // Returns JWT token
+```
+
+**New Thumbnail Generation Flow:**
+```
+1. EmeraldRetriever selects a PDF document
+2. Get auth token from localStorage ('auth_token')
+3. Fetch PDF from backend proxy with Authorization header
+4. Create blob URL from response
+5. Pass blob URL to PDF.js (no auth needed)
+6. Generate thumbnail canvas
+7. Clean up blob URL
+```
+
+### Commits
+- `0726142` - Fix thumbnail auth - fetch PDF directly in EmeraldRetriever with auth, pass blob URL to thumbnail generator
+- `387349f` - Fix token key - use 'auth_token' instead of 'access_token' to match api client storage
+
+### Debugging Challenges
+- **Turbopack caching:** Changes to `pdfThumbnail.ts` weren't being loaded despite clearing `.next` cache
+- **Solution:** Moved the fetch logic to `EmeraldRetriever.tsx` which compiled correctly
+- Added extensive logging (`[Thumbnail]` prefix) to track the authentication flow
+
+### Lessons Learned
+1. **Always verify localStorage key names** - Check how the API client stores tokens before reading them
+2. **PDF.js authentication is tricky** - Fetch binary data first, then pass to PDF.js as blob URL
+3. **Next.js/Turbopack caching** - Sometimes requires multiple cache clears or moving code to different files
+4. **Add logging early** - Console logs with prefixes (`[Thumbnail]`) help track which code path is executing
+
+---
+
 ## ✅ **Session Complete**
 
-**End Time:** 12:02 PM  
-**Total Duration:** ~1.5 hours  
-**Goals Achieved:** 4/4  
-**Commits Made:** 4  
-**Files Changed:** 4  
+**End Time:** 9:24 PM  
+**Total Duration:** ~1.5 hours (morning) + ~1.5 hours (evening) = ~3 hours  
+**Goals Achieved:** 4/4 (morning) + 1/1 (evening)  
+**Commits Made:** 6 total (4 morning + 2 evening)  
+**Files Changed:** 7 total  
 
 **Summary:**
-Fixed critical Cloud Run deployment issue where backend was incorrectly using SQLite instead of PostgreSQL. Added proper Cloud SQL configuration, IAM permissions, and fixed Unix socket connection code. Backend now successfully connects to Cloud SQL PostgreSQL database with existing users and corpora.
+- **Morning:** Fixed critical Cloud Run deployment issue where backend was incorrectly using SQLite instead of PostgreSQL. Added proper Cloud SQL configuration, IAM permissions, and fixed Unix socket connection code.
+- **Evening:** Fixed PDF thumbnail generation by correcting the localStorage token key from `access_token` to `auth_token`, and implementing proper authentication flow for the backend proxy.
 
 ---
 
@@ -340,3 +426,5 @@ Fixed critical Cloud Run deployment issue where backend was incorrectly using SQ
 - Existing users: admin, charlie, bob, testuser, andrew
 - Frontend accessible at: https://34.49.46.115.nip.io
 - Backend revision: `backend-00099-5hw` with PostgreSQL working correctly
+- **PDF Thumbnails:** Token is stored as `auth_token` in localStorage (NOT `access_token`)
+- **PDF Loading:** Always fetch PDFs via backend proxy with auth, create blob URL, then pass to PDF.js

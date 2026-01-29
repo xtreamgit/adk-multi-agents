@@ -14,15 +14,66 @@ export default function DocumentViewer({ document, onClose }: DocumentViewerProp
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // If we have a signed URL in access object, use it directly
-    if (document.access?.url) {
-      setPdfUrl(document.access.url);
-      setIsLoading(false);
-    } else {
-      setError('No document URL available');
-      setIsLoading(false);
-    }
+    const loadPdfViaProxy = async () => {
+      try {
+        // Get corpus_id and document_name from the document
+        const corpusId = document.document.corpus_id;
+        const documentName = document.document.name;
+        
+        if (!corpusId || !documentName) {
+          setError('Missing corpus ID or document name');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Build proxy URL
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        const proxyUrl = `${backendUrl}/api/documents/proxy/${corpusId}/${encodeURIComponent(documentName)}`;
+        
+        // Get auth token (stored as 'auth_token' by api client)
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          setError('Not authenticated');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch PDF via proxy with authentication
+        const response = await fetch(proxyUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to load PDF: ${response.status} - ${errorText}`);
+        }
+        
+        // Create blob URL from response
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        setPdfUrl(blobUrl);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error loading PDF:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load document');
+        setIsLoading(false);
+      }
+    };
+    
+    loadPdfViaProxy();
   }, [document]);
+  
+  // Cleanup blob URL when component unmounts or pdfUrl changes
+  useEffect(() => {
+    return () => {
+      if (pdfUrl && pdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
 
   const handleDownload = () => {
     const url = pdfUrl || document.access?.url;

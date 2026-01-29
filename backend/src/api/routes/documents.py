@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import re
+import requests
 
 from services.corpus_service import CorpusService
 from services.document_service import DocumentService
@@ -25,13 +25,6 @@ class DocumentRetrievalResponse(BaseModel):
     status: str
     document: dict
     access: Optional[dict] = None
-
-
-def _parse_gcs_uri(source_uri: str) -> tuple[str, str]:
-    match = re.match(r"gs://([^/]+)/(.+)", source_uri or "")
-    if not match:
-        raise ValueError(f"Invalid GCS URI: {source_uri}")
-    return match.group(1), match.group(2)
 
 
 @router.get("/retrieve", response_model=DocumentRetrievalResponse)
@@ -279,72 +272,104 @@ async def list_corpus_documents(
         )
 
 
-@router.get("/preview")
-async def preview_document(
+@router.get("/proxy/{corpus_id}/{document_name}")
+async def proxy_document(
     corpus_id: int,
     document_name: str,
     request: Request = None,
     current_user: User = Depends(get_current_user_hybrid)
 ):
-    """Stream a document (PDF) through the backend to avoid client-side CORS issues."""
-
+    """
+    Proxy endpoint to stream PDF documents from GCS with proper CORS headers.
+    
+    This solves the CORS issue where PDF.js cannot load PDFs directly from
+    GCS signed URLs because they don't include access-control headers.
+    
+    **Security**: User must have 'read' access to the corpus.
+    
+    **Parameters**:
+    - **corpus_id**: ID of the corpus containing the document
+    - **document_name**: Display name of the document to retrieve
+    
+    **Returns**: Streamed PDF content with proper CORS headers
+    """
+    # Validate corpus access
     if not CorpusService.validate_corpus_access(current_user.id, corpus_id):
+        logger.warning(
+            f"User {current_user.username} (ID: {current_user.id}) "
+            f"denied access to proxy document in corpus {corpus_id}"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this corpus"
         )
-
+    
+    # Get corpus details
     corpus = CorpusService.get_corpus_by_id(corpus_id)
     if not corpus or not corpus.vertex_corpus_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Corpus not found"
+            detail="Corpus not found or not properly configured"
         )
-
+    
+    # Find document and generate signed URL
     document = DocumentService.find_document(corpus.vertex_corpus_id, document_name)
     if not document or not document.get('source_uri'):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found"
         )
-
-    source_uri = document['source_uri']
-    try:
-        bucket_name, object_path = _parse_gcs_uri(source_uri)
-    except ValueError:
+    
+    signed_url, _ = DocumentService.generate_signed_url(
+        document['source_uri'],
+        expiration_minutes=30
+    )
+    
+    if not signed_url:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Document source is not a valid GCS URI"
+            detail="Failed to generate access URL for document"
         )
-
+    
     try:
-        from google.cloud import storage
-
-        client = storage.Client()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.blob(object_path)
-
-        def iterfile(chunk_size: int = 1024 * 1024):
-            with blob.open("rb") as f:
-                while True:
-                    chunk = f.read(chunk_size)
-                    if not chunk:
-                        break
-                    yield chunk
-
-        headers = {
-            "Content-Disposition": f"inline; filename=\"{document_name}\"",
-            "Cache-Control": "no-store",
-        }
-
-        return StreamingResponse(iterfile(), media_type="application/pdf", headers=headers)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to stream preview for {source_uri}: {e}")
+        # Fetch PDF from GCS signed URL
+        response = requests.get(signed_url, stream=True, timeout=30)
+        response.raise_for_status()
+        
+        # Log successful access
+        DocumentService.log_access(
+            user_id=current_user.id,
+            corpus_id=corpus_id,
+            document_name=document_name,
+            document_file_id=document.get('file_id'),
+            source_uri=document.get('source_uri'),
+            success=True,
+            access_type='view',
+            ip_address=request.client.host if request else None,
+            user_agent=request.headers.get('user-agent') if request else None
+        )
+        
+        logger.info(
+            f"Proxying document: user={current_user.username}, "
+            f"corpus={corpus.name}, document={document_name}"
+        )
+        
+        # Stream the PDF content with proper headers
+        return StreamingResponse(
+            response.iter_content(chunk_size=8192),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{document_name}"',
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+    except requests.RequestException as e:
+        logger.error(f"Error fetching document from GCS: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to stream document preview"
+            detail="Failed to fetch document from storage"
         )
 
 

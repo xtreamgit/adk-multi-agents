@@ -1,5 +1,8 @@
--- Migration 006: Add IAP authentication support
--- Description: Add google_id and auth_provider fields to support IAP authentication
+-- Migration 006: Add IAP Support
+-- Purpose: Add Google IAP authentication support
+-- Created: 2026-01-10
+-- Updated: 2026-01-28 - Converted to PostgreSQL syntax
+-- Note: This migration handles the schema change carefully to preserve existing datauthentication
 -- Date: 2026-01-10
 --
 -- Note: SQLite doesn't support adding UNIQUE columns or making columns nullable via ALTER TABLE.
@@ -7,18 +10,18 @@
 
 -- Create new users table with updated schema including IAP support
 CREATE TABLE IF NOT EXISTS users_new (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    full_name TEXT NOT NULL,
-    hashed_password TEXT,  -- Now nullable for IAP users
-    google_id TEXT UNIQUE,
-    auth_provider TEXT DEFAULT 'local',
-    is_active BOOLEAN DEFAULT 1,
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    hashed_password VARCHAR(255),  -- Now nullable for IAP users
+    google_id VARCHAR(255) UNIQUE,  -- Google user ID from IAP
+    auth_provider VARCHAR(50) DEFAULT 'local',  -- 'local' or 'google'
+    is_active BOOLEAN DEFAULT TRUE,
     default_agent_id INTEGER,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    last_login TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP,
     FOREIGN KEY (default_agent_id) REFERENCES agents(id)
 );
 
