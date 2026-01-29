@@ -73,13 +73,31 @@ export async function generatePdfThumbnail(
   } = options;
 
   try {
-    // Load the PDF document with timeout
     console.log('[PDF Thumbnail] Loading PDF from URL:', url.substring(0, 100) + '...');
     
+    // If headers are provided (authenticated request), fetch the PDF first
+    // then pass it to PDF.js as a blob to avoid CORS/auth issues
+    let pdfData: string | ArrayBuffer | Uint8Array = url;
+    
+    if (options.headers) {
+      console.log('[PDF Thumbnail] Fetching PDF with authentication...');
+      const response = await fetch(url, {
+        headers: options.headers,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      pdfData = new Uint8Array(arrayBuffer);
+      console.log('[PDF Thumbnail] PDF fetched successfully, size:', arrayBuffer.byteLength, 'bytes');
+    }
+    
+    // Load the PDF document with timeout
     const loadingTask = pdfjs.getDocument({
-      url,
-      withCredentials: options.headers ? true : false,
-      httpHeaders: options.headers || {},
+      data: pdfData,
       isEvalSupported: false,
       verbosity: 0, // Reduce console noise
     });
