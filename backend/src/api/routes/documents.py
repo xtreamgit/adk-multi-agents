@@ -6,7 +6,9 @@ Handles document search, signed URL generation, and access control.
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Request, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import re
 
 from services.corpus_service import CorpusService
 from services.document_service import DocumentService
@@ -23,6 +25,13 @@ class DocumentRetrievalResponse(BaseModel):
     status: str
     document: dict
     access: Optional[dict] = None
+
+
+def _parse_gcs_uri(source_uri: str) -> tuple[str, str]:
+    match = re.match(r"gs://([^/]+)/(.+)", source_uri or "")
+    if not match:
+        raise ValueError(f"Invalid GCS URI: {source_uri}")
+    return match.group(1), match.group(2)
 
 
 @router.get("/retrieve", response_model=DocumentRetrievalResponse)
@@ -267,6 +276,75 @@ async def list_corpus_documents(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list documents: {str(e)}"
+        )
+
+
+@router.get("/preview")
+async def preview_document(
+    corpus_id: int,
+    document_name: str,
+    request: Request = None,
+    current_user: User = Depends(get_current_user_hybrid)
+):
+    """Stream a document (PDF) through the backend to avoid client-side CORS issues."""
+
+    if not CorpusService.validate_corpus_access(current_user.id, corpus_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this corpus"
+        )
+
+    corpus = CorpusService.get_corpus_by_id(corpus_id)
+    if not corpus or not corpus.vertex_corpus_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Corpus not found"
+        )
+
+    document = DocumentService.find_document(corpus.vertex_corpus_id, document_name)
+    if not document or not document.get('source_uri'):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    source_uri = document['source_uri']
+    try:
+        bucket_name, object_path = _parse_gcs_uri(source_uri)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document source is not a valid GCS URI"
+        )
+
+    try:
+        from google.cloud import storage
+
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(object_path)
+
+        def iterfile(chunk_size: int = 1024 * 1024):
+            with blob.open("rb") as f:
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+
+        headers = {
+            "Content-Disposition": f"inline; filename=\"{document_name}\"",
+            "Cache-Control": "no-store",
+        }
+
+        return StreamingResponse(iterfile(), media_type="application/pdf", headers=headers)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to stream preview for {source_uri}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to stream document preview"
         )
 
 

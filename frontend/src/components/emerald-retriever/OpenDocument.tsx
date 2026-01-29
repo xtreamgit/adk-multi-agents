@@ -86,7 +86,13 @@ export default function EmeraldRetriever() {
       setSelectedDocument(null);
       
       const response = await apiClient.listCorpusDocuments(corpusId);
-      setDocuments(response.documents || []);
+      const docs = response.documents || [];
+      setDocuments(docs);
+
+      // Auto-select first document by default
+      if (docs.length > 0) {
+        setSelectedDocument(docs[0]);
+      }
     } catch (error) {
       console.error('Failed to load documents:', error);
       setDocuments([]);
@@ -147,6 +153,21 @@ export default function EmeraldRetriever() {
 
   const handleSelectDocument = (document: Document) => {
     setSelectedDocument(document);
+  };
+
+  const handleOpenDocumentFromList = async (document: Document) => {
+    if (!selectedCorpusId) return;
+    setSelectedDocument(document);
+
+    try {
+      await retrieveDocument(
+        selectedCorpusId,
+        document.display_name,
+        true
+      );
+    } catch (error) {
+      console.error('Failed to open document:', error);
+    }
   };
 
   const handleOpenDocument = async () => {
@@ -215,6 +236,7 @@ export default function EmeraldRetriever() {
             documents={documents}
             selectedDocumentId={selectedDocument?.file_id || null}
             onSelectDocument={handleSelectDocument}
+            onOpenDocument={handleOpenDocumentFromList}
             loading={loadingDocuments}
           />
 

@@ -88,7 +88,13 @@ export default function EmeraldRetriever() {
       setSelectedDocument(null);
       
       const response = await apiClient.listCorpusDocuments(corpusId);
-      setDocuments(response.documents || []);
+      const docs = response.documents || [];
+      setDocuments(docs);
+
+      // Auto-select first document by default
+      if (docs.length > 0) {
+        setSelectedDocument(docs[0]);
+      }
     } catch (error) {
       console.error('Failed to load documents:', error);
       setDocuments([]);
@@ -108,24 +114,26 @@ export default function EmeraldRetriever() {
     try {
       setGeneratingThumbnail(true);
       setThumbnailUrl(null);
-      
-      // Retrieve document with signed URL
-      const response = await retrieveDocument(
-        selectedCorpusId!,
-        document.display_name,
-        true
-      );
 
-      if (response.access?.url) {
-        // Generate thumbnail from signed URL
-        const thumbnail = await generatePdfThumbnail(response.access.url, {
-          maxWidth: 260,
-          maxHeight: 360
-        });
-        setThumbnailUrl(thumbnail);
-      } else {
-        console.error('No URL in response:', response);
-      }
+      const backendBaseUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL ||
+        (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '3000'
+          ? 'http://localhost:8000'
+          : '');
+      const previewUrl = `${backendBaseUrl}/api/documents/preview?corpus_id=${selectedCorpusId!}&document_name=${encodeURIComponent(document.display_name)}`;
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      const httpHeaders: Record<string, string> | undefined = token
+        ? { Authorization: `Bearer ${token}` }
+        : undefined;
+
+      const thumbnail = await generatePdfThumbnail(previewUrl, {
+        maxWidth: 260,
+        maxHeight: 360,
+        httpHeaders,
+      });
+
+      setThumbnailUrl(thumbnail);
     } catch (error) {
       console.error('Failed to generate thumbnail:', error);
       console.error('Error details:', error instanceof Error ? error.message : error);
@@ -142,6 +150,21 @@ export default function EmeraldRetriever() {
 
   const handleSelectDocument = (document: Document) => {
     setSelectedDocument(document);
+  };
+
+  const handleOpenDocumentFromList = async (document: Document) => {
+    if (!selectedCorpusId) return;
+    setSelectedDocument(document);
+
+    try {
+      await retrieveDocument(
+        selectedCorpusId,
+        document.display_name,
+        true
+      );
+    } catch (error) {
+      console.error('Failed to open document:', error);
+    }
   };
 
   const handleOpenDocument = async () => {
@@ -210,6 +233,7 @@ export default function EmeraldRetriever() {
             documents={documents}
             selectedDocumentId={selectedDocument?.file_id || null}
             onSelectDocument={handleSelectDocument}
+            onOpenDocument={handleOpenDocumentFromList}
             loading={loadingDocuments}
           />
 
