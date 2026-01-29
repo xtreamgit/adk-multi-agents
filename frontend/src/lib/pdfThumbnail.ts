@@ -81,7 +81,7 @@ export async function generatePdfThumbnail(
     // Get headers - use provided headers or get token from localStorage for proxy URLs
     let headers = options.headers;
     if (!headers && isProxyUrl) {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('auth_token');
       if (token) {
         headers = { 'Authorization': `Bearer ${token}` };
         console.log('[PDF Thumbnail] Using token from localStorage for proxy URL');

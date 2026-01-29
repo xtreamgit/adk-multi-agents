@@ -30,8 +30,8 @@ export default function DocumentViewer({ document, onClose }: DocumentViewerProp
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
         const proxyUrl = `${backendUrl}/api/documents/proxy/${corpusId}/${encodeURIComponent(documentName)}`;
         
-        // Get auth token
-        const token = localStorage.getItem('access_token');
+        // Get auth token (stored as 'auth_token' by api client)
+        const token = localStorage.getItem('auth_token');
         if (!token) {
           setError('Not authenticated');
           setIsLoading(false);

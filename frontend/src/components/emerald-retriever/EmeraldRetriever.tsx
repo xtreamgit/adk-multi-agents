@@ -114,8 +114,8 @@ export default function EmeraldRetriever() {
       
       console.log('[Thumbnail] Using proxy URL:', proxyUrl);
       
-      // Get auth token from localStorage
-      const token = localStorage.getItem('access_token');
+      // Get auth token from localStorage (stored as 'auth_token' by api client)
+      const token = localStorage.getItem('auth_token');
       console.log('[Thumbnail] Token available:', !!token);
       
       if (!token) {
