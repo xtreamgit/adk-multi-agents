@@ -53,11 +53,18 @@ export async function generatePdfThumbnail(
 
   try {
     // Load the PDF document
-    const loadingTask = pdfjsLib.getDocument(url);
+    console.log('[PDF Thumbnail] Loading PDF from URL:', url.substring(0, 100) + '...');
+    const loadingTask = pdfjsLib.getDocument({
+      url,
+      withCredentials: false,
+      isEvalSupported: false,
+    });
     const pdf = await loadingTask.promise;
+    console.log('[PDF Thumbnail] PDF loaded successfully, pages:', pdf.numPages);
 
     // Get the first page
     const page = await pdf.getPage(1);
+    console.log('[PDF Thumbnail] First page retrieved');
 
     // Calculate viewport
     const viewport = page.getViewport({ scale });
@@ -105,8 +112,16 @@ export async function generatePdfThumbnail(
 
     return dataUrl;
   } catch (error) {
-    console.error('Error generating PDF thumbnail:', error);
-    throw error;
+    console.error('[PDF Thumbnail] Error generating PDF thumbnail:', error);
+    console.error('[PDF Thumbnail] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[PDF Thumbnail] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[PDF Thumbnail] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Re-throw with more context
+    if (error instanceof Error) {
+      throw new Error(`Failed to generate PDF thumbnail: ${error.message}`);
+    }
+    throw new Error('Failed to generate PDF thumbnail: Unknown error');
   }
 }
 
