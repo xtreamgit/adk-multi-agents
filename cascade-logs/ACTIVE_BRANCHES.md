@@ -2,7 +2,7 @@
 
 This file tracks active feature branches and which Cascade sessions are working on them.
 
-**Last Updated:** January 15, 2026
+**Last Updated:** January 15, 2026 - 11:59 AM
 
 ## Currently Active Branches
 
@@ -10,6 +10,8 @@ This file tracks active feature branches and which Cascade sessions are working 
 |-------------|----------------|--------|---------|-------------------|-------------|
 | `main` | - | Stable | - | - | Production branch (backend-00067-j25) |
 | `develop` | - | Ready | - | - | Integration branch |
+| `feature/landing-color-update` | Cascade-1 | In Progress | 2026-01-15 | Today | Update landing page color scheme |
+| `feature/file-display` | Cascade-2 | In Progress | 2026-01-15 | Today | Enhance file display functionality |
 
 ## Completed Branches (Last 7 Days)
 

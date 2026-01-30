@@ -112,7 +112,7 @@ export default function PermissionsMatrixPage() {
         <h3 className="font-semibold text-gray-900 mb-3">Legend</h3>
         <div className="flex space-x-6 text-sm">
           <div className="flex items-center">
-            <div className="w-8 h-8 rounded bg-green-500 mr-2"></div>
+            <div className="w-8 h-8 rounded mr-2" style={{ backgroundColor: '#005440' }}></div>
             <span>Has Access</span>
           </div>
           <div className="flex items-center">
@@ -165,9 +165,12 @@ export default function PermissionsMatrixPage() {
                         disabled={isUpdating}
                         className={`w-10 h-10 rounded transition-colors ${
                           access
-                            ? 'bg-green-500 text-white hover:bg-green-600'
+                            ? 'text-white'
                             : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
                         } ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        style={access ? { backgroundColor: '#005440' } : undefined}
+                        onMouseEnter={(e) => access && (e.currentTarget.style.backgroundColor = '#004030')}
+                        onMouseLeave={(e) => access && (e.currentTarget.style.backgroundColor = '#005440')}
                         title={access ? `${permission} access` : 'No access'}
                       >
                         {isUpdating ? (

@@ -416,7 +416,10 @@ export default function Home() {
               <span>Search Chats</span>
             </button>
             
-            <button className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+            <button 
+              onClick={() => router.push('/test-documents')}
+              className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -443,11 +446,13 @@ export default function Home() {
           </div>
 
           {/* Profile Section */}
-          <div className="p-4 border-t border-gray-200 bg-green-600 text-white">
+          <div className="p-4 border-t border-gray-200 text-white" style={{ backgroundColor: '#005440' }}>
             {user && user.username === 'guest' ? (
               <button 
                 onClick={() => setShowLogin(true)}
-                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+                className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors"
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -458,7 +463,9 @@ export default function Home() {
               <>
                 <button 
                   onClick={handleUpdateProfile}
-                  className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors mb-2"
+                  className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors mb-2"
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -467,7 +474,9 @@ export default function Home() {
                 </button>
                 <button 
                   onClick={handleLogout}
-                  className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+                  className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors"
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -552,7 +561,10 @@ export default function Home() {
             <span>Search Chats</span>
           </button>
           
-          <button className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+          <button 
+            onClick={() => router.push('/test-documents')}
+            className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -579,11 +591,13 @@ export default function Home() {
         </div>
 
         {/* Profile Section */}
-        <div className="p-4 border-t border-gray-200 bg-green-600 text-white">
+        <div className="p-4 border-t border-gray-200 text-white" style={{ backgroundColor: '#005440' }}>
           {user && user.username === 'guest' ? (
             <button 
               onClick={() => setShowLogin(true)}
-              className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+              className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors"
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -594,7 +608,9 @@ export default function Home() {
             <>
               <button 
                 onClick={handleUpdateProfile}
-                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors mb-2"
+                className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors mb-2"
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -603,7 +619,9 @@ export default function Home() {
               </button>
               <button 
                 onClick={handleLogout}
-                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-green-700 rounded-lg transition-colors"
+                className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors"
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -660,7 +678,18 @@ export default function Home() {
               <button 
                 onClick={handleStartChat}
                 disabled={!chatInputValue.trim()}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-green-600 text-white px-6 py-2 rounded-full hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white px-6 py-2 rounded-full transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#005440' }}
+                onMouseEnter={(e) => {
+                  if (chatInputValue.trim()) {
+                    e.currentTarget.style.backgroundColor = '#00755e';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (chatInputValue.trim()) {
+                    e.currentTarget.style.backgroundColor = '#005440';
+                  }
+                }}
               >
                 Ask
               </button>

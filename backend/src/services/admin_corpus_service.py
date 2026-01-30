@@ -173,7 +173,8 @@ class AdminCorpusService:
             return False
         
         # Update status
-        rows = CorpusRepository.update(corpus_id, {'is_active': is_active})
+        result = CorpusRepository.update(corpus_id, is_active=is_active)
+        rows = 1 if result else 0
         
         if rows > 0:
             # Log the change

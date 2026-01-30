@@ -1,0 +1,46 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and customize for your deployment
+
+# REQUIRED: GCP Project Configuration
+project_id = "your-project-id"
+region     = "us-west1"
+
+# REQUIRED: Container Images
+# These should be built and pushed to Artifact Registry first
+backend_image  = "us-west1-docker.pkg.dev/your-project-id/cloud-run-repo1/backend:latest"
+frontend_image = "us-west1-docker.pkg.dev/your-project-id/cloud-run-repo1/frontend:latest"
+
+# Environment
+environment = "production"
+log_level   = "INFO"
+
+# Artifact Registry
+artifact_registry_name = "cloud-run-repo1"
+
+# Load Balancer Configuration
+static_ip_name       = "app-static-ip"
+ssl_certificate_name = "app-ssl-cert"
+
+# Multi-Agent Configuration
+# Set to true to deploy multiple backend agents
+enable_multi_agent = false
+
+# Cloud Run Resource Configuration
+# Backend services
+backend_cpu           = "1"
+backend_memory        = "1Gi"
+backend_min_instances = 0
+backend_max_instances = 10
+
+# Frontend service
+frontend_cpu           = "1"
+frontend_memory        = "512Mi"
+frontend_min_instances = 0
+frontend_max_instances = 5
+
+# Resource Labels
+labels = {
+  managed-by  = "terraform"
+  app         = "your-app-name"
+  environment = "production"
+}

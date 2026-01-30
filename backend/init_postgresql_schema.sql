@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     user_id INTEGER UNIQUE NOT NULL,
     bio TEXT,
     avatar_url TEXT,
+    theme VARCHAR(50) DEFAULT 'light',
+    language VARCHAR(10) DEFAULT 'en',
+    timezone VARCHAR(50) DEFAULT 'UTC',
     preferences JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -34,6 +37,7 @@ CREATE TABLE IF NOT EXISTS groups (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -52,6 +56,7 @@ CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
+    permissions JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -68,15 +73,22 @@ CREATE TABLE IF NOT EXISTS group_roles (
 CREATE TABLE IF NOT EXISTS agents (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
     description TEXT,
-    instructions TEXT,
-    model VARCHAR(255) DEFAULT 'gemini-2.0-flash-exp',
-    temperature FLOAT DEFAULT 0.7,
-    top_p FLOAT DEFAULT 0.95,
-    top_k INTEGER DEFAULT 40,
+    config_path VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User-Agent access table (which users can access which agents)
+CREATE TABLE IF NOT EXISTS user_agent_access (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    agent_id INTEGER NOT NULL,
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+    UNIQUE(user_id, agent_id)
 );
 
 -- Corpora table
@@ -85,19 +97,51 @@ CREATE TABLE IF NOT EXISTS corpora (
     name VARCHAR(255) UNIQUE NOT NULL,
     display_name VARCHAR(255) NOT NULL,
     description TEXT,
+    gcs_bucket VARCHAR(255),
     vertex_corpus_id VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Group-Corpus junction table (for access control)
-CREATE TABLE IF NOT EXISTS group_corpora (
+-- Group-Corpus access table (for access control)
+CREATE TABLE IF NOT EXISTS group_corpus_access (
+    id SERIAL PRIMARY KEY,
     group_id INTEGER NOT NULL,
     corpus_id INTEGER NOT NULL,
-    PRIMARY KEY (group_id, corpus_id),
+    permission VARCHAR(20) DEFAULT 'read',
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (group_id, corpus_id),
     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
     FOREIGN KEY (corpus_id) REFERENCES corpora(id) ON DELETE CASCADE
+);
+
+-- User sessions table (for session tracking and agent/corpus persistence)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(255) UNIQUE NOT NULL,
+    user_id INTEGER NOT NULL,
+    active_agent_id INTEGER,
+    active_corpora TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    message_count INTEGER DEFAULT 0,
+    user_query_count INTEGER DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (active_agent_id) REFERENCES agents(id)
+);
+
+-- Session corpus selections table (for corpus restoration)
+CREATE TABLE IF NOT EXISTS session_corpus_selections (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    corpus_id INTEGER NOT NULL,
+    last_selected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (corpus_id) REFERENCES corpora(id) ON DELETE CASCADE,
+    UNIQUE(user_id, corpus_id)
 );
 
 -- Chat sessions table
@@ -138,6 +182,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_agent_id ON chat_sessions(agent_id);
 CREATE INDEX IF NOT EXISTS idx_corpora_active ON corpora(is_active);
 CREATE INDEX IF NOT EXISTS idx_agents_active ON agents(is_active);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_query_count ON user_sessions(user_query_count);
 
 -- Insert default data
 -- Default role

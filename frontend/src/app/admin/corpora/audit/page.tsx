@@ -1,7 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-enhanced';
+
+interface Corpus {
+  id: number;
+  name: string;
+  display_name: string;
+}
 
 interface AuditEntry {
   id: number;
@@ -17,7 +23,9 @@ interface AuditEntry {
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<AuditEntry[]>([]);
+  const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingCorpora, setLoadingCorpora] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     corpus_id: '',
@@ -26,16 +34,24 @@ export default function AuditLogPage() {
   });
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadAuditLog();
-  }, []);
+  const loadCorpora = async () => {
+    try {
+      setLoadingCorpora(true);
+      const data = await apiClient.admin_getAllCorpora(true); // Include inactive
+      setCorpora(data);
+    } catch (err) {
+      console.error('Failed to load corpora:', err);
+    } finally {
+      setLoadingCorpora(false);
+    }
+  };
 
-  const loadAuditLog = async () => {
+  const loadAuditLog = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const filterParams: any = { limit: filters.limit };
+      const filterParams: Record<string, string | number> = { limit: filters.limit };
       if (filters.corpus_id) filterParams.corpus_id = parseInt(filters.corpus_id);
       if (filters.action) filterParams.action = filters.action;
 
@@ -46,7 +62,12 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.limit, filters.corpus_id, filters.action]);
+
+  useEffect(() => {
+    loadCorpora();
+    loadAuditLog();
+  }, [loadAuditLog]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -124,15 +145,21 @@ export default function AuditLogPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Corpus ID
+              Corpus
             </label>
-            <input
-              type="number"
+            <select
               value={filters.corpus_id}
               onChange={(e) => handleFilterChange('corpus_id', e.target.value)}
-              placeholder="All corpora"
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+              disabled={loadingCorpora}
+            >
+              <option value="">All corpora</option>
+              {corpora.map((corpus) => (
+                <option key={corpus.id} value={corpus.id}>
+                  {corpus.display_name || corpus.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

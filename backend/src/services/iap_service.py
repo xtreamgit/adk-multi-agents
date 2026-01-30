@@ -5,6 +5,8 @@ Verifies JWT tokens from Google Cloud IAP.
 
 import os
 import logging
+import jwt
+import requests as http_requests
 from typing import Optional, Dict
 from google.auth.transport import requests
 from google.oauth2 import id_token
@@ -49,11 +51,27 @@ class IAPService:
             raise ValueError("IAP_AUDIENCE not configured. Set PROJECT_NUMBER and BACKEND_SERVICE_ID environment variables.")
         
         try:
-            # Verify JWT signature and decode
-            # This automatically fetches Google's public keys
-            decoded_token = id_token.verify_oauth2_token(
+            # Fetch IAP public keys
+            certs_url = 'https://www.gstatic.com/iap/verify/public_key'
+            response = http_requests.get(certs_url, timeout=10)
+            response.raise_for_status()
+            certs = response.json()
+            
+            # Decode JWT header to get key id
+            header = jwt.get_unverified_header(iap_jwt)
+            key_id = header.get('kid')
+            
+            if key_id not in certs:
+                raise ValueError(f"Certificate for key id {key_id} not found in IAP public keys")
+            
+            # Get the public key
+            public_key = certs[key_id]
+            
+            # Verify and decode the token
+            decoded_token = jwt.decode(
                 iap_jwt,
-                requests.Request(),
+                public_key,
+                algorithms=['ES256'],
                 audience=IAP_AUDIENCE
             )
             

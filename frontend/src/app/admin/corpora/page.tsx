@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-enhanced';
 
 interface CorpusDetail {
@@ -30,15 +30,11 @@ export default function CorpusManagementPage() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCorpora, setSelectedCorpora] = useState<number[]>([]);
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const [includeInactive, setIncludeInactive] = useState(true);
   const [editingMetadata, setEditingMetadata] = useState<number | null>(null);
   const [metadataForm, setMetadataForm] = useState({ tags: '', notes: '' });
 
-  useEffect(() => {
-    loadCorpora();
-  }, [includeInactive]);
-
-  const loadCorpora = async () => {
+  const loadCorpora = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,7 +45,11 @@ export default function CorpusManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [includeInactive]);
+
+  useEffect(() => {
+    loadCorpora();
+  }, [loadCorpora]);
 
   const handleSync = async () => {
     try {
@@ -326,7 +326,7 @@ export default function CorpusManagementPage() {
 
         {corpora.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No corpora found. Click "Sync with Vertex AI" to import corpora.
+            No corpora found. Click &quot;Sync with Vertex AI&quot; to import corpora.
           </div>
         )}
       </div>

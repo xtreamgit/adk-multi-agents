@@ -38,11 +38,13 @@ class SessionService:
             cursor.execute("""
                 INSERT INTO user_sessions 
                 (session_id, user_id, active_agent_id, active_corpora, 
-                 created_at, last_activity, expires_at, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 created_at, last_activity, expires_at, is_active,
+                 message_count, user_query_count)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (session_create.session_id, session_create.user_id, 
                   session_create.active_agent_id, active_corpora_json,
-                  created_at, created_at, expires_at, True))
+                  created_at, created_at, expires_at, True,
+                  0, 0))
             conn.commit()
             session_id_db = cursor.lastrowid
         
@@ -54,7 +56,7 @@ class SessionService:
         """Get session by database ID."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM user_sessions WHERE id = ?", (session_id,))
+            cursor.execute("SELECT * FROM user_sessions WHERE id = %s", (session_id,))
             row = cursor.fetchone()
             if row:
                 session_dict = dict(row)
@@ -72,7 +74,7 @@ class SessionService:
         """Get session by session_id string."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM user_sessions WHERE session_id = ?", (session_id,))
+            cursor.execute("SELECT * FROM user_sessions WHERE session_id = %s", (session_id,))
             row = cursor.fetchone()
             if row:
                 session_dict = dict(row)
@@ -110,12 +112,12 @@ class SessionService:
             update_data['last_activity'] = datetime.now(timezone.utc).isoformat()
         
         # Build UPDATE query
-        set_clause = ", ".join([f"{key} = ?" for key in update_data.keys()])
+        set_clause = ", ".join([f"{key} = %s" for key in update_data.keys()])
         values = list(update_data.values()) + [session_id]
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(f"UPDATE user_sessions SET {set_clause} WHERE session_id = ?", values)
+            cursor.execute(f"UPDATE user_sessions SET {set_clause} WHERE session_id = %s", values)
             conn.commit()
         
         return SessionService.get_session_by_session_id(session_id)
@@ -127,7 +129,7 @@ class SessionService:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                UPDATE user_sessions SET last_activity = ? WHERE session_id = ?
+                UPDATE user_sessions SET last_activity = %s WHERE session_id = %s
             """, (last_activity, session_id))
             conn.commit()
     
@@ -219,7 +221,7 @@ class SessionService:
             cursor.execute("""
                 UPDATE user_sessions 
                 SET is_active = FALSE 
-                WHERE expires_at < ? AND is_active = TRUE
+                WHERE expires_at < %s AND is_active = TRUE
             """, (now,))
             conn.commit()
             count = cursor.rowcount

@@ -31,7 +31,7 @@ export type UserProfile = {
   theme: string;
   language: string;
   timezone: string;
-  preferences: Record<string, any> | null;
+  preferences: Record<string, unknown> | null;
 };
 
 export type UserWithProfile = User & {
@@ -103,7 +103,7 @@ export type UpdateProfileData = {
   theme?: string;
   language?: string;
   timezone?: string;
-  preferences?: Record<string, any>;
+  preferences?: Record<string, unknown>;
 };
 
 export type SessionInfo = {
@@ -136,7 +136,7 @@ class EnhancedApiClient {
       if (userStr) {
         try {
           this.currentUser = JSON.parse(userStr);
-        } catch (e) {
+        } catch (_e) {
           console.error('Failed to parse stored user:', e);
         }
       }
@@ -204,7 +204,7 @@ class EnhancedApiClient {
       const error = await response.json();
       // Handle FastAPI validation errors (422) which return an array
       if (Array.isArray(error.detail)) {
-        const messages = error.detail.map((err: any) => err.msg).join(', ');
+        const messages = error.detail.map((err: unknown) => err.msg).join(', ');
         throw new Error(messages || 'Registration failed');
       }
       throw new Error(error.detail || 'Registration failed');
@@ -427,6 +427,67 @@ class EnhancedApiClient {
     }
   }
 
+  async listCorpusDocuments(corpusId: number): Promise<{
+    status: string;
+    corpus_id: number;
+    corpus_name: string;
+    documents: Array<{
+      file_id: string;
+      display_name: string;
+      file_type: string;
+      created_at?: string;
+      updated_at?: string;
+    }>;
+    count: number;
+  }> {
+    const response = await fetch(this.buildUrl(`/api/documents/corpus/${corpusId}/list`), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(errorData.detail || `Failed to list documents (${response.status})`);
+    }
+    return response.json();
+  }
+
+  async retrieveDocument(corpusId: number, documentName: string, generateUrl: boolean = true): Promise<{
+    status: string;
+    document: {
+      id: string;
+      name: string;
+      corpus_id: number;
+      corpus_name: string;
+      file_type: string;
+      size_bytes?: number;
+      created_at?: string;
+      updated_at?: string;
+    };
+    access?: {
+      url: string;
+      expires_at: string;
+      valid_for_seconds: number;
+    };
+  }> {
+    const params = new URLSearchParams({
+      corpus_id: corpusId.toString(),
+      document_name: documentName,
+      generate_url: generateUrl.toString(),
+    });
+
+    const response = await fetch(this.buildUrl(`/api/documents/retrieve?${params}`), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to retrieve document: ${errorText}`);
+    }
+
+    return response.json();
+  }
+
   // ========== Group Endpoints ==========
 
   async getMyGroups(): Promise<Group[]> {
@@ -455,7 +516,7 @@ class EnhancedApiClient {
     return await response.json();
   }
 
-  async createGroup(groupData: { name: string; description: string }): Promise<any> {
+  async createGroup(groupData: { name: string; description: string }): Promise<unknown> {
     const response = await fetch(this.buildUrl('/api/groups/'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -467,7 +528,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -476,7 +537,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async updateGroup(groupId: number, groupData: { name?: string; description?: string }): Promise<any> {
+  async updateGroup(groupId: number, groupData: { name?: string; description?: string }): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/groups/${groupId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
@@ -488,7 +549,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -497,7 +558,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async deleteGroup(groupId: number): Promise<any> {
+  async deleteGroup(groupId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/groups/${groupId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
@@ -508,7 +569,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -530,7 +591,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async addUserToGroupViaGroupAPI(groupId: number, userId: number): Promise<any> {
+  async addUserToGroupViaGroupAPI(groupId: number, userId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
@@ -541,7 +602,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -550,7 +611,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async removeUserFromGroupViaGroupAPI(groupId: number, userId: number): Promise<any> {
+  async removeUserFromGroupViaGroupAPI(groupId: number, userId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
@@ -561,7 +622,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -585,7 +646,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async createRole(roleData: { name: string; permissions: string[] }): Promise<any> {
+  async createRole(roleData: { name: string; permissions: string[] }): Promise<unknown> {
     const response = await fetch(this.buildUrl('/api/groups/roles/'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -597,7 +658,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -606,7 +667,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async assignRoleToGroup(groupId: number, roleId: number): Promise<any> {
+  async assignRoleToGroup(groupId: number, roleId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
@@ -617,7 +678,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -626,7 +687,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async removeRoleFromGroup(groupId: number, roleId: number): Promise<any> {
+  async removeRoleFromGroup(groupId: number, roleId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
@@ -637,7 +698,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON
       }
       throw new Error(errorMessage);
@@ -670,7 +731,7 @@ class EnhancedApiClient {
     }
   }
 
-  async createSession(userProfile?: any): Promise<SessionInfo> {
+  async createSession(userProfile?: unknown): Promise<SessionInfo> {
     const response = await fetch(this.buildUrl('/api/sessions'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -750,7 +811,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_getCorpusDetail(corpusId: number): Promise<any> {
+  async admin_getCorpusDetail(corpusId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/admin/corpora/${corpusId}`), {
       headers: this.getAuthHeaders(),
     });
@@ -765,7 +826,7 @@ class EnhancedApiClient {
   async admin_updateCorpusMetadata(
     corpusId: number,
     metadata: { tags?: string; notes?: string; sync_status?: string }
-  ): Promise<any> {
+  ): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/admin/corpora/${corpusId}/metadata`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
@@ -779,7 +840,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_updateCorpusStatus(corpusId: number, isActive: boolean): Promise<any> {
+  async admin_updateCorpusStatus(corpusId: number, isActive: boolean): Promise<unknown> {
     const response = await fetch(
       this.buildUrl(`/api/admin/corpora/${corpusId}/status?is_active=${isActive}`),
       {
@@ -799,7 +860,7 @@ class EnhancedApiClient {
     corpusId: number,
     groupId: number,
     permission: string = 'read'
-  ): Promise<any> {
+  ): Promise<unknown> {
     const response = await fetch(
       this.buildUrl(`/api/admin/corpora/${corpusId}/permissions/grant`),
       {
@@ -816,7 +877,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_revokePermission(corpusId: number, groupId: number): Promise<any> {
+  async admin_revokePermission(corpusId: number, groupId: number): Promise<unknown> {
     const response = await fetch(
       this.buildUrl(`/api/admin/corpora/${corpusId}/permissions/${groupId}`),
       {
@@ -836,7 +897,7 @@ class EnhancedApiClient {
     corpusIds: number[],
     groupId: number,
     permission: string = 'read'
-  ): Promise<any> {
+  ): Promise<unknown> {
     const response = await fetch(this.buildUrl('/api/admin/corpora/bulk/grant-access'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -850,7 +911,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_bulkUpdateStatus(corpusIds: number[], isActive: boolean): Promise<any> {
+  async admin_bulkUpdateStatus(corpusIds: number[], isActive: boolean): Promise<unknown> {
     const response = await fetch(this.buildUrl('/api/admin/corpora/bulk/update-status'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -889,7 +950,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_syncCorpora(): Promise<any> {
+  async admin_syncCorpora(): Promise<unknown> {
     const response = await fetch(this.buildUrl('/api/admin/corpora/sync'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -923,7 +984,7 @@ class EnhancedApiClient {
     full_name: string;
     password: string;
     group_ids?: number[];
-  }): Promise<any> {
+  }): Promise<unknown> {
     const response = await fetch(this.buildUrl('/api/admin/users'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -934,8 +995,18 @@ class EnhancedApiClient {
       let errorMessage = `Failed to create user: ${response.statusText}`;
       try {
         const error = await response.json();
-        errorMessage = error.detail || errorMessage;
-      } catch (e) {
+        // Handle FastAPI validation errors (422)
+        if (typeof error.detail === 'string') {
+          errorMessage = error.detail;
+        } else if (Array.isArray(error.detail)) {
+          // Pydantic validation errors are arrays
+          errorMessage = `Validation error: ${error.detail.map((e: unknown) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+        } else if (typeof error.detail === 'object') {
+          errorMessage = `Failed to create user: ${JSON.stringify(error.detail)}`;
+        } else {
+          errorMessage = error.detail || errorMessage;
+        }
+      } catch (_e) {
         // Response is not JSON, use status text
       }
       throw new Error(errorMessage);
@@ -949,7 +1020,7 @@ class EnhancedApiClient {
     full_name?: string;
     is_active?: boolean;
     password?: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/admin/users/${userId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
@@ -960,8 +1031,18 @@ class EnhancedApiClient {
       let errorMessage = `Failed to update user: ${response.statusText}`;
       try {
         const error = await response.json();
-        errorMessage = error.detail || errorMessage;
-      } catch (e) {
+        // Handle FastAPI validation errors (422)
+        if (typeof error.detail === 'string') {
+          errorMessage = error.detail;
+        } else if (Array.isArray(error.detail)) {
+          // Pydantic validation errors are arrays
+          errorMessage = `Validation error: ${error.detail.map((e: unknown) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+        } else if (typeof error.detail === 'object') {
+          errorMessage = `Failed to update user: ${JSON.stringify(error.detail)}`;
+        } else {
+          errorMessage = error.detail || errorMessage;
+        }
+      } catch (_e) {
         // Response is not JSON, use status text
       }
       throw new Error(errorMessage);
@@ -970,7 +1051,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_deleteUser(userId: number): Promise<any> {
+  async admin_deleteUser(userId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/admin/users/${userId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
@@ -981,7 +1062,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON, use status text
       }
       throw new Error(errorMessage);
@@ -990,7 +1071,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_assignUserToGroup(userId: number, groupId: number): Promise<any> {
+  async admin_assignUserToGroup(userId: number, groupId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -1001,7 +1082,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON, use status text
       }
       throw new Error(errorMessage);
@@ -1010,7 +1091,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_removeUserFromGroup(userId: number, groupId: number): Promise<any> {
+  async admin_removeUserFromGroup(userId: number, groupId: number): Promise<unknown> {
     const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
@@ -1021,7 +1102,7 @@ class EnhancedApiClient {
       try {
         const error = await response.json();
         errorMessage = error.detail || errorMessage;
-      } catch (e) {
+      } catch (_e) {
         // Response is not JSON, use status text
       }
       throw new Error(errorMessage);
@@ -1030,7 +1111,7 @@ class EnhancedApiClient {
     return response.json();
   }
 
-  async admin_getUserStats(): Promise<any> {
+  async admin_getUserStats(): Promise<unknown> {
     const response = await fetch(this.buildUrl('/api/admin/user-stats'), {
       method: 'GET',
       headers: this.getAuthHeaders(),

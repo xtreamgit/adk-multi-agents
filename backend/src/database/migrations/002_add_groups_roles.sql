@@ -1,56 +1,60 @@
--- Migration 002: Groups and Roles
--- Description: Add groups, roles, and user-group relationships
--- Date: 2025-12-31
+-- Migration 002: Add Groups and Roles
+-- Purpose: Add user groups, roles, and permissions
+-- Created: 2026-01-10
+-- Updated: 2026-01-28 - Converted to PostgreSQL syntax
 
 -- User Profiles (preferences & settings)
 CREATE TABLE IF NOT EXISTS user_profiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE NOT NULL,
-    theme TEXT DEFAULT 'light',
-    language TEXT DEFAULT 'en',
-    timezone TEXT DEFAULT 'UTC',
-    preferences TEXT,  -- JSON stored as TEXT in SQLite
+    theme VARCHAR(50) DEFAULT 'light',
+    language VARCHAR(10) DEFAULT 'en',
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    preferences JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Groups (organizational units)
 CREATE TABLE IF NOT EXISTS groups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT 1
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE
 );
 
 -- Roles (access permissions)
 CREATE TABLE IF NOT EXISTS roles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
-    permissions TEXT,  -- JSON stored as TEXT in SQLite
+    permissions JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- User-Group Mapping (many-to-many)
 CREATE TABLE IF NOT EXISTS user_groups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     group_id INTEGER NOT NULL,
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, group_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-    UNIQUE(user_id, group_id)
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
 );
 
 -- Group-Role Mapping (many-to-many)
 CREATE TABLE IF NOT EXISTS group_roles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     group_id INTEGER NOT NULL,
     role_id INTEGER NOT NULL,
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(group_id, role_id),
     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-    UNIQUE(group_id, role_id)
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
 );
 
 -- Indexes for performance

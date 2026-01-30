@@ -2,3 +2,22 @@ __pycache__/
 *.pyc
 .coverage
 *.backup
+
+# Service Account Keys (NEVER commit these!)
+*-sa-key.json
+backend-sa-key.json
+service-account*.json
+
+# Log files
+*.log
+backend/backend.log
+frontend/frontend.log
+
+# Database backups
+backups/
+
+# Temporary deployment/migration files
+apply_missing_schema.sql
+cloud_schema_updates.sql
+backend/apply_schema_updates.py
+DEPLOYMENT_VERIFICATION.md

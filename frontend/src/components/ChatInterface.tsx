@@ -5,6 +5,8 @@ import { Message, apiClient } from '../lib/api-enhanced';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Image from 'next/image';
+import DocumentViewer from './DocumentViewer';
+import { useDocumentRetrieval } from '../hooks/useDocumentRetrieval';
 
 // UserProfile type for legacy compatibility
 type UserProfile = {
@@ -42,6 +44,7 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
   const [error, setError] = useState<string | null>(null);
   const [hasProcessedInitialMessage, setHasProcessedInitialMessage] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+  const { retrieveDocument, closeDocument, currentDocument, isRetrieving } = useDocumentRetrieval();
 
   // Use controlled input if provided, otherwise use local state
   const currentInputValue = onInputChange ? inputValue : localInputValue;
@@ -186,16 +189,19 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
       <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`rounded-lg px-4 py-3 max-w-3xl ${
-              msg.sender === 'user'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
-            }`}>
+            <div 
+              className={`rounded-lg px-4 py-3 max-w-3xl ${
+                msg.sender === 'user'
+                  ? 'text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+              }`}
+              style={msg.sender === 'user' ? { backgroundColor: '#005440' } : undefined}
+            >
               {msg.sender === 'user' ? (
                 <div>
                   <p>{msg.text}</p>
                   {msg.timestamp && (
-                    <p className="text-xs text-blue-200 mt-1">
+                    <p className="text-xs text-gray-300 mt-1">
                       {msg.timestamp.toLocaleTimeString()}
                     </p>
                   )}
@@ -204,7 +210,21 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
                 <div>
                   <ReactMarkdown 
                     className="prose prose-sm dark:prose-invert max-w-none"
-                    remarkPlugins={[remarkGfm]}>
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ node, ...props }) => (
+                        <a
+                          {...props}
+                          style={{ 
+                            color: '#005440', 
+                            fontWeight: 'bold',
+                            textDecoration: 'underline'
+                          }}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        />
+                      ),
+                    }}>
                     {msg.text}
                   </ReactMarkdown>
                   {msg.timestamp && (
@@ -241,6 +261,14 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
         <div ref={messagesEndRef} />
       </main>
 
+      {/* Document Viewer Modal */}
+      {currentDocument && (
+        <DocumentViewer
+          document={currentDocument}
+          onClose={closeDocument}
+        />
+      )}
+
       {/* Input */}
       <footer className="bg-white dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">
         <form onSubmit={handleSubmit} className="flex items-end space-x-3">
@@ -262,7 +290,22 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
           <button
             type="submit"
             disabled={isLoading || !currentInputValue.trim()}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-3 text-white rounded-lg focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-2"
+            style={{
+              backgroundColor: '#005440',
+              borderColor: '#005440',
+              ...(isLoading || !currentInputValue.trim() ? {} : { ':hover': { backgroundColor: '#004030' } })
+            }}
+            onMouseEnter={(e) => {
+              if (!isLoading && currentInputValue.trim()) {
+                e.currentTarget.style.backgroundColor = '#004030';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isLoading && currentInputValue.trim()) {
+                e.currentTarget.style.backgroundColor = '#005440';
+              }
+            }}
           >
             Send
           </button>
