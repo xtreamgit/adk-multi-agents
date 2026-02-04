@@ -112,7 +112,7 @@ export default function AdminLayout({
           >
             {/* Chatbot Access SubMenu */}
             <SubMenu
-              icon={<span className="text-xl">�</span>}
+              icon={<span className="text-xl">💬</span>}
               label="Chatbot Access"
               open={chatbotMenuOpen}
               onOpenChange={(open) => setChatbotMenuOpen(open)}
@@ -125,14 +125,14 @@ export default function AdminLayout({
               }}
             >
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>👤</span>}
                 active={isActive('/admin/chatbot-users')}
                 onClick={() => handleMenuClick('/admin/chatbot-users')}
               >
                 Chatbot Users
               </MenuItem>
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>👥</span>}
                 active={isActive('/admin/chatbot-groups')}
                 onClick={() => handleMenuClick('/admin/chatbot-groups')}
               >
@@ -146,14 +146,14 @@ export default function AdminLayout({
                 Chatbot Roles
               </MenuItem>
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>🔑</span>}
                 active={isActive('/admin/chatbot-permissions')}
                 onClick={() => handleMenuClick('/admin/chatbot-permissions')}
               >
                 Permissions
               </MenuItem>
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>📚</span>}
                 active={isActive('/admin/chatbot-corpora')}
                 onClick={() => handleMenuClick('/admin/chatbot-corpora')}
               >
