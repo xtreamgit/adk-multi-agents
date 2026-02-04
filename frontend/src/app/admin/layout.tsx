@@ -14,6 +14,7 @@ export default function AdminLayout({
   const [collapsed, setCollapsed] = useState(false);
   const [corporaMenuOpen, setCorporaMenuOpen] = useState(false);
   const [chatbotMenuOpen, setChatbotMenuOpen] = useState(false);
+  const [appManagementMenuOpen, setAppManagementMenuOpen] = useState(false);
   
   const isActive = (path: string) => {
     if (path === '/admin') {
@@ -28,6 +29,14 @@ export default function AdminLayout({
     }
     if (pathname?.startsWith('/admin/chatbot')) {
       setChatbotMenuOpen(true);
+    }
+    // Open Application Management submenu for Dashboard, Users, Groups, Audit, Sessions
+    if (pathname === '/admin' || 
+        pathname?.startsWith('/admin/users') || 
+        pathname?.startsWith('/admin/groups') ||
+        pathname?.startsWith('/admin/audit') ||
+        pathname?.startsWith('/admin/sessions')) {
+      setAppManagementMenuOpen(true);
     }
   }, [pathname]);
 
@@ -101,33 +110,6 @@ export default function AdminLayout({
               },
             }}
           >
-            {/* Dashboard */}
-            <MenuItem
-              icon={<span className="text-xl">📊</span>}
-              active={pathname === '/admin'}
-              onClick={() => handleMenuClick('/admin')}
-            >
-              Dashboard
-            </MenuItem>
-
-            {/* Users */}
-            <MenuItem
-              icon={<span className="text-xl">👥</span>}
-              active={isActive('/admin/users')}
-              onClick={() => handleMenuClick('/admin/users')}
-            >
-              Users
-            </MenuItem>
-
-            {/* Groups */}
-            <MenuItem
-              icon={<span className="text-xl">🔐</span>}
-              active={isActive('/admin/groups')}
-              onClick={() => handleMenuClick('/admin/groups')}
-            >
-              Groups
-            </MenuItem>
-
             {/* Corpora with SubMenu */}
             <SubMenu
               icon={<span className="text-xl">📚</span>}
@@ -223,23 +205,56 @@ export default function AdminLayout({
               </MenuItem>
             </SubMenu>
 
-            {/* System Audit Logs */}
-            <MenuItem
-              icon={<span className="text-xl">📋</span>}
-              active={isActive('/admin/audit')}
-              onClick={() => handleMenuClick('/admin/audit')}
+            {/* Application Management SubMenu */}
+            <SubMenu
+              icon={<span className="text-xl">⚙️</span>}
+              label="Application Management"
+              open={appManagementMenuOpen}
+              onOpenChange={(open) => setAppManagementMenuOpen(open)}
+              rootStyles={{
+                '& > .ps-menu-button': {
+                  backgroundColor: 'transparent',
+                  color: '#374151',
+                  fontWeight: appManagementMenuOpen ? '700' : '400',
+                },
+              }}
             >
-              System Audit Logs
-            </MenuItem>
-
-            {/* Sessions */}
-            <MenuItem
-              icon={<span className="text-xl">🔌</span>}
-              active={isActive('/admin/sessions')}
-              onClick={() => handleMenuClick('/admin/sessions')}
-            >
-              Sessions
-            </MenuItem>
+              <MenuItem
+                icon={<span>📊</span>}
+                active={pathname === '/admin'}
+                onClick={() => handleMenuClick('/admin')}
+              >
+                Dashboard
+              </MenuItem>
+              <MenuItem
+                icon={<span>�</span>}
+                active={isActive('/admin/users')}
+                onClick={() => handleMenuClick('/admin/users')}
+              >
+                Users
+              </MenuItem>
+              <MenuItem
+                icon={<span>🔐</span>}
+                active={isActive('/admin/groups')}
+                onClick={() => handleMenuClick('/admin/groups')}
+              >
+                Groups
+              </MenuItem>
+              <MenuItem
+                icon={<span>📋</span>}
+                active={isActive('/admin/audit')}
+                onClick={() => handleMenuClick('/admin/audit')}
+              >
+                System Audit Logs
+              </MenuItem>
+              <MenuItem
+                icon={<span>🔌</span>}
+                active={isActive('/admin/sessions')}
+                onClick={() => handleMenuClick('/admin/sessions')}
+              >
+                Sessions
+              </MenuItem>
+            </SubMenu>
 
             {/* Back to App */}
             <div className="border-t border-gray-200 mt-4 pt-4">
