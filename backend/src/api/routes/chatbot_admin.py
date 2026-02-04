@@ -1093,6 +1093,49 @@ async def get_chatbot_agent(agent_id: int, current_user: dict = Depends(get_curr
             }
 
 
+@router.get("/me/available-agents")
+async def get_my_available_agents(current_user: dict = Depends(get_current_user)):
+    """Get all agents available to the current logged-in chatbot user"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # First, get the chatbot_user_id from the app user
+            cur.execute("""
+                SELECT id FROM chatbot_users WHERE username = %s
+            """, (current_user['username'],))
+            chatbot_user = cur.fetchone()
+            
+            if not chatbot_user:
+                return []
+            
+            # Get agents available through user's groups
+            cur.execute("""
+                SELECT DISTINCT a.id, a.name, a.display_name, a.description, 
+                       a.agent_type, a.tools, a.is_active, a.created_at
+                FROM chatbot_agents a
+                JOIN chatbot_group_agents ga ON a.id = ga.agent_id
+                JOIN chatbot_user_groups ug ON ga.group_id = ug.chatbot_group_id
+                WHERE ug.chatbot_user_id = %s 
+                  AND a.is_active = TRUE 
+                  AND ga.can_use = TRUE
+                ORDER BY a.id
+            """, (chatbot_user['id'],))
+            agents = cur.fetchall()
+            
+            return [
+                {
+                    "id": a['id'],
+                    "name": a['name'],
+                    "display_name": a['display_name'],
+                    "description": a['description'],
+                    "agent_type": a['agent_type'],
+                    "tools": a['tools'],
+                    "is_active": a['is_active'],
+                    "created_at": a['created_at']
+                }
+                for a in agents
+            ]
+
+
 @router.get("/users/{user_id}/available-agents")
 async def get_user_available_agents(user_id: int, current_user: dict = Depends(get_current_user)):
     """Get all agents available to a specific user based on their group memberships"""

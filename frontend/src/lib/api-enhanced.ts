@@ -360,7 +360,7 @@ class EnhancedApiClient {
   }
 
   async getMyAgents(): Promise<Agent[]> {
-    const response = await fetch(this.buildUrl('/api/agents/me'), {
+    const response = await fetch(this.buildUrl('/api/admin/chatbot/me/available-agents'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });

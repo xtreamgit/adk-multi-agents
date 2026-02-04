@@ -9,6 +9,7 @@ import ChatInterface from '../components/ChatInterface';
 import UserProfilePanel from '../components/UserProfilePanel';
 import WelcomeModal from '../components/WelcomeModal';
 import CorpusSelector from '../components/CorpusSelector';
+import AgentSwitcher from '../components/AgentSwitcher';
 import Image from 'next/image';
 
 // UserProfile type for legacy compatibility
@@ -40,7 +41,9 @@ export default function Home() {
     sessionId: string | null;
   } | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<AgentKey>('default');
-  const [currentAgent, setCurrentAgent] = useState<{id: number, name: string, display_name: string} | null>(null);
+  const [currentAgent, setCurrentAgent] = useState<{id: number, name: string, display_name: string, description: string | null, agent_type: string, tools: string[]} | null>(null);
+  const [availableAgents, setAvailableAgents] = useState<Array<{id: number, name: string, display_name: string, description: string | null, agent_type: string, tools: string[]}>>([]);
+  const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
 
   // Check for existing authentication on component mount; redirect to landing if not authenticated
@@ -67,12 +70,16 @@ export default function Home() {
           // Load user's agents to get the current agent
           try {
             const myAgents = await apiClient.getMyAgents();
-            const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
-            if (defaultAgent) {
-              setCurrentAgent(defaultAgent);
+            setAvailableAgents(myAgents);
+            // Set the first available agent as default (users only have one agent per group)
+            if (myAgents.length > 0) {
+              setCurrentAgent(myAgents[0]);
+              console.log('✅ Loaded default agent:', myAgents[0].display_name);
             }
           } catch (err) {
             console.error('Failed to load user agents:', err);
+          } finally {
+            setIsLoadingAgents(false);
           }
           
           // Load saved corpus preferences
@@ -126,14 +133,18 @@ export default function Home() {
     
     // Load user's agents to get the current agent
     try {
+      setIsLoadingAgents(true);
       const myAgents = await apiClient.getMyAgents();
-      const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
-      if (defaultAgent) {
-        setCurrentAgent(defaultAgent);
-        console.log('Loaded agent after login:', defaultAgent.display_name);
+      setAvailableAgents(myAgents);
+      // Set the first available agent as default
+      if (myAgents.length > 0) {
+        setCurrentAgent(myAgents[0]);
+        console.log('✅ Loaded agent after login:', myAgents[0].display_name);
       }
     } catch (err) {
       console.error('Failed to load user agents after login:', err);
+    } finally {
+      setIsLoadingAgents(false);
     }
     
     // Load saved corpus preferences
@@ -427,6 +438,16 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Agent Selector */}
+          <div className="p-4 border-t border-gray-200">
+            <div className="text-xs text-gray-500 uppercase font-medium mb-2">Current Agent</div>
+            <AgentSwitcher 
+              currentAgent={currentAgent}
+              availableAgents={availableAgents}
+              isLoading={isLoadingAgents}
+            />
+          </div>
+
           {/* Corpus Selector */}
           <div className="p-4 border-t border-gray-200 flex-1 overflow-y-auto">
             <CorpusSelector 
@@ -570,6 +591,16 @@ export default function Home() {
             </svg>
             <span>List Documents</span>
           </button>
+        </div>
+
+        {/* Agent Selector */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="text-xs text-gray-500 uppercase font-medium mb-2">Current Agent</div>
+          <AgentSwitcher 
+            currentAgent={currentAgent}
+            availableAgents={availableAgents}
+            isLoading={isLoadingAgents}
+          />
         </div>
 
         {/* Corpus Selector */}
