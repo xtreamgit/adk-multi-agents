@@ -428,7 +428,7 @@ export default function Home() {
             </button>
             
             <button 
-              onClick={() => router.push('/test-documents')}
+              onClick={() => router.push('/open-document')}
               className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -583,7 +583,7 @@ export default function Home() {
           </button>
           
           <button 
-            onClick={() => router.push('/test-documents')}
+            onClick={() => router.push('/open-document')}
             className="w-full flex items-center space-x-3 p-3 text-left text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
