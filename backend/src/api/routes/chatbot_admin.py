@@ -111,7 +111,17 @@ class ChatbotAgentAccessCreate(BaseModel):
     chatbot_group_id: int
     agent_id: int
     can_use: bool = True
-    can_configure: bool = False
+
+
+class ChatbotAgentResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    description: Optional[str] = None
+    agent_type: str
+    tools: List[str]
+    is_active: bool
+    created_at: datetime
 
 
 # ============================================================================
@@ -1023,3 +1033,184 @@ async def get_available_agents(current_user: dict = Depends(get_current_user)):
                 }
                 for a in agents
             ]
+
+
+# ============================================================================
+# Chatbot Agents Endpoints
+# ============================================================================
+
+@router.get("/agents", response_model=List[ChatbotAgentResponse])
+async def get_all_chatbot_agents(current_user: dict = Depends(get_current_user)):
+    """Get all chatbot agents with their tool configurations"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, name, display_name, description, agent_type, tools, is_active, created_at
+                FROM chatbot_agents
+                ORDER BY id
+            """)
+            agents = cur.fetchall()
+            
+            return [
+                {
+                    "id": a['id'],
+                    "name": a['name'],
+                    "display_name": a['display_name'],
+                    "description": a['description'],
+                    "agent_type": a['agent_type'],
+                    "tools": a['tools'],
+                    "is_active": a['is_active'],
+                    "created_at": a['created_at']
+                }
+                for a in agents
+            ]
+
+
+@router.get("/agents/{agent_id}", response_model=ChatbotAgentResponse)
+async def get_chatbot_agent(agent_id: int, current_user: dict = Depends(get_current_user)):
+    """Get a specific chatbot agent by ID"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, name, display_name, description, agent_type, tools, is_active, created_at
+                FROM chatbot_agents
+                WHERE id = %s
+            """, (agent_id,))
+            agent = cur.fetchone()
+            
+            if not agent:
+                raise HTTPException(status_code=404, detail="Agent not found")
+            
+            return {
+                "id": agent['id'],
+                "name": agent['name'],
+                "display_name": agent['display_name'],
+                "description": agent['description'],
+                "agent_type": agent['agent_type'],
+                "tools": agent['tools'],
+                "is_active": agent['is_active'],
+                "created_at": agent['created_at']
+            }
+
+
+@router.get("/users/{user_id}/available-agents")
+async def get_user_available_agents(user_id: int, current_user: dict = Depends(get_current_user)):
+    """Get all agents available to a specific user based on their group memberships"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # Get agents available through user's groups
+            cur.execute("""
+                SELECT DISTINCT a.id, a.name, a.display_name, a.description, 
+                       a.agent_type, a.tools, a.is_active, a.created_at
+                FROM chatbot_agents a
+                JOIN chatbot_group_agents ga ON a.id = ga.agent_id
+                JOIN chatbot_user_groups ug ON ga.group_id = ug.chatbot_group_id
+                WHERE ug.chatbot_user_id = %s 
+                  AND a.is_active = TRUE 
+                  AND ga.can_use = TRUE
+                ORDER BY a.id
+            """, (user_id,))
+            agents = cur.fetchall()
+            
+            return [
+                {
+                    "id": a['id'],
+                    "name": a['name'],
+                    "display_name": a['display_name'],
+                    "description": a['description'],
+                    "agent_type": a['agent_type'],
+                    "tools": a['tools'],
+                    "is_active": a['is_active'],
+                    "created_at": a['created_at']
+                }
+                for a in agents
+            ]
+
+
+@router.get("/groups/{group_id}/agents")
+async def get_group_agents(group_id: int, current_user: dict = Depends(get_current_user)):
+    """Get all agents assigned to a specific group"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT a.id, a.name, a.display_name, a.description, 
+                       a.agent_type, a.tools, a.is_active, a.created_at,
+                       ga.can_use, ga.granted_at
+                FROM chatbot_agents a
+                JOIN chatbot_group_agents ga ON a.id = ga.agent_id
+                WHERE ga.group_id = %s
+                ORDER BY a.id
+            """, (group_id,))
+            agents = cur.fetchall()
+            
+            return [
+                {
+                    "id": a['id'],
+                    "name": a['name'],
+                    "display_name": a['display_name'],
+                    "description": a['description'],
+                    "agent_type": a['agent_type'],
+                    "tools": a['tools'],
+                    "is_active": a['is_active'],
+                    "created_at": a['created_at'],
+                    "can_use": a['can_use'],
+                    "granted_at": a['granted_at']
+                }
+                for a in agents
+            ]
+
+
+@router.post("/groups/{group_id}/agents/{agent_id}")
+async def assign_agent_to_group(
+    group_id: int, 
+    agent_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Assign an agent to a group"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # Check if group exists
+            cur.execute("SELECT id FROM chatbot_groups WHERE id = %s", (group_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Group not found")
+            
+            # Check if agent exists
+            cur.execute("SELECT id FROM chatbot_agents WHERE id = %s", (agent_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Agent not found")
+            
+            # Assign agent to group
+            try:
+                cur.execute("""
+                    INSERT INTO chatbot_group_agents (group_id, agent_id, can_use, granted_by)
+                    VALUES (%s, %s, TRUE, %s)
+                    ON CONFLICT (group_id, agent_id) 
+                    DO UPDATE SET can_use = TRUE
+                """, (group_id, agent_id, current_user['id']))
+                conn.commit()
+                
+                return {"message": "Agent assigned to group successfully"}
+            except Exception as e:
+                logger.error(f"Error assigning agent to group: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/groups/{group_id}/agents/{agent_id}")
+async def remove_agent_from_group(
+    group_id: int,
+    agent_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove an agent from a group"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM chatbot_group_agents
+                WHERE group_id = %s AND agent_id = %s
+            """, (group_id, agent_id))
+            conn.commit()
+            
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Agent assignment not found")
+            
+            return {"message": "Agent removed from group successfully"}
