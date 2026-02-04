@@ -307,6 +307,14 @@ async def proxy_document(
             detail="You do not have access to this corpus"
         )
     
+    # Get corpus details (needed for logging)
+    corpus = CorpusService.get_corpus_by_id(corpus_id)
+    if not corpus:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Corpus not found"
+        )
+    
     # If source_uri provided, use it directly (skip document lookup)
     if source_uri:
         logger.info(
@@ -317,11 +325,10 @@ async def proxy_document(
         file_id = None
     else:
         # Fall back to name-based lookup
-        corpus = CorpusService.get_corpus_by_id(corpus_id)
-        if not corpus or not corpus.vertex_corpus_id:
+        if not corpus.vertex_corpus_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Corpus not found or not properly configured"
+                detail="Corpus not properly configured"
             )
         
         # Find document and get source_uri
