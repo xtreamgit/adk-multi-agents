@@ -381,6 +381,7 @@ export type DocumentRetrievalResponse = {
     size_bytes?: number;
     created_at?: string;
     updated_at?: string;
+    source_uri?: string;  // GCS URI to avoid duplicate lookups
   };
   access?: {
     url: string;

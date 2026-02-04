@@ -16,9 +16,10 @@ export default function DocumentViewer({ document, onClose }: DocumentViewerProp
   useEffect(() => {
     const loadPdfViaProxy = async () => {
       try {
-        // Get corpus_id and document_name from the document
+        // Get corpus_id, document_name, and source_uri from the document
         const corpusId = document.document.corpus_id;
         const documentName = document.document.name;
+        const sourceUri = document.document.source_uri;
         
         if (!corpusId || !documentName) {
           setError('Missing corpus ID or document name');
@@ -26,9 +27,14 @@ export default function DocumentViewer({ document, onClose }: DocumentViewerProp
           return;
         }
         
-        // Build proxy URL
+        // Build proxy URL with optional source_uri to avoid duplicate lookups
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-        const proxyUrl = `${backendUrl}/api/documents/proxy/${corpusId}/${encodeURIComponent(documentName)}`;
+        let proxyUrl = `${backendUrl}/api/documents/proxy/${corpusId}/${encodeURIComponent(documentName)}`;
+        
+        // Add source_uri as query parameter if available (prevents 404 errors)
+        if (sourceUri) {
+          proxyUrl += `?source_uri=${encodeURIComponent(sourceUri)}`;
+        }
         
         // Get auth token (stored as 'auth_token' by api client)
         const token = localStorage.getItem('auth_token');

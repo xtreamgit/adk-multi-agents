@@ -192,6 +192,7 @@ async def retrieve_document(
         'size_bytes': metadata.get('size_bytes'),
         'created_at': document.get('created_at'),
         'updated_at': document.get('updated_at'),
+        'source_uri': document.get('source_uri'),  # Include source_uri to avoid duplicate lookups
     }
     
     response_access = None
@@ -276,6 +277,7 @@ async def list_corpus_documents(
 async def proxy_document(
     corpus_id: int,
     document_name: str,
+    source_uri: Optional[str] = None,
     request: Request = None,
     current_user: User = Depends(get_current_user_hybrid)
 ):
@@ -290,6 +292,7 @@ async def proxy_document(
     **Parameters**:
     - **corpus_id**: ID of the corpus containing the document
     - **document_name**: Display name of the document to retrieve
+    - **source_uri**: Optional GCS URI to skip document lookup (performance optimization)
     
     **Returns**: Streamed PDF content with proper CORS headers
     """
@@ -304,24 +307,41 @@ async def proxy_document(
             detail="You do not have access to this corpus"
         )
     
-    # Get corpus details
-    corpus = CorpusService.get_corpus_by_id(corpus_id)
-    if not corpus or not corpus.vertex_corpus_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Corpus not found or not properly configured"
+    # If source_uri provided, use it directly (skip document lookup)
+    if source_uri:
+        logger.info(
+            f"Using provided source_uri for document '{document_name}' "
+            f"in corpus {corpus_id} (skipping Vertex AI lookup)"
         )
+        document_source_uri = source_uri
+        file_id = None
+    else:
+        # Fall back to name-based lookup
+        corpus = CorpusService.get_corpus_by_id(corpus_id)
+        if not corpus or not corpus.vertex_corpus_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Corpus not found or not properly configured"
+            )
+        
+        # Find document and get source_uri
+        document = DocumentService.find_document(corpus.vertex_corpus_id, document_name)
+        if not document or not document.get('source_uri'):
+            logger.error(
+                f"Document '{document_name}' not found in corpus {corpus_id}. "
+                f"This may be due to name mismatch. Consider passing source_uri parameter."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        document_source_uri = document['source_uri']
+        file_id = document.get('file_id')
     
-    # Find document and generate signed URL
-    document = DocumentService.find_document(corpus.vertex_corpus_id, document_name)
-    if not document or not document.get('source_uri'):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
-    
+    # Generate signed URL
     signed_url, _ = DocumentService.generate_signed_url(
-        document['source_uri'],
+        document_source_uri,
         expiration_minutes=30
     )
     
@@ -341,8 +361,8 @@ async def proxy_document(
             user_id=current_user.id,
             corpus_id=corpus_id,
             document_name=document_name,
-            document_file_id=document.get('file_id'),
-            source_uri=document.get('source_uri'),
+            document_file_id=file_id,
+            source_uri=document_source_uri,
             success=True,
             access_type='view',
             ip_address=request.client.host if request else None,

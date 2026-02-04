@@ -110,6 +110,8 @@ export default function EmeraldRetriever() {
       setThumbnailUrl(null);
       
       // Use backend proxy endpoint to avoid CORS issues with GCS signed URLs
+      // Note: We don't have source_uri in the document list, so we rely on name-based lookup
+      // If 404 errors occur, the retrieve endpoint will provide source_uri for the full viewer
       const proxyUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/api/documents/proxy/${selectedCorpusId}/${encodeURIComponent(document.display_name)}`;
       
       console.log('[Thumbnail] Using proxy URL:', proxyUrl);
