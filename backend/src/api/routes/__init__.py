@@ -10,6 +10,7 @@ from .corpora import router as corpora_router
 from .admin import router as admin_router
 from .iap_auth import router as iap_auth_router
 from .documents import router as documents_router
+from .chatbot_admin import router as chatbot_admin_router
 
 __all__ = [
     "auth_router",
@@ -20,4 +21,5 @@ __all__ = [
     "admin_router",
     "iap_auth_router",
     "documents_router",
+    "chatbot_admin_router",
 ]

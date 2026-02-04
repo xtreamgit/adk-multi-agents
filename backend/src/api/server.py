@@ -65,7 +65,8 @@ try:
         corpora_router,
         admin_router,
         iap_auth_router,
-        documents_router
+        documents_router,
+        chatbot_admin_router
     )
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
@@ -419,6 +420,7 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(admin_router)
     app.include_router(iap_auth_router)
     app.include_router(documents_router)
+    app.include_router(chatbot_admin_router)
     print("🚀 New API Routes Registered:")
     print("  ✅ /api/auth/*        - Authentication (register, login, refresh)")
     print("  ✅ /api/users/*       - User Management (profile, preferences)")
@@ -428,6 +430,7 @@ if NEW_ROUTES_AVAILABLE:
     print("  ✅ /api/admin/*       - Admin Panel (corpus management, audit)")
     print("  ✅ /api/iap/*         - IAP Authentication (Google Cloud IAP)")
     print("  ✅ /api/documents/*   - Document Retrieval (view, access)")
+    print("  ✅ /api/admin/chatbot/* - Chatbot User Management (separate access control)")
     print("="*70 + "\n")
     
     # Note: Old auth endpoints below are replaced by new routes
