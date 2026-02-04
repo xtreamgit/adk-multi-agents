@@ -110,6 +110,64 @@ export default function AdminLayout({
               },
             }}
           >
+            {/* Chatbot Access SubMenu */}
+            <SubMenu
+              icon={<span className="text-xl">�</span>}
+              label="Chatbot Access"
+              open={chatbotMenuOpen}
+              onOpenChange={(open) => setChatbotMenuOpen(open)}
+              rootStyles={{
+                '& > .ps-menu-button': {
+                  backgroundColor: 'transparent',
+                  color: '#374151',
+                  fontWeight: chatbotMenuOpen ? '700' : '400',
+                },
+              }}
+            >
+              <MenuItem
+                icon={<span>�</span>}
+                active={isActive('/admin/chatbot-users')}
+                onClick={() => handleMenuClick('/admin/chatbot-users')}
+              >
+                Chatbot Users
+              </MenuItem>
+              <MenuItem
+                icon={<span>�</span>}
+                active={isActive('/admin/chatbot-groups')}
+                onClick={() => handleMenuClick('/admin/chatbot-groups')}
+              >
+                Chatbot Groups
+              </MenuItem>
+              <MenuItem
+                icon={<span>🎭</span>}
+                active={isActive('/admin/chatbot-roles')}
+                onClick={() => handleMenuClick('/admin/chatbot-roles')}
+              >
+                Chatbot Roles
+              </MenuItem>
+              <MenuItem
+                icon={<span>�</span>}
+                active={isActive('/admin/chatbot-permissions')}
+                onClick={() => handleMenuClick('/admin/chatbot-permissions')}
+              >
+                Permissions
+              </MenuItem>
+              <MenuItem
+                icon={<span>�</span>}
+                active={isActive('/admin/chatbot-corpora')}
+                onClick={() => handleMenuClick('/admin/chatbot-corpora')}
+              >
+                Corpora Access
+              </MenuItem>
+              <MenuItem
+                icon={<span>🤖</span>}
+                active={isActive('/admin/chatbot-agents')}
+                onClick={() => handleMenuClick('/admin/chatbot-agents')}
+              >
+                Agent Access
+              </MenuItem>
+            </SubMenu>
+
             {/* Corpora with SubMenu */}
             <SubMenu
               icon={<span className="text-xl">📚</span>}
@@ -125,14 +183,14 @@ export default function AdminLayout({
               }}
             >
               <MenuItem
-                icon={<span>📚</span>}
+                icon={<span>�</span>}
                 active={pathname === '/admin/corpora'}
                 onClick={() => handleMenuClick('/admin/corpora')}
               >
                 Corpus Management
               </MenuItem>
               <MenuItem
-                icon={<span>🔐</span>}
+                icon={<span>�</span>}
                 active={isActive('/admin/corpora/permissions')}
                 onClick={() => handleMenuClick('/admin/corpora/permissions')}
               >
@@ -144,64 +202,6 @@ export default function AdminLayout({
                 onClick={() => handleMenuClick('/admin/corpora/audit')}
               >
                 Audit Log
-              </MenuItem>
-            </SubMenu>
-
-            {/* Chatbot Management SubMenu */}
-            <SubMenu
-              icon={<span className="text-xl">💬</span>}
-              label="Chatbot Access"
-              open={chatbotMenuOpen}
-              onOpenChange={(open) => setChatbotMenuOpen(open)}
-              rootStyles={{
-                '& > .ps-menu-button': {
-                  backgroundColor: 'transparent',
-                  color: '#374151',
-                  fontWeight: chatbotMenuOpen ? '700' : '400',
-                },
-              }}
-            >
-              <MenuItem
-                icon={<span>👤</span>}
-                active={isActive('/admin/chatbot-users')}
-                onClick={() => handleMenuClick('/admin/chatbot-users')}
-              >
-                Chatbot Users
-              </MenuItem>
-              <MenuItem
-                icon={<span>👥</span>}
-                active={isActive('/admin/chatbot-groups')}
-                onClick={() => handleMenuClick('/admin/chatbot-groups')}
-              >
-                Chatbot Groups
-              </MenuItem>
-              <MenuItem
-                icon={<span>🎭</span>}
-                active={isActive('/admin/chatbot-roles')}
-                onClick={() => handleMenuClick('/admin/chatbot-roles')}
-              >
-                Chatbot Roles
-              </MenuItem>
-              <MenuItem
-                icon={<span>🔑</span>}
-                active={isActive('/admin/chatbot-permissions')}
-                onClick={() => handleMenuClick('/admin/chatbot-permissions')}
-              >
-                Permissions
-              </MenuItem>
-              <MenuItem
-                icon={<span>📚</span>}
-                active={isActive('/admin/chatbot-corpora')}
-                onClick={() => handleMenuClick('/admin/chatbot-corpora')}
-              >
-                Corpora Access
-              </MenuItem>
-              <MenuItem
-                icon={<span>🤖</span>}
-                active={isActive('/admin/chatbot-agents')}
-                onClick={() => handleMenuClick('/admin/chatbot-agents')}
-              >
-                Agent Access
               </MenuItem>
             </SubMenu>
 
