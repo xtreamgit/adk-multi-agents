@@ -136,8 +136,8 @@ export default function ChatbotRolesPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Chatbot Roles</h1>
-          <p className="text-gray-600">Manage roles and their permissions</p>
+          <h1 className="text-2xl font-bold text-gray-900">Agent Type</h1>
+          <p className="text-gray-600">Manage Agents and their tools</p>
         </div>
         <button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">+ Create Role</button>
       </div>
