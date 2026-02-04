@@ -440,7 +440,7 @@ export default function Home() {
 
           {/* Agent Selector */}
           <div className="p-4 border-t border-gray-200">
-            <div className="text-xs text-gray-500 uppercase font-medium mb-2">Current Agent</div>
+            <div className="text-sm font-medium text-gray-700 mb-2">Current Agent</div>
             <AgentSwitcher 
               currentAgent={currentAgent}
               availableAgents={availableAgents}
@@ -595,7 +595,7 @@ export default function Home() {
 
         {/* Agent Selector */}
         <div className="p-4 border-t border-gray-200">
-          <div className="text-xs text-gray-500 uppercase font-medium mb-2">Current Agent</div>
+          <div className="text-sm font-medium text-gray-700 mb-2">Current Agent</div>
           <AgentSwitcher 
             currentAgent={currentAgent}
             availableAgents={availableAgents}
