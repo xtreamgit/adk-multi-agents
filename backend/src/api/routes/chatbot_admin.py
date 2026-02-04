@@ -1094,14 +1094,14 @@ async def get_chatbot_agent(agent_id: int, current_user: dict = Depends(get_curr
 
 
 @router.get("/me/available-agents")
-async def get_my_available_agents(current_user: dict = Depends(get_current_user)):
+async def get_my_available_agents(current_user = Depends(get_current_user)):
     """Get all agents available to the current logged-in chatbot user"""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # First, get the chatbot_user_id from the app user
             cur.execute("""
                 SELECT id FROM chatbot_users WHERE username = %s
-            """, (current_user['username'],))
+            """, (current_user.username,))
             chatbot_user = cur.fetchone()
             
             if not chatbot_user:
