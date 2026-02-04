@@ -77,7 +77,7 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
   return (
     <div className="w-full">
       <div className="mb-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">
+        <h3 className="text-base font-semibold text-gray-900 mb-2">
           Available Corpora
         </h3>
       </div>
