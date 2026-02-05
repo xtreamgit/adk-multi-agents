@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
-interface ChatbotRole {
+interface ChatbotAgent {
   id: number;
   name: string;
   description?: string;
@@ -17,17 +17,17 @@ interface ChatbotGroup {
   is_active: boolean;
   created_at: string;
   user_count: number;
-  roles: ChatbotRole[];
+  roles: ChatbotAgent[];
 }
 
 export default function ChatbotGroupsPage() {
   const [groups, setGroups] = useState<ChatbotGroup[]>([]);
-  const [allRoles, setAllRoles] = useState<ChatbotRole[]>([]);
+  const [allRoles, setAllRoles] = useState<ChatbotAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showAgentDialog, setShowAgentDialog] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<ChatbotGroup | null>(null);
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
   const [editForm, setEditForm] = useState({ name: '', description: '', is_active: true });
@@ -156,9 +156,9 @@ export default function ChatbotGroupsPage() {
     setShowEditDialog(true);
   };
 
-  const openRoleDialog = (group: ChatbotGroup) => {
+  const openAgentDialog = (group: ChatbotGroup) => {
     setSelectedGroup(group);
-    setShowRoleDialog(true);
+    setShowAgentDialog(true);
   };
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
@@ -169,7 +169,7 @@ export default function ChatbotGroupsPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Chatbot Groups</h1>
-          <p className="text-gray-600">Manage chatbot user groups and their roles</p>
+          <p className="text-gray-600">Manage chatbot user groups and their agent assignments</p>
         </div>
         <button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">+ Create Group</button>
       </div>
@@ -181,7 +181,7 @@ export default function ChatbotGroupsPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Users</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roles</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
@@ -201,7 +201,7 @@ export default function ChatbotGroupsPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                  <button onClick={() => openRoleDialog(group)} className="text-purple-600 hover:text-purple-900 mr-3">Roles</button>
+                  <button onClick={() => openAgentDialog(group)} className="text-purple-600 hover:text-purple-900 mr-3">Agent</button>
                   <button onClick={() => openEditDialog(group)} className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
                   <button onClick={() => handleDelete(group.id)} className="text-red-600 hover:text-red-900">Delete</button>
                 </td>
@@ -244,12 +244,12 @@ export default function ChatbotGroupsPage() {
         </div>
       )}
 
-      {showRoleDialog && selectedGroup && (
+      {showAgentDialog && selectedGroup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Roles: {selectedGroup.name}</h2>
+            <h2 className="text-xl font-bold mb-4">Agent Assignment: {selectedGroup.name}</h2>
             <div className="mb-4">
-              <h3 className="font-medium mb-2">Assigned Roles</h3>
+              <h3 className="font-medium mb-2">Assigned Agent</h3>
               <div className="flex flex-wrap gap-2">
                 {selectedGroup.roles.length === 0 ? <span className="text-gray-400 italic">None</span> : selectedGroup.roles.map((r) => (
                   <span key={r.id} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
@@ -259,7 +259,7 @@ export default function ChatbotGroupsPage() {
               </div>
             </div>
             <div>
-              <h3 className="font-medium mb-2">Available Roles</h3>
+              <h3 className="font-medium mb-2">Available Agents</h3>
               <div className="flex flex-wrap gap-2">
                 {allRoles.filter(r => !selectedGroup.roles.some(gr => gr.id === r.id)).map((r) => (
                   <button key={r.id} onClick={() => handleAssignRole(r.id)} className="px-3 py-1 rounded-full text-sm bg-gray-100 hover:bg-gray-200">+ {r.name}</button>
@@ -267,7 +267,7 @@ export default function ChatbotGroupsPage() {
               </div>
             </div>
             <div className="flex justify-end mt-6">
-              <button onClick={() => setShowRoleDialog(false)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Close</button>
+              <button onClick={() => setShowAgentDialog(false)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Close</button>
             </div>
           </div>
         </div>
