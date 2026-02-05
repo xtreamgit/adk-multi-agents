@@ -43,20 +43,20 @@ async def get_user_agent_type(current_user: dict = Depends(get_current_user)) ->
             # Note: chatbot_users is separate from users table
             # We match by username since that's the common identifier
             cur.execute("""
-                SELECT DISTINCT cat.name as agent_type
-                FROM chatbot_users cu
-                JOIN chatbot_user_groups cug ON cu.id = cug.chatbot_user_id
-                JOIN chatbot_group_agent_types cgat ON cug.chatbot_group_id = cgat.chatbot_group_id
-                JOIN chatbot_agent_types cat ON cgat.chatbot_agent_type_id = cat.id
-                WHERE cu.username = %s
-                ORDER BY 
+                SELECT cat.name as agent_type,
                     CASE cat.name
                         WHEN 'corpus-manager' THEN 4
                         WHEN 'content-manager' THEN 3
                         WHEN 'contributor' THEN 2
                         WHEN 'viewer' THEN 1
                         ELSE 0
-                    END DESC
+                    END as priority
+                FROM chatbot_users cu
+                JOIN chatbot_user_groups cug ON cu.id = cug.chatbot_user_id
+                JOIN chatbot_group_agent_types cgat ON cug.chatbot_group_id = cgat.chatbot_group_id
+                JOIN chatbot_agent_types cat ON cgat.chatbot_agent_type_id = cat.id
+                WHERE cu.username = %s
+                ORDER BY priority DESC
                 LIMIT 1
             """, (current_user.username,))
             
