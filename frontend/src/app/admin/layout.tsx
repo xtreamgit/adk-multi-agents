@@ -146,14 +146,7 @@ export default function AdminLayout({
                 Agents
               </MenuItem>
               <MenuItem
-                icon={<span>🔑</span>}
-                active={isActive('/admin/chatbot-permissions')}
-                onClick={() => handleMenuClick('/admin/chatbot-permissions')}
-              >
-                Permissions
-              </MenuItem>
-              <MenuItem
-                icon={<span>📚</span>}
+                icon={<span></span>}
                 active={isActive('/admin/chatbot-corpora')}
                 onClick={() => handleMenuClick('/admin/chatbot-corpora')}
               >

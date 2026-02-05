@@ -140,8 +140,8 @@ export default function ChatbotRolesPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Agent List</h1>
-          <p className="text-gray-600">Create custom agents</p>
+          <h1 className="text-2xl font-bold text-gray-900">Agents</h1>
+          <p className="text-gray-600">Manage agent types and their tool access</p>
         </div>
         <button onClick={() => setShowCreateDialog(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">+ Create Agent</button>
       </div>
@@ -195,29 +195,19 @@ export default function ChatbotRolesPage() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Permissions</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {roles.length === 0 ? (
-              <tr><td colSpan={4} className="px-6 py-8 text-center text-gray-500">No roles yet.</td></tr>
+              <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-500">No agents yet.</td></tr>
             ) : roles.map((role) => (
               <tr key={role.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{role.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-500">{role.description || '-'}</td>
-                <td className="px-6 py-4 text-sm">
-                  <div className="flex flex-wrap gap-1">
-                    {role.permissions.slice(0, 5).map((p) => (
-                      <span key={p.id} className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">{p.name}</span>
-                    ))}
-                    {role.permissions.length > 5 && <span className="text-gray-400">+{role.permissions.length - 5}</span>}
-                  </div>
-                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                  <button onClick={() => openPermDialog(role)} className="text-green-600 hover:text-green-900 mr-3">Permissions</button>
                   <button onClick={() => openEditDialog(role)} className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
                   <button onClick={() => handleDelete(role.id)} className="text-red-600 hover:text-red-900">Delete</button>
                 </td>
