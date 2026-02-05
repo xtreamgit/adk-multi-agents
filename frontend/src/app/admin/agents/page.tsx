@@ -149,7 +149,7 @@ export default function ChatbotRolesPage() {
       {/* User Permission Indicator */}
       {!permLoading && userPermissions && (
         <div className={`mb-6 p-4 rounded-lg border-2 ${
-          userPermissions.agentType === 'corpus-manager' ? 'bg-purple-50 border-purple-200' :
+          userPermissions.agentType === 'admin' ? 'bg-purple-50 border-purple-200' :
           userPermissions.agentType === 'content-manager' ? 'bg-amber-50 border-amber-200' :
           userPermissions.agentType === 'contributor' ? 'bg-emerald-50 border-emerald-200' :
           'bg-blue-50 border-blue-200'
@@ -161,12 +161,12 @@ export default function ChatbotRolesPage() {
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-gray-900">Your Agent Type:</span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    userPermissions.agentType === 'corpus-manager' ? 'bg-purple-600 text-white' :
+                    userPermissions.agentType === 'admin' ? 'bg-purple-600 text-white' :
                     userPermissions.agentType === 'content-manager' ? 'bg-amber-600 text-white' :
                     userPermissions.agentType === 'contributor' ? 'bg-emerald-600 text-white' :
                     'bg-blue-600 text-white'
                   }`}>
-                    {userPermissions.agentType?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    {userPermissions.agentType === 'admin' ? 'Admin Agent' : userPermissions.agentType?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 mt-1">
@@ -311,10 +311,10 @@ export default function ChatbotRolesPage() {
             </div>
           </div>
 
-          {/* Corpus Manager Agent */}
+          {/* Admin Agent */}
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-lg overflow-hidden border border-purple-200">
             <div className="bg-purple-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Corpus Manager Agent</h3>
+              <h3 className="text-xl font-bold text-white">Admin Agent</h3>
               <p className="text-purple-100 text-sm">Full corpus lifecycle management</p>
             </div>
             <div className="p-6">

@@ -5,7 +5,7 @@ Defines the hierarchical relationship between agent types and their associated t
 Each agent type inherits tools from its parent type.
 
 Hierarchy:
-    Viewer → Contributor → Content Manager → Corpus Manager
+    Viewer → Contributor → Content Manager → Admin
 """
 
 from typing import List, Dict, Set
@@ -17,7 +17,7 @@ class AgentType(str, Enum):
     VIEWER = "viewer"
     CONTRIBUTOR = "contributor"
     CONTENT_MANAGER = "content-manager"
-    CORPUS_MANAGER = "corpus-manager"
+    ADMIN = "admin"
 
 
 # Tool definitions for each agent type (incremental)
@@ -34,7 +34,7 @@ AGENT_TYPE_TOOLS: Dict[AgentType, List[str]] = {
     AgentType.CONTENT_MANAGER: [
         "delete_document",
     ],
-    AgentType.CORPUS_MANAGER: [
+    AgentType.ADMIN: [
         "create_corpus",
         "delete_corpus",
     ],
@@ -46,7 +46,7 @@ AGENT_TYPE_HIERARCHY: Dict[AgentType, AgentType | None] = {
     AgentType.VIEWER: None,  # Base type, no parent
     AgentType.CONTRIBUTOR: AgentType.VIEWER,
     AgentType.CONTENT_MANAGER: AgentType.CONTRIBUTOR,
-    AgentType.CORPUS_MANAGER: AgentType.CONTENT_MANAGER,
+    AgentType.ADMIN: AgentType.CONTENT_MANAGER,
 }
 
 
@@ -134,8 +134,8 @@ def get_agent_type_display_info(agent_type: AgentType) -> Dict[str, any]:
             "color": "amber",
             "use_case": "Contributor tools + document deletion",
         },
-        AgentType.CORPUS_MANAGER: {
-            "display_name": "Corpus Manager Agent",
+        AgentType.ADMIN: {
+            "display_name": "Admin Agent",
             "description": "Full corpus lifecycle management",
             "color": "purple",
             "use_case": "ALL TOOLS - Complete control over corpora and documents",
@@ -176,7 +176,7 @@ def get_minimum_agent_type_for_tool(tool_name: str) -> AgentType | None:
     """
     # Check in order from lowest to highest
     for agent_type in [AgentType.VIEWER, AgentType.CONTRIBUTOR, 
-                       AgentType.CONTENT_MANAGER, AgentType.CORPUS_MANAGER]:
+                       AgentType.CONTENT_MANAGER, AgentType.ADMIN]:
         if tool_name in get_all_tools_for_agent_type(agent_type):
             return agent_type
     
@@ -194,7 +194,7 @@ def get_agent_type_hierarchy_list() -> List[Dict[str, any]]:
         AgentType.VIEWER,
         AgentType.CONTRIBUTOR,
         AgentType.CONTENT_MANAGER,
-        AgentType.CORPUS_MANAGER,
+        AgentType.ADMIN,
     ]
     
     return [

@@ -45,7 +45,7 @@ async def get_user_agent_type(current_user: dict = Depends(get_current_user)) ->
             cur.execute("""
                 SELECT cat.name as agent_type,
                     CASE cat.name
-                        WHEN 'corpus-manager' THEN 4
+                        WHEN 'admin' THEN 4
                         WHEN 'content-manager' THEN 3
                         WHEN 'contributor' THEN 2
                         WHEN 'viewer' THEN 1
