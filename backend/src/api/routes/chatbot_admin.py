@@ -14,6 +14,13 @@ import logging
 
 from middleware.auth_middleware import get_current_user
 from database.connection import get_db_connection
+from services.agent_hierarchy import (
+    get_agent_type_hierarchy_list,
+    get_all_tools_for_agent_type,
+    AgentType,
+    validate_agent_type,
+    can_agent_type_use_tool
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1033,6 +1040,57 @@ async def get_available_agents(current_user: dict = Depends(get_current_user)):
                 }
                 for a in agents
             ]
+
+
+# ============================================================================
+# Agent Type Hierarchy Endpoints
+# ============================================================================
+
+@router.get("/agent-type-hierarchy")
+async def get_agent_type_hierarchy(current_user: dict = Depends(get_current_user)):
+    """
+    Get the agent type hierarchy with tool definitions.
+    
+    Returns information about all agent types in hierarchical order:
+    - Viewer → Contributor → Content Manager → Corpus Manager
+    
+    Each agent type includes:
+    - type: The agent type identifier
+    - display_name: Human-readable name
+    - description: Brief description
+    - use_case: Explanation of when to use this type
+    - color: UI color scheme
+    - tools: All tools available (including inherited)
+    - incremental_tools: Tools added by this type only
+    """
+    return get_agent_type_hierarchy_list()
+
+
+@router.get("/agent-type-tools/{agent_type}")
+async def get_agent_type_tools(agent_type: str, current_user: dict = Depends(get_current_user)):
+    """
+    Get all tools available to a specific agent type.
+    
+    Args:
+        agent_type: One of 'viewer', 'contributor', 'content-manager', 'corpus-manager'
+        
+    Returns:
+        List of tool names available to this agent type (including inherited tools)
+    """
+    if not validate_agent_type(agent_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid agent type: {agent_type}. Must be one of: viewer, contributor, content-manager, corpus-manager"
+        )
+    
+    agent_type_enum = AgentType(agent_type)
+    tools = get_all_tools_for_agent_type(agent_type_enum)
+    
+    return {
+        "agent_type": agent_type,
+        "tools": tools,
+        "tool_count": len(tools)
+    }
 
 
 # ============================================================================
