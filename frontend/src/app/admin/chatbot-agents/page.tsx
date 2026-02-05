@@ -149,22 +149,21 @@ export default function ChatbotAgentsPage() {
           const groupAssignments = getGroupsForAgent(agent.id);
           return (
             <div key={agent.id} className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="px-6 py-4 border-b" style={{ backgroundColor: 'rgb(240, 253, 244)' }}>
+              <div className="px-6 py-4 border-b bg-emerald-600">
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">🤖 {agent.display_name}</h3>
-                    <p className="text-sm text-gray-500">{agent.name}</p>
+                    <h3 className="text-lg font-semibold text-white">🤖 {agent.display_name}</h3>
+                    <p className="text-sm text-emerald-100">{agent.name}</p>
                   </div>
                   <button 
                     onClick={() => openGrantDialog(agent)} 
-                    className="px-3 py-1 text-sm font-medium rounded"
-                    style={{ color: 'rgb(0,84,64)', backgroundColor: 'rgb(220, 252, 231)' }}
+                    className="px-3 py-1 text-sm font-medium rounded bg-emerald-700 hover:bg-emerald-800 text-white"
                   >
                     + Assign
                   </button>
                 </div>
                 <div className="mt-2">
-                  <span className="inline-block px-2 py-1 text-xs font-medium rounded" style={{ backgroundColor: 'rgb(220, 252, 231)', color: 'rgb(0,84,64)' }}>
+                  <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-emerald-700 text-white">
                     {agent.agent_type}
                   </span>
                 </div>

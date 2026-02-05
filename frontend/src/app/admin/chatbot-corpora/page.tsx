@@ -93,12 +93,12 @@ export default function ChatbotCorporaPage() {
           const corpusAccess = getCorpusAccess(corpus.id);
           return (
             <div key={corpus.id} className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="px-6 py-4 bg-blue-50 border-b flex justify-between items-start">
+              <div className="px-6 py-4 bg-blue-600 border-b flex justify-between items-start">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{corpus.display_name || corpus.name}</h3>
-                  <p className="text-sm text-gray-500">{corpus.name}</p>
+                  <h3 className="text-lg font-semibold text-white">📚 {corpus.display_name || corpus.name}</h3>
+                  <p className="text-sm text-blue-100">{corpus.name}</p>
                 </div>
-                <button onClick={() => openGrantDialog(corpus)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">+ Grant</button>
+                <button onClick={() => openGrantDialog(corpus)} className="text-white hover:text-blue-100 text-sm font-medium bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded">+ Grant</button>
               </div>
               <div className="p-4">
                 <div className="text-xs text-gray-500 uppercase font-medium mb-2">Access ({corpusAccess.length})</div>
