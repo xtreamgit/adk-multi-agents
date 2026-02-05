@@ -21,6 +21,10 @@ from services.agent_hierarchy import (
     validate_agent_type,
     can_agent_type_use_tool
 )
+from middleware.tool_permission_middleware import (
+    get_user_agent_type,
+    get_user_allowed_tools
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1090,6 +1094,29 @@ async def get_agent_type_tools(agent_type: str, current_user: dict = Depends(get
         "agent_type": agent_type,
         "tools": tools,
         "tool_count": len(tools)
+    }
+
+
+@router.get("/my-agent-type")
+async def get_my_agent_type(current_user: dict = Depends(get_current_user)):
+    """
+    Get the current user's agent type and allowed tools.
+    
+    Returns information about the user's assigned agent type through their chatbot groups.
+    If user belongs to multiple groups with different agent types, returns the highest level.
+    
+    Returns:
+        - agent_type: The user's agent type (or null if none assigned)
+        - allowed_tools: List of tools the user can access
+        - tool_count: Number of tools available
+    """
+    user_agent_type = await get_user_agent_type(current_user)
+    allowed_tools = await get_user_allowed_tools(current_user)
+    
+    return {
+        "agent_type": user_agent_type,
+        "allowed_tools": allowed_tools,
+        "tool_count": len(allowed_tools)
     }
 
 
