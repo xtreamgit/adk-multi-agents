@@ -248,25 +248,25 @@ export default function AdminLayout({
                 Sessions
               </MenuItem>
             </SubMenu>
-
-            {/* Navigation Links */}
-            <div className="border-t border-gray-200 mt-4 pt-4 px-4">
-              <button
-                onClick={() => handleMenuClick('/open-document')}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors mb-2"
-              >
-                <span className="text-2xl">📄</span>
-                <span className="text-base font-normal">Open Document</span>
-              </button>
-              <button
-                onClick={() => handleMenuClick('/')}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                <span className="text-2xl">←</span>
-                <span className="text-base font-normal">Back to App</span>
-              </button>
-            </div>
           </Menu>
+
+          {/* Navigation Links */}
+          <div className="border-t border-gray-200 mt-4 pt-4 px-4">
+            <button
+              onClick={() => handleMenuClick('/open-document')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors mb-2"
+            >
+              <span className="text-2xl">📄</span>
+              <span className="text-base font-normal">Open Document</span>
+            </button>
+            <button
+              onClick={() => handleMenuClick('/')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              <span className="text-2xl">←</span>
+              <span className="text-base font-normal">Back to App</span>
+            </button>
+          </div>
 
           {/* Toggle Button */}
           <div className="absolute bottom-4 right-4">
