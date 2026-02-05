@@ -54,6 +54,17 @@ export default function OpenDocumentPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Back to App Link */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-3 text-gray-700 hover:text-gray-900 transition-colors"
+        >
+          <span className="text-2xl">←</span>
+          <span className="text-lg font-normal">Back to App</span>
+        </button>
+      </div>
+      
       <EmeraldRetriever />
     </div>
   );
