@@ -249,38 +249,22 @@ export default function AdminLayout({
               </MenuItem>
             </SubMenu>
 
-            {/* Back to App */}
-            <div className="border-t border-gray-200 mt-4 pt-4">
-              <MenuItem
-                icon={<span>📄</span>}
+            {/* Navigation Links */}
+            <div className="border-t border-gray-200 mt-4 pt-4 px-4">
+              <button
                 onClick={() => handleMenuClick('/open-document')}
-                rootStyles={{
-                  button: {
-                    color: '#6b7280',
-                    '&:hover': {
-                      backgroundColor: '#f3f4f6',
-                      color: '#111827',
-                    },
-                  },
-                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors mb-2"
               >
-                Open Document
-              </MenuItem>
-              <MenuItem
-                icon={<span>←</span>}
+                <span className="text-2xl">📄</span>
+                <span className="text-base font-normal">Open Document</span>
+              </button>
+              <button
                 onClick={() => handleMenuClick('/')}
-                rootStyles={{
-                  button: {
-                    color: '#6b7280',
-                    '&:hover': {
-                      backgroundColor: '#f3f4f6',
-                      color: '#111827',
-                    },
-                  },
-                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
               >
-                Back to App
-              </MenuItem>
+                <span className="text-2xl">←</span>
+                <span className="text-base font-normal">Back to App</span>
+              </button>
             </div>
           </Menu>
 
