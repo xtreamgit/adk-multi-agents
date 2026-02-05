@@ -28,22 +28,27 @@ async def get_user_agent_type(current_user: dict = Depends(get_current_user)) ->
     If a user belongs to multiple groups with different agent types,
     returns the highest level (most permissive) agent type.
     
+    Note: This looks up the user by username in the chatbot_users table.
+    Regular app users (from the users table) may not have chatbot user records.
+    
     Args:
         current_user: Current authenticated user
         
     Returns:
-        Agent type string or None if no agent type assigned
+        Agent type string or None if no agent type assigned or user not in chatbot_users
     """
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # Get all agent types assigned to user's groups
+            # Note: chatbot_users is separate from users table
+            # We match by username since that's the common identifier
             cur.execute("""
                 SELECT DISTINCT cat.name as agent_type
                 FROM chatbot_users cu
                 JOIN chatbot_user_groups cug ON cu.id = cug.chatbot_user_id
                 JOIN chatbot_group_agent_types cgat ON cug.chatbot_group_id = cgat.chatbot_group_id
                 JOIN chatbot_agent_types cat ON cgat.chatbot_agent_type_id = cat.id
-                WHERE cu.user_id = %s
+                WHERE cu.username = %s
                 ORDER BY 
                     CASE cat.name
                         WHEN 'corpus-manager' THEN 4
@@ -53,7 +58,7 @@ async def get_user_agent_type(current_user: dict = Depends(get_current_user)) ->
                         ELSE 0
                     END DESC
                 LIMIT 1
-            """, (current_user.id,))
+            """, (current_user.username,))
             
             result = cur.fetchone()
             return result['agent_type'] if result else None
