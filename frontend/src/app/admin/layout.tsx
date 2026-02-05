@@ -143,7 +143,7 @@ export default function AdminLayout({
                 active={isActive('/admin/chatbot-roles')}
                 onClick={() => handleMenuClick('/admin/chatbot-roles')}
               >
-                Agent Roles
+                Agents
               </MenuItem>
               <MenuItem
                 icon={<span>🔑</span>}
