@@ -509,8 +509,8 @@ async def update_chatbot_group(
             # Get roles and user count
             cur.execute("""
                 SELECT cr.id, cr.name, cr.description
-                FROM chatbot_roles cr
-                JOIN chatbot_group_roles cgr ON cr.id = cgr.chatbot_role_id
+                FROM chatbot_agent_types cr
+                JOIN chatbot_group_agent_types cgr ON cr.id = cgr.chatbot_agent_type_id
                 WHERE cgr.chatbot_group_id = %s
             """, (group['id'],))
             roles = [{"id": r['id'], "name": r['name'], "description": r['description']} for r in cur.fetchall()]
@@ -561,7 +561,7 @@ async def assign_role_to_chatbot_group(
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO chatbot_group_roles (chatbot_group_id, chatbot_role_id)
+                INSERT INTO chatbot_group_agent_types (chatbot_group_id, chatbot_agent_type_id)
                 VALUES (%s, %s)
                 ON CONFLICT DO NOTHING
                 RETURNING id
@@ -581,8 +581,8 @@ async def remove_role_from_chatbot_group(
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                DELETE FROM chatbot_group_roles
-                WHERE chatbot_group_id = %s AND chatbot_role_id = %s
+                DELETE FROM chatbot_group_agent_types
+                WHERE chatbot_group_id = %s AND chatbot_agent_type_id = %s
             """, (group_id, role_id))
             
             conn.commit()
@@ -600,7 +600,7 @@ async def get_all_chatbot_roles(current_user: dict = Depends(get_current_user)):
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, name, description, created_at
-                FROM chatbot_roles
+                FROM chatbot_agent_types
                 ORDER BY name
             """)
             roles = cur.fetchall()
@@ -610,9 +610,9 @@ async def get_all_chatbot_roles(current_user: dict = Depends(get_current_user)):
                 # Get permissions for each role
                 cur.execute("""
                     SELECT cp.id, cp.name, cp.description, cp.category
-                    FROM chatbot_permissions cp
-                    JOIN chatbot_role_permissions crp ON cp.id = crp.permission_id
-                    WHERE crp.role_id = %s
+                    FROM chatbot_tools cp
+                    JOIN chatbot_agent_type_tools crp ON cp.id = crp.tool_id
+                    WHERE crp.agent_type_id = %s
                 """, (role['id'],))
                 permissions = [
                     {"id": p['id'], "name": p['name'], "description": p['description'], "category": p['category']}
@@ -639,7 +639,7 @@ async def create_chatbot_role(
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO chatbot_roles (name, description, created_by)
+                INSERT INTO chatbot_agent_types (name, description, created_by)
                 VALUES (%s, %s, %s)
                 RETURNING id, name, description, created_at
             """, (role_data.name, role_data.description, current_user.id))
@@ -651,14 +651,14 @@ async def create_chatbot_role(
             if role_data.permission_ids:
                 for perm_id in role_data.permission_ids:
                     cur.execute("""
-                        INSERT INTO chatbot_role_permissions (role_id, permission_id)
+                        INSERT INTO chatbot_agent_type_tools (agent_type_id, tool_id)
                         VALUES (%s, %s)
                         ON CONFLICT DO NOTHING
                     """, (role['id'], perm_id))
                 
                 cur.execute("""
                     SELECT id, name, description, category
-                    FROM chatbot_permissions
+                    FROM chatbot_tools
                     WHERE id = ANY(%s)
                 """, (role_data.permission_ids,))
                 permissions = [
@@ -706,7 +706,7 @@ async def update_chatbot_role(
             values.append(role_id)
             
             query = f"""
-                UPDATE chatbot_roles SET {', '.join(updates)}
+                UPDATE chatbot_agent_types SET {', '.join(updates)}
                 WHERE id = %s
                 RETURNING id, name, description, created_at
             """
@@ -723,9 +723,9 @@ async def update_chatbot_role(
             # Get permissions
             cur.execute("""
                 SELECT cp.id, cp.name, cp.description, cp.category
-                FROM chatbot_permissions cp
-                JOIN chatbot_role_permissions crp ON cp.id = crp.permission_id
-                WHERE crp.role_id = %s
+                FROM chatbot_tools cp
+                JOIN chatbot_agent_type_tools crp ON cp.id = crp.tool_id
+                WHERE crp.agent_type_id = %s
             """, (role['id'],))
             permissions = [
                 {"id": p['id'], "name": p['name'], "description": p['description'], "category": p['category']}
@@ -751,7 +751,7 @@ async def delete_chatbot_role(
     """Delete a chatbot role"""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM chatbot_roles WHERE id = %s RETURNING id", (role_id,))
+            cur.execute("DELETE FROM chatbot_agent_types WHERE id = %s RETURNING id", (role_id,))
             
             if not cur.fetchone():
                 raise HTTPException(
@@ -773,7 +773,7 @@ async def add_permission_to_role(
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO chatbot_role_permissions (role_id, permission_id)
+                INSERT INTO chatbot_agent_type_tools (agent_type_id, tool_id)
                 VALUES (%s, %s)
                 ON CONFLICT DO NOTHING
                 RETURNING id
@@ -793,8 +793,8 @@ async def remove_permission_from_role(
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                DELETE FROM chatbot_role_permissions
-                WHERE role_id = %s AND permission_id = %s
+                DELETE FROM chatbot_agent_type_tools
+                WHERE agent_type_id = %s AND tool_id = %s
             """, (role_id, permission_id))
             
             conn.commit()
@@ -812,7 +812,7 @@ async def get_all_chatbot_permissions(current_user: dict = Depends(get_current_u
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, name, description, category
-                FROM chatbot_permissions
+                FROM chatbot_tools
                 ORDER BY category, name
             """)
             permissions = cur.fetchall()
