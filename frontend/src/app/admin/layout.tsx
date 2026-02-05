@@ -252,6 +252,21 @@ export default function AdminLayout({
             {/* Back to App */}
             <div className="border-t border-gray-200 mt-4 pt-4">
               <MenuItem
+                icon={<span>📄</span>}
+                onClick={() => handleMenuClick('/open-document')}
+                rootStyles={{
+                  button: {
+                    color: '#6b7280',
+                    '&:hover': {
+                      backgroundColor: '#f3f4f6',
+                      color: '#111827',
+                    },
+                  },
+                }}
+              >
+                Open Document
+              </MenuItem>
+              <MenuItem
                 icon={<span>←</span>}
                 onClick={() => handleMenuClick('/')}
                 rootStyles={{
