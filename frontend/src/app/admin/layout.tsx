@@ -183,14 +183,14 @@ export default function AdminLayout({
               }}
             >
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>💎</span>}
                 active={pathname === '/admin/corpora'}
                 onClick={() => handleMenuClick('/admin/corpora')}
               >
                 Corpus Management
               </MenuItem>
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>🔐</span>}
                 active={isActive('/admin/corpora/permissions')}
                 onClick={() => handleMenuClick('/admin/corpora/permissions')}
               >
@@ -227,7 +227,7 @@ export default function AdminLayout({
                 Dashboard
               </MenuItem>
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>👤</span>}
                 active={isActive('/admin/users')}
                 onClick={() => handleMenuClick('/admin/users')}
               >
