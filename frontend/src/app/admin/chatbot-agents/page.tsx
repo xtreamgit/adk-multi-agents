@@ -148,7 +148,7 @@ export default function ChatbotAgentsPage() {
         ) : agents.map((agent) => {
           const groupAssignments = getGroupsForAgent(agent.id);
           return (
-            <div key={agent.id} className="bg-gray-50 rounded-lg shadow overflow-hidden">
+            <div key={agent.id} className="bg-gray-100 rounded-lg shadow overflow-hidden">
               <div className="px-6 py-4 border-b bg-emerald-500">
                 <div className="flex justify-between items-start mb-2">
                   <div>

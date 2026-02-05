@@ -92,7 +92,7 @@ export default function ChatbotCorporaPage() {
         ) : corpora.map((corpus) => {
           const corpusAccess = getCorpusAccess(corpus.id);
           return (
-            <div key={corpus.id} className="bg-gray-50 rounded-lg shadow overflow-hidden">
+            <div key={corpus.id} className="bg-gray-100 rounded-lg shadow overflow-hidden">
               <div className="px-6 py-4 bg-blue-500 border-b flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-semibold text-white">📚 {corpus.display_name || corpus.name}</h3>
