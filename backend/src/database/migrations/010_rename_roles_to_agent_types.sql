@@ -65,49 +65,10 @@ ALTER SEQUENCE IF EXISTS chatbot_role_permissions_id_seq RENAME TO chatbot_agent
 ALTER SEQUENCE IF EXISTS chatbot_group_roles_id_seq RENAME TO chatbot_group_agent_types_id_seq;
 
 -- ============================================================================
--- STEP 6: Update constraint names for clarity (optional but recommended)
+-- STEP 6: Constraints are automatically updated by PostgreSQL
 -- ============================================================================
--- Note: PostgreSQL automatically updates foreign key constraints when tables are renamed,
--- but we can rename them for clarity
-
--- Get current constraint names and rename them
-DO $$
-DECLARE
-    constraint_record RECORD;
-BEGIN
-    -- Rename foreign key constraints in chatbot_agent_type_tools
-    FOR constraint_record IN 
-        SELECT constraint_name 
-        FROM information_schema.table_constraints 
-        WHERE table_name = 'chatbot_agent_type_tools' 
-        AND constraint_type = 'FOREIGN KEY'
-    LOOP
-        IF constraint_record.constraint_name LIKE '%role%' THEN
-            EXECUTE format('ALTER TABLE chatbot_agent_type_tools RENAME CONSTRAINT %I TO %I',
-                constraint_record.constraint_name,
-                replace(constraint_record.constraint_name, 'role', 'agent_type'));
-        END IF;
-        IF constraint_record.constraint_name LIKE '%permission%' THEN
-            EXECUTE format('ALTER TABLE chatbot_agent_type_tools RENAME CONSTRAINT %I TO %I',
-                constraint_record.constraint_name,
-                replace(constraint_record.constraint_name, 'permission', 'tool'));
-        END IF;
-    END LOOP;
-
-    -- Rename foreign key constraints in chatbot_group_agent_types
-    FOR constraint_record IN 
-        SELECT constraint_name 
-        FROM information_schema.table_constraints 
-        WHERE table_name = 'chatbot_group_agent_types' 
-        AND constraint_type = 'FOREIGN KEY'
-    LOOP
-        IF constraint_record.constraint_name LIKE '%role%' THEN
-            EXECUTE format('ALTER TABLE chatbot_group_agent_types RENAME CONSTRAINT %I TO %I',
-                constraint_record.constraint_name,
-                replace(constraint_record.constraint_name, 'role', 'agent_type'));
-        END IF;
-    END LOOP;
-END $$;
+-- Note: PostgreSQL automatically updates foreign key constraint names when tables
+-- and columns are renamed. No manual intervention needed.
 
 -- ============================================================================
 -- VERIFICATION: Display renamed tables
