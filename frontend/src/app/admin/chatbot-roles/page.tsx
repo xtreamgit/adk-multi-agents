@@ -139,7 +139,7 @@ export default function ChatbotRolesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Agent List</h1>
           <p className="text-gray-600">Create custom agents</p>
         </div>
-        <button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">+ Create Role</button>
+        <button onClick={() => setShowCreateDialog(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">+ Create Agent</button>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
