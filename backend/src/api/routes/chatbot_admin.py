@@ -413,8 +413,8 @@ async def get_all_chatbot_groups(current_user: dict = Depends(get_current_user))
                 # Get roles for each group
                 cur.execute("""
                     SELECT cr.id, cr.name, cr.description
-                    FROM chatbot_roles cr
-                    JOIN chatbot_group_roles cgr ON cr.id = cgr.chatbot_role_id
+                    FROM chatbot_agent_types cr
+                    JOIN chatbot_group_agent_types cgr ON cr.id = cgr.chatbot_agent_type_id
                     WHERE cgr.chatbot_group_id = %s
                 """, (group['id'],))
                 roles = [{"id": r['id'], "name": r['name'], "description": r['description']} for r in cur.fetchall()]
