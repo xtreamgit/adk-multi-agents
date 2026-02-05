@@ -178,6 +178,132 @@ export default function ChatbotRolesPage() {
         </table>
       </div>
 
+      {/* Agent Type Definitions Section */}
+      <div className="mt-12">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Agent Type Definitions</h2>
+          <p className="text-gray-600">Standard agent types with predefined tool access levels</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Viewer Agent */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg overflow-hidden border border-blue-200">
+            <div className="bg-blue-600 px-6 py-4">
+              <h3 className="text-xl font-bold text-white">Viewer Agent</h3>
+              <p className="text-blue-100 text-sm">Read-only access for general users</p>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 uppercase mb-2">Tools</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-blue-100 px-2 py-0.5 rounded text-xs">rag_query</code> - Query documents</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-blue-100 px-2 py-0.5 rounded text-xs">list_corpora</code> - List available corpora</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-blue-100 px-2 py-0.5 rounded text-xs">get_corpus_info</code> - Get corpus details</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-blue-100 px-2 py-0.5 rounded text-xs">browse_documents</code> - Browse document links</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-600"><strong>Rationale:</strong> Minimum viable toolset for querying and viewing information. Cannot modify any data.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contributor Agent */}
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl shadow-lg overflow-hidden border border-emerald-200">
+            <div className="bg-emerald-600 px-6 py-4">
+              <h3 className="text-xl font-bold text-white">Contributor Agent</h3>
+              <p className="text-emerald-100 text-sm">Users who can add content</p>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 uppercase mb-2">Tools</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700 italic">All Viewer Agent tools</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-emerald-100 px-2 py-0.5 rounded text-xs">add_data</code> - Add documents to corpora</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-white rounded-lg border border-emerald-200">
+                <p className="text-xs text-gray-600"><strong>Rationale:</strong> All viewer tools + ability to add documents. Cannot create/delete corpora or documents.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content Manager Agent */}
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl shadow-lg overflow-hidden border border-amber-200">
+            <div className="bg-amber-600 px-6 py-4">
+              <h3 className="text-xl font-bold text-white">Content Manager Agent</h3>
+              <p className="text-amber-100 text-sm">Manage documents within existing corpora</p>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 uppercase mb-2">Tools</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700 italic">All Contributor Agent tools</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-amber-100 px-2 py-0.5 rounded text-xs">delete_document</code> - Delete specific documents</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-white rounded-lg border border-amber-200">
+                <p className="text-xs text-gray-600"><strong>Rationale:</strong> Contributor tools + document deletion. Can manage content but not corpus structure.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Corpus Manager Agent */}
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-lg overflow-hidden border border-purple-200">
+            <div className="bg-purple-600 px-6 py-4">
+              <h3 className="text-xl font-bold text-white">Corpus Manager Agent</h3>
+              <p className="text-purple-100 text-sm">Full corpus lifecycle management</p>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 uppercase mb-2">Tools</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700 italic">All Content Manager Agent tools</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-purple-100 px-2 py-0.5 rounded text-xs">create_corpus</code> - Create new corpora</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700"><code className="bg-purple-100 px-2 py-0.5 rounded text-xs">delete_corpus</code> - Delete entire corpora</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200">
+                <p className="text-xs text-gray-600"><strong>Rationale:</strong> <strong>ALL TOOLS</strong> - Complete control over corpora and documents. For administrators only.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
