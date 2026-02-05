@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAgentPermissions } from '@/hooks/useAgentPermissions';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
@@ -30,6 +31,9 @@ export default function ChatbotRolesPage() {
   const [selectedRole, setSelectedRole] = useState<ChatbotRole | null>(null);
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
   const [editForm, setEditForm] = useState({ name: '', description: '' });
+  
+  // Get user's agent permissions
+  const { permissions: userPermissions, loading: permLoading } = useAgentPermissions();
 
   useEffect(() => {
     loadData();
@@ -141,6 +145,51 @@ export default function ChatbotRolesPage() {
         </div>
         <button onClick={() => setShowCreateDialog(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">+ Create Agent</button>
       </div>
+
+      {/* User Permission Indicator */}
+      {!permLoading && userPermissions && (
+        <div className={`mb-6 p-4 rounded-lg border-2 ${
+          userPermissions.agentType === 'corpus-manager' ? 'bg-purple-50 border-purple-200' :
+          userPermissions.agentType === 'content-manager' ? 'bg-amber-50 border-amber-200' :
+          userPermissions.agentType === 'contributor' ? 'bg-emerald-50 border-emerald-200' :
+          'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🎭</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900">Your Agent Type:</span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    userPermissions.agentType === 'corpus-manager' ? 'bg-purple-600 text-white' :
+                    userPermissions.agentType === 'content-manager' ? 'bg-amber-600 text-white' :
+                    userPermissions.agentType === 'contributor' ? 'bg-emerald-600 text-white' :
+                    'bg-blue-600 text-white'
+                  }`}>
+                    {userPermissions.agentType?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  You have access to <strong>{userPermissions.toolCount}</strong> tools
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Available Tools:</p>
+              <div className="flex flex-wrap gap-1 mt-1 justify-end max-w-md">
+                {userPermissions.allowedTools.slice(0, 6).map((tool) => (
+                  <span key={tool} className="px-2 py-0.5 rounded text-xs bg-white border border-gray-300 text-gray-700">
+                    {tool}
+                  </span>
+                ))}
+                {userPermissions.allowedTools.length > 6 && (
+                  <span className="text-xs text-gray-500">+{userPermissions.allowedTools.length - 6} more</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
