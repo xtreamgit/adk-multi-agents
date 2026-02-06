@@ -162,7 +162,7 @@ export default function ChatbotGroupsPage() {
   };
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
-  if (error) return <div className="flex items-center justify-center min-h-screen"><div className="text-red-600">{error}</div><button onClick={loadData} className="ml-4 bg-blue-600 text-white px-4 py-2 rounded">Retry</button></div>;
+  if (error) return <div className="flex items-center justify-center min-h-screen"><div className="text-red-600">{error}</div><button onClick={loadData} className="ml-4 bg-emerald-800 text-white px-4 py-2 rounded">Retry</button></div>;
 
   return (
     <div className="p-6">
@@ -171,7 +171,7 @@ export default function ChatbotGroupsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Chatbot Groups</h1>
           <p className="text-gray-600">Manage chatbot user groups and their agent assignments</p>
         </div>
-        <button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">+ Create Group</button>
+        <button onClick={() => setShowCreateDialog(true)} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-900">+ Create Group</button>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -221,7 +221,7 @@ export default function ChatbotGroupsPage() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowCreateDialog(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded">Cancel</button>
-              <button onClick={handleCreate} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create</button>
+              <button onClick={handleCreate} className="px-4 py-2 bg-emerald-800 text-white rounded hover:bg-emerald-900">Create</button>
             </div>
           </div>
         </div>
@@ -238,7 +238,7 @@ export default function ChatbotGroupsPage() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowEditDialog(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded">Cancel</button>
-              <button onClick={handleEdit} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              <button onClick={handleEdit} className="px-4 py-2 bg-emerald-800 text-white rounded hover:bg-emerald-900">Save</button>
             </div>
           </div>
         </div>

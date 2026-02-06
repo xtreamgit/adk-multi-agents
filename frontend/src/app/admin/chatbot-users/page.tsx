@@ -359,7 +359,7 @@ export default function ChatbotUsersPage() {
         <div className="text-center">
           <div className="text-red-600 text-xl mb-4">Error</div>
           <p className="text-gray-600 mb-4">{error}</p>
-          <button onClick={loadData} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          <button onClick={loadData} className="bg-emerald-800 text-white px-4 py-2 rounded hover:bg-emerald-900">
             Retry
           </button>
         </div>
@@ -376,7 +376,7 @@ export default function ChatbotUsersPage() {
         </div>
         <button
           onClick={() => setShowCreateDialog(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-900 flex items-center gap-2"
         >
           <span>+</span> Create User
         </button>
@@ -570,7 +570,7 @@ export default function ChatbotUsersPage() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowCreateDialog(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded">Cancel</button>
-              <button onClick={handleCreateUser} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create</button>
+              <button onClick={handleCreateUser} className="px-4 py-2 bg-emerald-800 text-white rounded hover:bg-emerald-900">Create</button>
             </div>
           </div>
         </div>
@@ -621,7 +621,7 @@ export default function ChatbotUsersPage() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowEditDialog(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded">Cancel</button>
-              <button onClick={handleEditUser} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              <button onClick={handleEditUser} className="px-4 py-2 bg-emerald-800 text-white rounded hover:bg-emerald-900">Save</button>
             </div>
           </div>
         </div>
