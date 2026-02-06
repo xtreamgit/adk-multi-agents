@@ -12,9 +12,10 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
   const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
-    const loadCorpora = async () => {
+    const loadCorpora = async (showLoading = false) => {
       // Don't try to load if not authenticated
       if (!apiClient.isAuthenticated()) {
         setLoading(false);
@@ -23,7 +24,10 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
       }
 
       try {
-        setLoading(true);
+        // Only show loading spinner on initial load
+        if (showLoading) {
+          setLoading(true);
+        }
         const response = await apiClient.getAllCorporaWithAccess();
         
         // Deduplicate by ID (backend may return duplicates)
@@ -39,16 +43,34 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
           a.display_name.toLowerCase().localeCompare(b.display_name.toLowerCase())
         );
         setCorpora(sortedCorpora);
+        
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       } catch (err) {
         console.error('Failed to load corpora:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load corpora');
+        if (showLoading) {
+          setError(err instanceof Error ? err.message : 'Failed to load corpora');
+        }
       } finally {
-        setLoading(false);
+        if (showLoading) {
+          setLoading(false);
+        }
       }
     };
 
-    loadCorpora();
-  }, []);
+    // Initial load with loading spinner
+    loadCorpora(true);
+
+    // Poll for changes every 5 seconds to sync with admin panel changes
+    // Background refresh without loading spinner
+    const pollInterval = setInterval(() => {
+      loadCorpora(false);
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(pollInterval);
+  }, [isInitialLoad]);
 
   // No longer needed with new API - removed unused function
 
