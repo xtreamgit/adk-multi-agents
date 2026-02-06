@@ -1002,10 +1002,12 @@ async def get_available_corpora(current_user: dict = Depends(get_current_user)):
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT id, name, display_name, description, is_active
-                FROM corpora
-                WHERE is_active = TRUE
-                ORDER BY name
+                SELECT c.id, c.name, c.display_name, c.description, c.is_active,
+                       COALESCE(cm.document_count, 0) as document_count
+                FROM corpora c
+                LEFT JOIN corpus_metadata cm ON c.id = cm.corpus_id
+                WHERE c.is_active = TRUE
+                ORDER BY c.name
             """)
             corpora = cur.fetchall()
             
@@ -1015,7 +1017,8 @@ async def get_available_corpora(current_user: dict = Depends(get_current_user)):
                     "name": c['name'],
                     "display_name": c['display_name'],
                     "description": c['description'],
-                    "is_active": c['is_active']
+                    "is_active": c['is_active'],
+                    "document_count": c['document_count']
                 }
                 for c in corpora
             ]

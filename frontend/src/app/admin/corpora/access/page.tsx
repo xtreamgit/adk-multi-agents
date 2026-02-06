@@ -10,6 +10,7 @@ interface Corpus {
   display_name: string;
   description: string | null;
   is_active: boolean;
+  document_count: number;
 }
 
 interface ChatbotGroup {
@@ -144,7 +145,7 @@ export default function CorporaGroupAccessPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 border-r-2 border-gray-300">
                   Corpus
                 </th>
                 {targetGroups.map(groupName => (
@@ -164,10 +165,10 @@ export default function CorporaGroupAccessPage() {
               ) : (
                 corpora.map((corpus) => (
                   <tr key={corpus.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 sticky left-0 bg-white z-10">
+                    <td className="px-6 py-4 sticky left-0 bg-white z-10 border-r-2 border-gray-300">
                       <div>
                         <div className="text-sm font-semibold text-gray-900">
-                          {corpus.display_name || corpus.name}
+                          {corpus.display_name || corpus.name} <span className="text-gray-500 font-normal">({corpus.document_count})</span>
                         </div>
                         <div className="text-xs text-gray-500">{corpus.name}</div>
                       </div>
