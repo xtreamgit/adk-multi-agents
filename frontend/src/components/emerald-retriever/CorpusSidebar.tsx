@@ -6,6 +6,7 @@ interface Corpus {
   id: number;
   name: string;
   display_name: string;
+  has_access?: boolean;
 }
 
 interface CorpusSidebarProps {
@@ -52,29 +53,46 @@ export default function CorpusSidebar({
           <div className="py-2">
             {corpora.map((corpus) => {
               const isSelected = selectedCorpusId === corpus.id;
+              const hasAccess = corpus.has_access !== false;
               return (
                 <button
                   key={corpus.id}
-                  onClick={() => onSelectCorpus(corpus.id)}
+                  onClick={() => hasAccess && onSelectCorpus(corpus.id)}
                   className={`
                     w-full px-4 py-3 text-left flex items-center gap-3 transition-colors
-                    ${isSelected 
-                      ? 'bg-emerald-50 text-emerald-900 border-l-4 border-emerald-700' 
-                      : 'hover:bg-gray-50 text-gray-700 border-l-4 border-transparent'
+                    ${!hasAccess
+                      ? 'opacity-50 cursor-not-allowed border-l-4 border-transparent'
+                      : isSelected 
+                        ? 'bg-emerald-50 text-emerald-900 border-l-4 border-emerald-700' 
+                        : 'hover:bg-gray-50 text-gray-700 border-l-4 border-transparent'
                     }
                   `}
+                  disabled={!hasAccess}
+                  title={!hasAccess ? 'No access to this corpus' : undefined}
                 >
-                  {/* Folder Icon */}
-                  <svg 
-                    className={`w-5 h-5 flex-shrink-0 ${isSelected ? 'text-emerald-700' : 'text-gray-400'}`}
-                    fill="currentColor" 
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-                  </svg>
+                  {/* Folder or Lock Icon */}
+                  {hasAccess ? (
+                    <svg 
+                      className={`w-5 h-5 flex-shrink-0 ${isSelected ? 'text-emerald-700' : 'text-gray-400'}`}
+                      fill="currentColor" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5 flex-shrink-0 text-gray-300"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   
                   {/* Corpus Name */}
-                  <span className={`text-sm font-medium ${isSelected ? 'text-emerald-900' : 'text-gray-700'}`}>
+                  <span className={`text-sm font-medium ${
+                    !hasAccess ? 'text-gray-400' : isSelected ? 'text-emerald-900' : 'text-gray-700'
+                  }`}>
                     {corpus.display_name || corpus.name}
                   </span>
                 </button>

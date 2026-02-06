@@ -13,6 +13,7 @@ interface Corpus {
   id: number;
   name: string;
   display_name: string;
+  has_access?: boolean;
 }
 
 interface Document {
@@ -70,9 +71,12 @@ export default function EmeraldRetriever() {
       const data = await apiClient.getAllCorporaWithAccess();
       setCorpora(data);
       
-      // Auto-select first corpus if available
+      // Auto-select first accessible corpus
       if (data.length > 0 && !selectedCorpusId) {
-        setSelectedCorpusId(data[0].id);
+        const firstAccessible = data.find((c: Corpus) => c.has_access !== false);
+        if (firstAccessible) {
+          setSelectedCorpusId(firstAccessible.id);
+        }
       }
     } catch (error) {
       console.error('Failed to load corpora:', error);
@@ -165,6 +169,8 @@ export default function EmeraldRetriever() {
   };
 
   const handleSelectCorpus = (corpusId: number) => {
+    const corpus = corpora.find(c => c.id === corpusId);
+    if (corpus && corpus.has_access === false) return;
     setSelectedCorpusId(corpusId);
     setSelectedDocument(null);
   };
