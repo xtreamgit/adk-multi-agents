@@ -183,14 +183,14 @@ export default function AdminLayout({
                 Corpus Management
               </MenuItem>
               <MenuItem
-                icon={<span></span>}
+                icon={<span>📋</span>}
                 active={isActive('/admin/corpora/audit')}
                 onClick={() => handleMenuClick('/admin/corpora/audit')}
               >
                 Audit Log
               </MenuItem>
               <MenuItem
-                icon={<span>�</span>}
+                icon={<span>🔐</span>}
                 active={isActive('/admin/corpora/access')}
                 onClick={() => handleMenuClick('/admin/corpora/access')}
               >
