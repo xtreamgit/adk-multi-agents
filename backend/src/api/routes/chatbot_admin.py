@@ -401,6 +401,66 @@ async def permanently_delete_chatbot_user(
             return {"status": "success", "message": f"Chatbot user '{username}' permanently deleted"}
 
 
+class BulkDeleteRequest(BaseModel):
+    user_ids: List[int]
+
+
+@router.post("/users/bulk-delete")
+async def bulk_delete_chatbot_users(
+    request: BulkDeleteRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Permanently delete multiple inactive chatbot users in one operation."""
+    if not request.user_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No user IDs provided"
+        )
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # Fetch all requested users
+            cur.execute(
+                "SELECT id, username, is_active FROM chatbot_users WHERE id = ANY(%s)",
+                (request.user_ids,)
+            )
+            found_users = cur.fetchall()
+            found_ids = {u['id'] for u in found_users}
+
+            # Check for missing users
+            missing_ids = set(request.user_ids) - found_ids
+            if missing_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Users not found: {list(missing_ids)}"
+                )
+
+            # Check for active users
+            active_users = [u for u in found_users if u['is_active']]
+            if active_users:
+                active_names = [u['username'] for u in active_users]
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot delete active users. Deactivate first: {active_names}"
+                )
+
+            # Delete all (chatbot_user_groups cascades automatically)
+            cur.execute(
+                "DELETE FROM chatbot_users WHERE id = ANY(%s)",
+                (request.user_ids,)
+            )
+            conn.commit()
+
+            deleted_names = [u['username'] for u in found_users]
+            admin_name = getattr(current_user, 'username', 'unknown')
+            logger.info(f"Bulk deleted chatbot users {deleted_names} by {admin_name}")
+            return {
+                "status": "success",
+                "message": f"Permanently deleted {len(deleted_names)} user(s)",
+                "deleted_users": deleted_names
+            }
+
+
 @router.post("/users/{user_id}/groups/{group_id}")
 async def assign_chatbot_user_to_group(
     user_id: int,

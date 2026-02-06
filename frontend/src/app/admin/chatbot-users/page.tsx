@@ -34,6 +34,7 @@ export default function ChatbotUsersPage() {
   const [selectedUser, setSelectedUser] = useState<ChatbotUser | null>(null);
   const [sortField, setSortField] = useState<'username' | 'full_name' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
   const [createForm, setCreateForm] = useState({
     username: '',
     email: '',
@@ -210,7 +211,67 @@ export default function ChatbotUsersPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete user');
     } finally {
+      setSelectedUserIds(new Set());
       await loadData();
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const selectedUsers = users.filter(u => selectedUserIds.has(u.id));
+    const activeSelected = selectedUsers.filter(u => u.is_active);
+    const inactiveSelected = selectedUsers.filter(u => !u.is_active);
+
+    if (inactiveSelected.length === 0) {
+      alert('No inactive users selected. Only inactive users can be deleted.');
+      return;
+    }
+
+    if (activeSelected.length > 0) {
+      alert(`${activeSelected.length} active user(s) will be skipped. Only ${inactiveSelected.length} inactive user(s) will be deleted.`);
+    }
+
+    const names = inactiveSelected.map(u => u.username).join(', ');
+    if (!confirm(`Permanently delete ${inactiveSelected.length} user(s)?\n\n${names}\n\nThis action cannot be undone.`)) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/bulk-delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        body: JSON.stringify({ user_ids: inactiveSelected.map(u => u.id) }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete users');
+      }
+
+      const result = await response.json();
+      alert(result.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete users');
+    } finally {
+      setSelectedUserIds(new Set());
+      await loadData();
+    }
+  };
+
+  const toggleSelectUser = (userId: number) => {
+    setSelectedUserIds(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUserIds.size === users.length) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(users.map(u => u.id)));
     }
   };
 
@@ -321,10 +382,38 @@ export default function ChatbotUsersPage() {
         </button>
       </div>
 
+      {selectedUserIds.size > 0 && (
+        <div className="mb-4 flex items-center gap-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+          <span className="text-sm font-medium text-blue-800">
+            {selectedUserIds.size} user{selectedUserIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            className="px-3 py-1.5 bg-red-600 text-white text-sm font-semibold rounded hover:bg-red-700 transition-colors"
+          >
+            Delete Selected
+          </button>
+          <button
+            onClick={() => setSelectedUserIds(new Set())}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+          >
+            Clear Selection
+          </button>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 text-left">
+                <input
+                  type="checkbox"
+                  checked={users.length > 0 && selectedUserIds.size === users.length}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 text-blue-600 rounded border-gray-300 cursor-pointer"
+                />
+              </th>
               <th 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
                 onClick={() => {
@@ -360,7 +449,7 @@ export default function ChatbotUsersPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                   No chatbot users yet. Click &quot;Create User&quot; to add one.
                 </td>
               </tr>
@@ -373,7 +462,15 @@ export default function ChatbotUsersPage() {
                     ? aVal.localeCompare(bVal)
                     : bVal.localeCompare(aVal);
                 }).map((user) => (
-                <tr key={user.id} className="even:bg-gray-200 hover:bg-gray-300">
+                <tr key={user.id} className={`hover:bg-gray-300 ${selectedUserIds.has(user.id) ? 'bg-blue-50' : 'even:bg-gray-200'}`}>
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedUserIds.has(user.id)}
+                      onChange={() => toggleSelectUser(user.id)}
+                      className="h-4 w-4 text-blue-600 rounded border-gray-300 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-base font-semibold" style={{ color: 'rgb(0,84,64)' }}>{user.username}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{user.full_name}</td>
