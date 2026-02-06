@@ -143,7 +143,7 @@ export default function ChatbotRolesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Agents</h1>
           <p className="text-gray-600">Manage agent types and their tool access</p>
         </div>
-        <button onClick={() => setShowCreateDialog(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">+ Create Agent</button>
+        <button onClick={() => setShowCreateDialog(true)} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-900">+ Create Agent</button>
       </div>
 
       {/* User Permission Indicator */}
@@ -353,7 +353,7 @@ export default function ChatbotRolesPage() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowCreateDialog(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded">Cancel</button>
-              <button onClick={handleCreate} className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">Create</button>
+              <button onClick={handleCreate} className="px-4 py-2 bg-emerald-800 text-white rounded hover:bg-emerald-900">Create</button>
             </div>
           </div>
         </div>
