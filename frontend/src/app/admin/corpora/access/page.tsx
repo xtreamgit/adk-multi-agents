@@ -35,7 +35,6 @@ export default function CorporaGroupAccessPage() {
   const [access, setAccess] = useState<CorpusAccess[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const targetGroups = ['admin-group', 'content-manager-group', 'contributor-group', 'viewer-group'];
 
@@ -78,8 +77,6 @@ export default function CorporaGroupAccessPage() {
       return;
     }
 
-    const corpus = corpora.find(c => c.id === corpusId);
-    const corpusName = corpus?.display_name || corpus?.name || 'corpus';
     const currentAccess = hasAccess(corpusId, groupName);
     
     try {
@@ -97,10 +94,6 @@ export default function CorporaGroupAccessPage() {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
         }).then(r => r.json());
         setAccess(updatedAccess);
-        
-        // Show success message
-        setSuccessMessage(`Revoked ${groupName} access to ${corpusName}`);
-        setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         // Grant access
         const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, {
@@ -123,15 +116,10 @@ export default function CorporaGroupAccessPage() {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
         }).then(r => r.json());
         setAccess(updatedAccess);
-        
-        // Show success message
-        setSuccessMessage(`Granted ${groupName} access to ${corpusName}`);
-        setTimeout(() => setSuccessMessage(null), 3000);
       }
     } catch (err) {
       console.error('Error toggling access:', err);
       setError(err instanceof Error ? err.message : 'Failed to toggle access');
-      setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -163,30 +151,6 @@ export default function CorporaGroupAccessPage() {
         <h1 className="text-2xl font-bold text-gray-900">Corpora to Group Access</h1>
         <p className="text-gray-600">View corpus access permissions across chatbot groups</p>
       </div>
-
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <p className="text-sm text-green-800">{successMessage}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 text-red-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            <p className="text-sm text-red-800">{error}</p>
-          </div>
-        </div>
-      )}
 
       {/* Access Summary */}
       <div className="mb-6 bg-white rounded-lg shadow p-6">

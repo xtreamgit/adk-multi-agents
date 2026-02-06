@@ -82,37 +82,12 @@ export default function Home() {
             setIsLoadingAgents(false);
           }
           
-          // Load saved corpus preferences or auto-select accessible corpora
+          // Load saved corpus preferences
           try {
             const profile = await apiClient.getMyProfile();
-            const savedCorpora = profile.profile?.preferences?.selected_corpora;
-            
-            if (savedCorpora && savedCorpora.length > 0) {
-              // User has saved preferences - use them
-              setSelectedCorpora(savedCorpora);
-              console.log('✅ Loaded saved corpus preferences:', savedCorpora);
-            } else {
-              // No saved preferences - auto-select all accessible corpora
-              try {
-                const accessibleCorpora = await apiClient.getAllCorporaWithAccess();
-                const corporaWithAccess = accessibleCorpora
-                  .filter(c => c.has_access)
-                  .map(c => c.name);
-                
-                if (corporaWithAccess.length > 0) {
-                  setSelectedCorpora(corporaWithAccess);
-                  console.log('✅ Auto-selected accessible corpora:', corporaWithAccess);
-                  
-                  // Save the auto-selection to preferences
-                  await apiClient.updateProfile({
-                    preferences: {
-                      selected_corpora: corporaWithAccess
-                    }
-                  });
-                }
-              } catch (err) {
-                console.error('Failed to auto-select corpora:', err);
-              }
+            if (profile.profile?.preferences?.selected_corpora) {
+              setSelectedCorpora(profile.profile.preferences.selected_corpora);
+              console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
             }
           } catch (err) {
             console.error('Failed to load corpus preferences:', err);
