@@ -42,8 +42,10 @@ export type Agent = {
   id: number;
   name: string;
   display_name: string;
-  description: string;
-  config_path: string;
+  description: string | null;
+  config_path?: string;
+  agent_type: string;
+  tools: string[];
   is_active: boolean;
   created_at: string;
   has_access?: boolean;

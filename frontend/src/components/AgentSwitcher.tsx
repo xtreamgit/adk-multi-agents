@@ -1,21 +1,11 @@
 "use client";
 
 import { useState } from 'react';
-
-interface ChatbotAgent {
-  id: number;
-  name: string;
-  display_name: string;
-  description: string | null;
-  agent_type: string;
-  tools: string[];
-  is_active: boolean;
-  created_at: string;
-}
+import { Agent } from '../lib/api-enhanced';
 
 interface AgentSwitcherProps {
-  currentAgent: ChatbotAgent | null;
-  availableAgents: ChatbotAgent[];
+  currentAgent: Agent | null;
+  availableAgents: Agent[];
   isLoading?: boolean;
 }
 

@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, apiClient } from '../lib/api-enhanced';
-import { AgentKey } from '../lib/api';
+import { User, Agent, apiClient } from '../lib/api-enhanced';
 import LoginForm from '../components/LoginForm';
 import ChatInterface from '../components/ChatInterface';
 import UserProfilePanel from '../components/UserProfilePanel';
@@ -29,7 +28,6 @@ export default function Home() {
   const [showChatInterface, setShowChatInterface] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [wasInChatBeforeProfile, setWasInChatBeforeProfile] = useState(false);
   const [isReturningFromProfile, setIsReturningFromProfile] = useState(false);
   const [shouldAutoSubmit, setShouldAutoSubmit] = useState(false);
   const [isLoadingExistingSession, setIsLoadingExistingSession] = useState(false);
@@ -40,9 +38,8 @@ export default function Home() {
     selectedCorpora: string[];
     sessionId: string | null;
   } | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<AgentKey>('default');
-  const [currentAgent, setCurrentAgent] = useState<{id: number, name: string, display_name: string, description: string | null, agent_type: string, tools: string[]} | null>(null);
-  const [availableAgents, setAvailableAgents] = useState<Array<{id: number, name: string, display_name: string, description: string | null, agent_type: string, tools: string[]}>>([]);
+  const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -85,8 +82,8 @@ export default function Home() {
           // Load saved corpus preferences
           try {
             const profile = await apiClient.getMyProfile();
-            if (profile.profile?.preferences?.selected_corpora) {
-              setSelectedCorpora(profile.profile.preferences.selected_corpora);
+            if (profile.profile?.preferences?.selected_corpora && Array.isArray(profile.profile.preferences.selected_corpora)) {
+              setSelectedCorpora(profile.profile.preferences.selected_corpora as string[]);
               console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
             }
           } catch (err) {
@@ -112,20 +109,9 @@ export default function Home() {
       }
     };
 
-    // Initialize agent selection from localStorage and sync to API client
-    if (typeof window !== 'undefined') {
-      const storedAgent = (localStorage.getItem('selected_agent') as AgentKey | null) || 'default';
-      setSelectedAgent(storedAgent);
-      apiClient.setAgent(storedAgent);
-    }
-
     checkAuth();
   }, [router]);
 
-  const handleAgentChange = (agent: AgentKey) => {
-    setSelectedAgent(agent);
-    apiClient.setAgent(agent);
-  };
 
   const handleLoginSuccess = async (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -150,8 +136,8 @@ export default function Home() {
     // Load saved corpus preferences
     try {
       const profile = await apiClient.getMyProfile();
-      if (profile.profile?.preferences?.selected_corpora) {
-        setSelectedCorpora(profile.profile.preferences.selected_corpora);
+      if (profile.profile?.preferences?.selected_corpora && Array.isArray(profile.profile.preferences.selected_corpora)) {
+        setSelectedCorpora(profile.profile.preferences.selected_corpora as string[]);
         console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
       }
     } catch (err) {
@@ -177,20 +163,6 @@ export default function Home() {
     router.push('/landing');
   };
 
-  const handleProfileSubmit = (profile: UserProfile) => {
-    setUserProfile(profile);
-    setShowProfileSetup(false);
-    
-    // If there was a saved chat state, restore it completely
-    if (savedChatState && savedChatState.sessionId) {
-      setShowChatInterface(savedChatState.showChatInterface);
-      setChatInputValue(savedChatState.chatInputValue);
-      setSelectedCorpora(savedChatState.selectedCorpora);
-      setSessionId(savedChatState.sessionId);
-      setIsReturningFromProfile(true);
-      setSavedChatState(null);
-    }
-  };
 
   const handleUpdateProfile = () => {
     if (showChatInterface) {
@@ -201,7 +173,6 @@ export default function Home() {
         selectedCorpora,
         sessionId
       });
-      setWasInChatBeforeProfile(true);
     }
     setShowProfileSetup(true);
   };
@@ -708,18 +679,13 @@ export default function Home() {
               />
               <button 
                 onClick={handleStartChat}
-                disabled={!chatInputValue.trim()}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white px-6 py-2 rounded-full transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white px-6 py-2 rounded-full transition-colors font-medium"
                 style={{ backgroundColor: '#005440' }}
                 onMouseEnter={(e) => {
-                  if (chatInputValue.trim()) {
-                    e.currentTarget.style.backgroundColor = '#00755e';
-                  }
+                  e.currentTarget.style.backgroundColor = '#006b52';
                 }}
                 onMouseLeave={(e) => {
-                  if (chatInputValue.trim()) {
-                    e.currentTarget.style.backgroundColor = '#005440';
-                  }
+                  e.currentTarget.style.backgroundColor = '#005440';
                 }}
               >
                 Ask

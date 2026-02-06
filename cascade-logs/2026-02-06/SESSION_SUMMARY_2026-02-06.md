@@ -307,19 +307,45 @@ None currently - system is fully functional
 ## 🔮 **Next Steps**
 
 ### Immediate Tasks (Today/Tomorrow)
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
+- [ ] Sync chat and corpora matrix
+- [ ] Continue UI polish across admin pages
 
 ### Short-term (This Week)
-- [ ] Feature to implement
-- [ ] Bug to fix
-- [ ] Improvement to make
+- [ ] Default group & corpus for zero-access users (see recommendation below)
+
+### 🔶 Recommendation: Default Group & Corpus for Zero-Access Users (DEFERRED)
+
+**Problem:** 5 out of 13 active chatbot users (robert, kpatel, mfernandez, jmori, tpham) have no group membership and therefore zero corpus access. If they log in, they see all corpora grayed out with lock icons — a dead-end experience.
+
+**Current State (Feb 6, 2026):**
+
+| Users | Group | Corpus Access |
+|-------|-------|--------------|
+| alice, hector, jchen | admin-group | hacker-books, management, recipes, semantic-web |
+| amuller, coreilly | content-manager-group | management |
+| *(none)* | contributor-group | design |
+| *(none)* | viewer-group | ai-books, design |
+| **robert, kpatel, mfernandez, jmori, tpham** | **NO GROUP** | **NO ACCESS** |
+
+**Recommended Solution:**
+1. **Create a `default-chatbot-users` group** — the create-user form already references this name with an "Add to default-chatbot-users group" checkbox
+2. **Grant it `query` access to at least one general-purpose corpus** (e.g., `ai-books`) — minimal, safe, read-only
+3. **Assign the 5 orphaned users** to this group so they immediately have baseline access
+4. **Ensure all future users** are auto-assigned to this group on creation (checkbox already exists)
+
+**Benefits:**
+- No user ever hits a zero-access dead end
+- Admins can still restrict access by removing users from the default group
+- Default group has minimal access (one corpus, `query` only) — safe and non-disruptive
+
+**Alternative:** Show a friendly "No corpora available — contact your administrator" message for users with zero access (can be combined with the default group approach).
+
+**Status:** DEFERRED — to be implemented in a future session.
 
 ### Future Enhancements
-- Idea 1
-- Idea 2
-- Idea 3
+- Corpus sync between chat UI and admin matrix
+- Friendly empty-state message for zero-access users
+- Bulk user group assignment
 
 ---
 
