@@ -52,13 +52,18 @@ class CorpusRepository:
     
     @staticmethod
     def get_all(active_only: bool = True) -> List[Dict]:
-        """Get all corpora."""
+        """Get all corpora with document counts from metadata."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            query = """
+                SELECT c.*, COALESCE(cm.document_count, 0) as document_count
+                FROM corpora c
+                LEFT JOIN corpus_metadata cm ON c.id = cm.corpus_id
+            """
             if active_only:
-                cursor.execute("SELECT * FROM corpora WHERE is_active = TRUE ORDER BY display_name")
-            else:
-                cursor.execute("SELECT * FROM corpora ORDER BY display_name")
+                query += " WHERE c.is_active = TRUE"
+            query += " ORDER BY c.display_name"
+            cursor.execute(query)
             return [dict(row) for row in cursor.fetchall()]
     
     @staticmethod
@@ -119,16 +124,17 @@ class CorpusRepository:
     
     @staticmethod
     def get_user_corpora(user_id: int, active_only: bool = True) -> List[Dict]:
-        """Get all corpora a user has access to (through their chatbot groups)."""
+        """Get all corpora a user has access to (through their chatbot groups) with document counts."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
             query = """
-                SELECT DISTINCT c.*, cca.permission
+                SELECT DISTINCT c.*, cca.permission, COALESCE(cm.document_count, 0) as document_count
                 FROM corpora c
                 JOIN chatbot_corpus_access cca ON c.id = cca.corpus_id
                 JOIN chatbot_user_groups cug ON cca.chatbot_group_id = cug.chatbot_group_id
                 JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id
                 JOIN users u ON cu.username = u.username
+                LEFT JOIN corpus_metadata cm ON c.id = cm.corpus_id
                 WHERE u.id = %s
             """
             if active_only:
