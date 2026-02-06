@@ -364,6 +364,43 @@ async def delete_chatbot_user(
             return {"status": "success", "message": "Chatbot user deactivated"}
 
 
+@router.delete("/users/{user_id}/permanent")
+async def permanently_delete_chatbot_user(
+    user_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Permanently delete a chatbot user. User must be inactive first."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # Verify user exists and is inactive
+            cur.execute(
+                "SELECT id, username, is_active FROM chatbot_users WHERE id = %s",
+                (user_id,)
+            )
+            user = cur.fetchone()
+
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Chatbot user not found"
+                )
+
+            if user['is_active']:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete an active user. Deactivate the user first."
+                )
+
+            username = user['username']
+
+            # Delete user (chatbot_user_groups will cascade automatically)
+            cur.execute("DELETE FROM chatbot_users WHERE id = %s", (user_id,))
+            conn.commit()
+
+            logger.info(f"Chatbot user '{username}' (id={user_id}) permanently deleted by {current_user.get('username', 'unknown')}")
+            return {"status": "success", "message": f"Chatbot user '{username}' permanently deleted"}
+
+
 @router.post("/users/{user_id}/groups/{group_id}")
 async def assign_chatbot_user_to_group(
     user_id: int,

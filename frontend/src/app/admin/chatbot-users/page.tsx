@@ -168,7 +168,7 @@ export default function ChatbotUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeactivateUser = async (userId: number) => {
     if (!confirm('Are you sure you want to deactivate this user?')) return;
 
     try {
@@ -183,6 +183,33 @@ export default function ChatbotUsersPage() {
       await loadData();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to deactivate user');
+    }
+  };
+
+  const handlePermanentDeleteUser = async (userId: number, username: string) => {
+    const confirmed = prompt(
+      `This will PERMANENTLY delete user "${username}" and all their group memberships.\n\nThis action cannot be undone.\n\nType the username to confirm:`
+    );
+    if (confirmed !== username) {
+      if (confirmed !== null) alert('Username did not match. Deletion cancelled.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/${userId}/permanent`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete user');
+      }
+      await loadData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete user');
     }
   };
 
@@ -366,7 +393,11 @@ export default function ChatbotUsersPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button onClick={() => openGroupDialog(user)} className="text-amber-600 hover:text-amber-800 mr-3">Groups</button>
                     <button onClick={() => openEditDialog(user)} className="text-slate-600 hover:text-slate-800 mr-3">Edit</button>
-                    <button onClick={() => handleDeleteUser(user.id)} className="text-rose-600 hover:text-rose-800">Deactivate</button>
+                    {user.is_active ? (
+                      <button onClick={() => handleDeactivateUser(user.id)} className="text-rose-600 hover:text-rose-800">Deactivate</button>
+                    ) : (
+                      <button onClick={() => handlePermanentDeleteUser(user.id, user.username)} className="text-red-700 hover:text-red-900 font-semibold">Delete</button>
+                    )}
                   </td>
                 </tr>
               ))
