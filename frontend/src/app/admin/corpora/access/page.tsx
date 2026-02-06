@@ -69,6 +69,12 @@ export default function CorporaGroupAccessPage() {
     return access.some(a => a.corpus_id === corpusId && a.group_name === groupName);
   };
 
+  // Calculate statistics
+  const activeCorpora = corpora.filter(c => c.is_active).length;
+  const groupsCount = targetGroups.length;
+  const totalPermissions = access.length;
+  const possibleCombinations = corpora.length * targetGroups.length;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -90,6 +96,29 @@ export default function CorporaGroupAccessPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Corpora to Group Access</h1>
         <p className="text-gray-600">View corpus access permissions across chatbot groups</p>
+      </div>
+
+      {/* Access Summary */}
+      <div className="mb-6 bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Access Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="text-center">
+            <div className="text-4xl font-bold text-blue-600 mb-2">{activeCorpora}</div>
+            <div className="text-sm text-gray-600">Active Corpora</div>
+          </div>
+          <div className="text-center">
+            <div className="text-4xl font-bold text-purple-600 mb-2">{groupsCount}</div>
+            <div className="text-sm text-gray-600">Groups</div>
+          </div>
+          <div className="text-center">
+            <div className="text-4xl font-bold text-emerald-600 mb-2">{totalPermissions}</div>
+            <div className="text-sm text-gray-600">Total Permissions</div>
+          </div>
+          <div className="text-center">
+            <div className="text-4xl font-bold text-orange-600 mb-2">{possibleCombinations}</div>
+            <div className="text-sm text-gray-600">Possible Combinations</div>
+          </div>
+        </div>
       </div>
 
       {/* Legend */}
