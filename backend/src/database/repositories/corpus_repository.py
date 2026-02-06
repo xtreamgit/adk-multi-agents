@@ -119,15 +119,17 @@ class CorpusRepository:
     
     @staticmethod
     def get_user_corpora(user_id: int, active_only: bool = True) -> List[Dict]:
-        """Get all corpora a user has access to (through their groups)."""
+        """Get all corpora a user has access to (through their chatbot groups)."""
         with get_db_connection() as conn:
             cursor = conn.cursor()
             query = """
-                SELECT DISTINCT c.*, gca.permission
+                SELECT DISTINCT c.*, cca.permission
                 FROM corpora c
-                JOIN group_corpus_access gca ON c.id = gca.corpus_id
-                JOIN user_groups ug ON gca.group_id = ug.group_id
-                WHERE ug.user_id = %s
+                JOIN chatbot_corpus_access cca ON c.id = cca.corpus_id
+                JOIN chatbot_user_groups cug ON cca.chatbot_group_id = cug.chatbot_group_id
+                JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id
+                JOIN users u ON cu.username = u.username
+                WHERE u.id = %s
             """
             if active_only:
                 query += " AND c.is_active = TRUE"
@@ -140,20 +142,21 @@ class CorpusRepository:
     def check_user_access(user_id: int, corpus_id: int) -> Optional[str]:
         """
         Check if user has access to a corpus and return permission level.
-        Returns permission string ('read', 'write', 'admin') or None.
+        Returns permission string ('query', 'admin') or None.
         """
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT gca.permission
-                FROM group_corpus_access gca
-                JOIN user_groups ug ON gca.group_id = ug.group_id
-                WHERE ug.user_id = %s AND gca.corpus_id = %s
+                SELECT cca.permission
+                FROM chatbot_corpus_access cca
+                JOIN chatbot_user_groups cug ON cca.chatbot_group_id = cug.chatbot_group_id
+                JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id
+                JOIN users u ON cu.username = u.username
+                WHERE u.id = %s AND cca.corpus_id = %s
                 ORDER BY 
-                    CASE gca.permission 
+                    CASE cca.permission 
                         WHEN 'admin' THEN 1 
-                        WHEN 'write' THEN 2 
-                        WHEN 'read' THEN 3 
+                        WHEN 'query' THEN 2 
                     END
                 LIMIT 1
             """, (user_id, corpus_id))
