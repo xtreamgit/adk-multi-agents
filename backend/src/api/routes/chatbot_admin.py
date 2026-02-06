@@ -397,7 +397,7 @@ async def permanently_delete_chatbot_user(
             cur.execute("DELETE FROM chatbot_users WHERE id = %s", (user_id,))
             conn.commit()
 
-            logger.info(f"Chatbot user '{username}' (id={user_id}) permanently deleted by {current_user.get('username', 'unknown')}")
+            logger.info(f"Chatbot user '{username}' (id={user_id}) permanently deleted by {getattr(current_user, 'username', 'unknown')}")
             return {"status": "success", "message": f"Chatbot user '{username}' permanently deleted"}
 
 
