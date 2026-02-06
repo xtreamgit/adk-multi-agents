@@ -207,9 +207,10 @@ export default function ChatbotUsersPage() {
         const error = await response.json();
         throw new Error(error.detail || 'Failed to delete user');
       }
-      await loadData();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete user');
+    } finally {
+      await loadData();
     }
   };
 
