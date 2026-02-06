@@ -196,6 +196,13 @@ export default function AdminLayout({
               >
                 Audit Log
               </MenuItem>
+              <MenuItem
+                icon={<span>🔗</span>}
+                active={isActive('/admin/corpora/access')}
+                onClick={() => handleMenuClick('/admin/corpora/access')}
+              >
+                Group Access Matrix
+              </MenuItem>
             </SubMenu>
 
             {/* Application Management SubMenu */}
