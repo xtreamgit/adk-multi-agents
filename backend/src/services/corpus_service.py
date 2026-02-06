@@ -289,18 +289,14 @@ class CorpusService:
                 user_corpus = next((c for c in user_corpora if c['id'] == corpus_id), None)
                 permission = user_corpus.get('permission') if user_corpus else None
             
-            # Fetch document count from Vertex AI
-            doc_count = CorpusService._get_document_count(
-                corpus_data.get('name', ''),
-                corpus_data.get('vertex_corpus_id')
-            )
+            # document_count is already in corpus_data from the repository query
+            # No need to fetch from Vertex AI
             
             corpus = CorpusWithAccess(
                 **{k: v for k, v in corpus_data.items() if k != 'permission'},
                 has_access=has_access,
                 permission=permission,
-                is_active_in_session=False,
-                document_count=doc_count
+                is_active_in_session=False
             )
             corpora.append(corpus)
         
