@@ -189,7 +189,7 @@ export default function ChatbotGroupsPage() {
             {groups.length === 0 ? (
               <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No groups yet.</td></tr>
             ) : groups.map((group) => (
-              <tr key={group.id} className="hover:bg-gray-50">
+              <tr key={group.id} className="hover:bg-gray-300 even:bg-gray-200">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{group.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-500">{group.description || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{group.user_count}</td>

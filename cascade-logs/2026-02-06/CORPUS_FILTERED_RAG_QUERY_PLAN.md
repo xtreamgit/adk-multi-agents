@@ -257,8 +257,28 @@ users → chatbot_users (linked by username)
 
 ---
 
-## Decisions Pending
+## Decisions Made (Feb 6, 2026)
 
-1. **Phase 2 approach** — Keep agent-tool approach (LLM decides) vs. server-side retrieval (deterministic)?
-2. **Default behavior** (Step 4) — When no corpora selected: query all accessible, require selection, or restore last session?
-3. **Implementation priority** — Phase 1 (security) first, or full deterministic pipeline?
+1. **Phase 2 approach** — **LLM decides which tool to call** (keep agent-tool approach). The server validates access but the LLM still orchestrates tool calls.
+2. **Default behavior** (Step 4) — **Require at least one corpus selection**. If no corpora are selected, the request is rejected with a clear error message.
+3. **Implementation priority** — **Phase 1 (security validation) first**.
+
+---
+
+## Implementation Log
+
+### Phase 1: IMPLEMENTED ✅ (Feb 6, 2026)
+
+**Backend — `server.py` chat endpoint:**
+- Added `CorpusRepository.get_user_corpora(user_id)` call to fetch user's accessible corpora
+- Intersects requested corpora with accessible set → `validated_corpora`
+- Logs warning for unauthorized corpus access attempts
+- Returns HTTP 400 if no corpora selected
+- Returns HTTP 403 if all requested corpora are unauthorized
+- Only passes `validated_corpora` to the LLM instruction
+
+**Frontend — `ChatInterface.tsx`:**
+- Added `noCorporaSelected` guard that prevents form submission
+- Send button is disabled when no corpora are selected
+- Amber warning text replaces "Press Enter to send" hint when no corpora selected
+- Error message displayed if user somehow bypasses the guard

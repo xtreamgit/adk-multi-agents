@@ -110,9 +110,17 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
     }
   }, [initialMessage, hasProcessedInitialMessage, onInputChange, shouldAutoSubmitInitial]);
 
+  const noCorporaSelected = !selectedCorpora || selectedCorpora.length === 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentInputValue.trim() || isLoading) return;
+
+    // Require at least one corpus to be selected
+    if (noCorporaSelected) {
+      setError('Please select at least one corpus before sending a message.');
+      return;
+    }
 
     const userMessage: Message = { 
       text: currentInputValue, 
@@ -289,7 +297,7 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
           </div>
           <button
             type="submit"
-            disabled={isLoading || !currentInputValue.trim()}
+            disabled={isLoading || !currentInputValue.trim() || noCorporaSelected}
             className="px-6 py-3 text-white rounded-lg focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-2"
             style={{
               backgroundColor: '#005440',
@@ -297,12 +305,12 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
               ...(isLoading || !currentInputValue.trim() ? {} : { ':hover': { backgroundColor: '#004030' } })
             }}
             onMouseEnter={(e) => {
-              if (!isLoading && currentInputValue.trim()) {
+              if (!isLoading && currentInputValue.trim() && !noCorporaSelected) {
                 e.currentTarget.style.backgroundColor = '#004030';
               }
             }}
             onMouseLeave={(e) => {
-              if (!isLoading && currentInputValue.trim()) {
+              if (!isLoading && currentInputValue.trim() && !noCorporaSelected) {
                 e.currentTarget.style.backgroundColor = '#005440';
               }
             }}
@@ -310,9 +318,15 @@ export default function ChatInterface({ userProfile, onUpdateProfile, inputValue
             Send
           </button>
         </form>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          Press Enter to send, Shift+Enter for new line
-        </p>
+        {noCorporaSelected ? (
+          <p className="text-xs text-amber-600 mt-2 font-medium">
+            Please select at least one corpus from the sidebar to start chatting.
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Press Enter to send, Shift+Enter for new line
+          </p>
+        )}
       </footer>
     </div>
   );

@@ -3,6 +3,27 @@
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar, Menu, MenuItem, SubMenu } from 'react-pro-sidebar';
+import { 
+  Users, 
+  UserCog, 
+  Shield, 
+  Database, 
+  Settings, 
+  BarChart3, 
+  FileText, 
+  Lock, 
+  Bot,
+  Layers,
+  ClipboardList,
+  Plug,
+  MessageSquare,
+  FileSearch,
+  ArrowLeft
+} from 'lucide-react';
+
+// Brand green color
+const BRAND_GREEN = 'rgb(0,84,64)';
+const ICON_SIZE = 20;
 
 export default function AdminLayout({
   children,
@@ -112,7 +133,7 @@ export default function AdminLayout({
           >
             {/* Chatbot Access SubMenu */}
             <SubMenu
-              icon={<span className="text-xl">💬</span>}
+              icon={<MessageSquare size={ICON_SIZE} color={BRAND_GREEN} />}
               label="Chatbot Access"
               open={chatbotMenuOpen}
               onOpenChange={(open) => setChatbotMenuOpen(open)}
@@ -125,35 +146,35 @@ export default function AdminLayout({
               }}
             >
               <MenuItem
-                icon={<span>👤</span>}
+                icon={<Users size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/chatbot-users')}
                 onClick={() => handleMenuClick('/admin/chatbot-users')}
               >
                 Chatbot Users
               </MenuItem>
               <MenuItem
-                icon={<span>👥</span>}
+                icon={<UserCog size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/chatbot-groups')}
                 onClick={() => handleMenuClick('/admin/chatbot-groups')}
               >
                 Chatbot Groups
               </MenuItem>
               <MenuItem
-                icon={<span>🎭</span>}
+                icon={<Bot size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/agents')}
                 onClick={() => handleMenuClick('/admin/agents')}
               >
                 Agents
               </MenuItem>
               <MenuItem
-                icon={<span>📚</span>}
+                icon={<Database size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/chatbot-corpora')}
                 onClick={() => handleMenuClick('/admin/chatbot-corpora')}
               >
                 Corpora Access
               </MenuItem>
               <MenuItem
-                icon={<span>🤖</span>}
+                icon={<Shield size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/chatbot-agents')}
                 onClick={() => handleMenuClick('/admin/chatbot-agents')}
               >
@@ -163,7 +184,7 @@ export default function AdminLayout({
 
             {/* Corpora with SubMenu */}
             <SubMenu
-              icon={<span className="text-xl">📚</span>}
+              icon={<Database size={ICON_SIZE} color={BRAND_GREEN} />}
               label="Corpora"
               open={corporaMenuOpen}
               onOpenChange={(open) => setCorporaMenuOpen(open)}
@@ -176,21 +197,21 @@ export default function AdminLayout({
               }}
             >
               <MenuItem
-                icon={<span>💎</span>}
+                icon={<Layers size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={pathname === '/admin/corpora'}
                 onClick={() => handleMenuClick('/admin/corpora')}
               >
                 Corpus Management
               </MenuItem>
               <MenuItem
-                icon={<span>📋</span>}
+                icon={<FileText size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/corpora/audit')}
                 onClick={() => handleMenuClick('/admin/corpora/audit')}
               >
                 Audit Log
               </MenuItem>
               <MenuItem
-                icon={<span>🔐</span>}
+                icon={<Lock size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/corpora/access')}
                 onClick={() => handleMenuClick('/admin/corpora/access')}
               >
@@ -200,7 +221,7 @@ export default function AdminLayout({
 
             {/* Application Management SubMenu */}
             <SubMenu
-              icon={<span className="text-xl">⚙️</span>}
+              icon={<Settings size={ICON_SIZE} color={BRAND_GREEN} />}
               label="Application Management"
               open={appManagementMenuOpen}
               onOpenChange={(open) => setAppManagementMenuOpen(open)}
@@ -213,35 +234,35 @@ export default function AdminLayout({
               }}
             >
               <MenuItem
-                icon={<span>📊</span>}
+                icon={<BarChart3 size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={pathname === '/admin'}
                 onClick={() => handleMenuClick('/admin')}
               >
                 Dashboard
               </MenuItem>
               <MenuItem
-                icon={<span>👤</span>}
+                icon={<Users size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/users')}
                 onClick={() => handleMenuClick('/admin/users')}
               >
                 Users
               </MenuItem>
               <MenuItem
-                icon={<span>🔐</span>}
+                icon={<Shield size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/groups')}
                 onClick={() => handleMenuClick('/admin/groups')}
               >
                 Groups
               </MenuItem>
               <MenuItem
-                icon={<span>📋</span>}
+                icon={<ClipboardList size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/audit')}
                 onClick={() => handleMenuClick('/admin/audit')}
               >
                 System Audit Logs
               </MenuItem>
               <MenuItem
-                icon={<span>🔌</span>}
+                icon={<Plug size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/sessions')}
                 onClick={() => handleMenuClick('/admin/sessions')}
               >
@@ -256,14 +277,14 @@ export default function AdminLayout({
               onClick={() => handleMenuClick('/open-document')}
               className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors mb-2"
             >
-              <span className="text-2xl">📄</span>
+              <FileSearch size={ICON_SIZE} color={BRAND_GREEN} />
               <span className="text-base font-normal">Open Document</span>
             </button>
             <button
               onClick={() => handleMenuClick('/')}
               className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
             >
-              <span className="text-2xl">←</span>
+              <ArrowLeft size={ICON_SIZE} color={BRAND_GREEN} />
               <span className="text-base font-normal">Back to App</span>
             </button>
           </div>

@@ -878,26 +878,53 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
             user_context += f"Preferences: {chat_message.user_profile.preferences}\n"
         user_context += "\n\n"
     
-    # Add corpus context if corpora are specified
-    print(f"\n{'='*60}")
-    print(f"[CORPUS DEBUG] Received corpora from frontend: {chat_message.corpora}")
-    print(f"[CORPUS DEBUG] Corpora is None: {chat_message.corpora is None}")
-    print(f"[CORPUS DEBUG] Corpora length: {len(chat_message.corpora) if chat_message.corpora else 0}")
-    print(f"{'='*60}\n")
+    # ========== Corpus Access Validation ==========
+    # Validate that the user has access to the requested corpora (server-side enforcement)
+    from database.repositories.corpus_repository import CorpusRepository
     
-    if chat_message.corpora and len(chat_message.corpora) > 0:
-        corpus_list = ", ".join(chat_message.corpora)
-        logging.info(f"[CORPUS DEBUG] User selected {len(chat_message.corpora)} corpora: {corpus_list}")
-        user_context += f"\n{'='*80}\n"
-        user_context += f"CRITICAL INSTRUCTION - READ THIS CAREFULLY:\n"
-        user_context += f"The user has selected {len(chat_message.corpora)} corpora: {corpus_list}\n"
-        user_context += f"You MUST use rag_multi_query with corpus_names={chat_message.corpora}\n"
-        user_context += f"DO NOT use rag_query. DO NOT search only 'ai-books'.\n"
-        user_context += f"Search ALL {len(chat_message.corpora)} corpora simultaneously.\n"
-        user_context += f"{'='*80}\n\n"
-    else:
-        logging.info("[CORPUS DEBUG] No corpora specified in request")
-        print("[CORPUS DEBUG WARNING] No corpora received - will use default behavior")
+    requested_corpora = chat_message.corpora or []
+    logging.info(f"[CORPUS] Received corpora from frontend: {requested_corpora}")
+    
+    # Require at least one corpus to be selected
+    if not requested_corpora:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please select at least one corpus before sending a message."
+        )
+    
+    # Get the user's accessible corpora names from the database
+    user_id = current_user.id
+    accessible_corpora_rows = CorpusRepository.get_user_corpora(user_id, active_only=True)
+    accessible_corpus_names = {row['name'] for row in accessible_corpora_rows}
+    
+    # Filter requested corpora to only those the user has access to
+    validated_corpora = [c for c in requested_corpora if c in accessible_corpus_names]
+    unauthorized_corpora = [c for c in requested_corpora if c not in accessible_corpus_names]
+    
+    if unauthorized_corpora:
+        logging.warning(
+            f"[CORPUS] User {current_user.username} (id={user_id}) attempted to access "
+            f"unauthorized corpora: {unauthorized_corpora}. Allowed: {list(accessible_corpus_names)}"
+        )
+    
+    # If all requested corpora were unauthorized, reject the request
+    if not validated_corpora:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You do not have access to the selected corpora. "
+                   f"Your accessible corpora: {sorted(accessible_corpus_names)}"
+        )
+    
+    # Build corpus instruction for the LLM using only validated corpora
+    corpus_list = ", ".join(validated_corpora)
+    logging.info(f"[CORPUS] User {current_user.username} querying {len(validated_corpora)} validated corpora: {corpus_list}")
+    user_context += f"\n{'='*80}\n"
+    user_context += f"CRITICAL INSTRUCTION - READ THIS CAREFULLY:\n"
+    user_context += f"The user has selected {len(validated_corpora)} corpora: {corpus_list}\n"
+    user_context += f"You MUST use rag_multi_query with corpus_names={validated_corpora}\n"
+    user_context += f"DO NOT use rag_query. DO NOT search only 'ai-books'.\n"
+    user_context += f"Search ALL {len(validated_corpora)} corpora simultaneously.\n"
+    user_context += f"{'='*80}\n\n"
     
     # Combine user context with the message
     full_message = user_context + chat_message.message

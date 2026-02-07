@@ -140,101 +140,103 @@ None currently - system is fully functional
 
 ## 🎯 **Goals for Today**
 
-- [ ] [To be defined based on user's requirements]
-- [ ] 
-- [ ]
+- [x] Plan corpus-filtered RAG query solution
+- [x] Implement Phase 1: Server-side corpus access validation
+- [x] Implement frontend enforcement (require corpus selection)
+- [x] End-to-end testing of corpus validation
 
 ---
 
 ## � **Changes Made**
 
-### Feature/Fix #1: [Title]
-**Commit:** `[commit-hash]` - "[commit message]"
+### Feature #1: Corpus-Filtered RAG Query Plan
+**Commit:** `7233a0e` - "Pre-corpus filtering: add corpus-filtered RAG query plan and UI updates"
 
 **Problem:**
-- Describe the issue or requirement
+- No server-side enforcement that users can only query corpora they have access to
+- LLM-dependent corpus routing (corpora injected as text instruction, LLM may ignore)
+- No requirement to select corpora before chatting
 
 **Solution:**
-- What was implemented
-- Technical approach
+- Created comprehensive plan document analyzing current state and proposing 5-phase solution
+- Decisions made: (1) LLM decides tool calls, (2) require corpus selection, (3) Phase 1 first
 
 **Files Changed:**
-- `path/to/file1.ext` - Description of changes
-- `path/to/file2.ext` - Description of changes
-
-**Testing:**
-- How it was tested
-- Results
+- `cascade-logs/2026-02-06/CORPUS_FILTERED_RAG_QUERY_PLAN.md` - Full implementation plan
 
 ---
 
-### Feature/Fix #2: [Title]
-**Commit:** `[commit-hash]` - "[commit message]"
+### Feature #2: Phase 1 — Server-Side Corpus Access Validation
+**Pre-commit:** `7233a0e` - Clean checkpoint before implementation
 
 **Problem:**
-- Describe the issue or requirement
+- Chat endpoint trusted whatever `corpora` list the frontend sent without validation
+- Users could craft requests with corpora they don't have access to
+- No feedback when no corpora are selected
 
 **Solution:**
-- What was implemented
-- Technical approach
+- **Backend (server.py):** Added `CorpusRepository.get_user_corpora(user_id)` validation in chat endpoint
+  - Intersects requested corpora with user's accessible set → `validated_corpora`
+  - HTTP 400 if no corpora selected
+  - HTTP 403 if all requested corpora are unauthorized
+  - Logs warnings for unauthorized access attempts
+  - Only passes validated corpora to LLM instruction
+- **Frontend (ChatInterface.tsx):** Added `noCorporaSelected` guard
+  - Send button disabled when no corpora selected
+  - Amber warning text replaces "Press Enter to send" hint
+  - Error message if user bypasses guard
 
 **Files Changed:**
-- `path/to/file1.ext` - Description of changes
-- `path/to/file2.ext` - Description of changes
-
-**Testing:**
-- How it was tested
-- Results
+- `backend/src/api/server.py` - Replaced debug corpus block with access validation (lines 881-927)
+- `frontend/src/components/ChatInterface.tsx` - Added noCorporaSelected guard, disabled button, warning text
+- `cascade-logs/2026-02-06/CORPUS_FILTERED_RAG_QUERY_PLAN.md` - Updated with decisions and implementation log
 
 ---
 
 ## 🐛 **Bugs Fixed**
 
-### Bug: [Description]
-- **Issue:** What was broken
-- **Root Cause:** Why it was broken
-- **Fix:** How it was fixed
-- **Files:** `path/to/file.ext`
-- **Commit:** `[hash]`
+No bugs fixed today — new feature implementation only.
 
 ---
 
 ## 📊 **Technical Details**
 
 ### Backend Changes
-- List significant backend modifications
-- API endpoint changes
-- Database schema updates
-- Service/logic changes
+- `server.py` chat endpoint: Replaced debug corpus logging with server-side access validation
+- Uses existing `CorpusRepository.get_user_corpora()` — no new DB queries needed
+- Three response paths: 400 (no corpora), 403 (all unauthorized), 200 (validated corpora passed to LLM)
 
 ### Frontend Changes
-- UI/UX improvements
-- Component modifications
-- State management updates
-- New features added
+- `ChatInterface.tsx`: Added `noCorporaSelected` computed flag
+- Send button disabled state includes corpus check
+- Conditional footer text: amber warning vs normal hint
+- Hover effects respect corpus selection state
 
 ### Database Changes
-```sql
--- Any SQL changes made
-```
+No database changes — leverages existing `chatbot_corpus_access` table and `get_user_corpora()` query.
 
 ### Configuration Changes
-- Environment variables
-- Config file updates
-- Deployment changes
+No configuration changes.
 
 ---
 
 ## 🧪 **Testing Notes**
 
-### Manual Testing
-- [ ] Feature X tested and working
-- [ ] Edge case Y verified
-- [ ] User flow Z validated
+### Manual Testing — Corpus Access Validation (All Passed ✅)
+
+**Test user:** alice (id=16)
+**Alice's access:** hacker-books, management, recipes, semantic-web
+**Alice does NOT have access to:** ai-books, design, test-corpus
+
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| 1. No corpora selected | `corpora: []` | HTTP 400 | HTTP 400 + "Please select at least one corpus" | ✅ |
+| 2. All unauthorized | `corpora: ["ai-books", "design"]` | HTTP 403 | HTTP 403 + lists accessible corpora | ✅ |
+| 3. Mixed (1 auth + 1 unauth) | `corpora: ["management", "ai-books"]` | HTTP 200, filtered | HTTP 200, warning logged, only "management" queried | ✅ |
+| 4. All authorized | `corpora: ["management", "hacker-books"]` | HTTP 200, no warnings | HTTP 200, both corpora validated | ✅ |
 
 ### Issues Found
-- Issue 1: Description
-- Issue 2: Description
+None — all 4 test scenarios passed as expected.
 
 ### Issues Fixed
 - Fix 1: Description
@@ -383,5 +385,197 @@ None currently - system is fully functional
 - Important note 2
 - Where you left off
 
+Draft Prompt:
 
+For now, since the UI is starting to look complete, I'll start planning the user access to the vectorized corpora. I'm looking to ensure that when a user has access to a set of corpora, only those documents in that corpora should be included as the references for the queries. This means that only a predetermined set of corpora/documents will participate in the answering of the query. Context: We want to provide the user of the ADK Agentic RAG application the opportunity to select any corpora to generate answers to their query. For that, we need to implement a filtering method that is reliable and consistent. What would you recommend.  To provide more context and a possible insight as to how to accomplish this, I'm pasting the responses of two queries I submitted to Cloude a few days ago. The responses breakdown how this would work with Vertex AI. What I need you to do is to review these responses and provide a solution for my request formatted in a step by step plan.   ------- Here are the responses:  Based on my expertise with Google Vertex AI, I need to clarify the architecture options for your ADK-RAG application:
+
+**Vertex AI Agent Builder supports multiple corpora simultaneously** - you don't need to re-vectorize or merge documents.
+
+Here's how it works:
+
+## Multi-Corpus Architecture
+
+**Separate Corpora Approach (Recommended):**
+- Create multiple data stores (corpora) in Vertex AI Agent Builder
+- Each corpus maintains its own vector index
+- At query time, you can search across multiple data stores in a single request
+- The Agent Builder handles the federated search and result merging automatically
+
+**Key Benefits:**
+- **No re-indexing needed** when adding new document collections
+- **Granular access control** - different corpora can have different permissions
+- **Independent update cycles** - update one corpus without affecting others
+- **Better organization** - segment by topic, department, or sensitivity level
+
+## Implementation Pattern
+
+```python
+# Example: Querying multiple data stores
+from google.cloud import discoveryengine_v1
+
+# Reference multiple data stores
+data_store_ids = [
+    "projects/{project}/locations/{location}/dataStores/corpus-1",
+    "projects/{project}/locations/{location}/dataStores/corpus-2",
+    "projects/{project}/locations/{location}/dataStores/corpus-3"
+]
+
+# Search across all corpora
+# Vertex AI handles the federated search
+```
+
+## When to Merge vs. Keep Separate
+
+**Keep separate when:**
+- Documents have different update frequencies
+- Different security/access requirements
+- User selections determine which corpora to search
+- You need corpus-level analytics
+
+**Consider merging when:**
+- All documents always searched together
+- Identical access controls
+- Cross-document semantic relationships are critical
+
+For your use case where users *expand* their research scope, **multiple corpora is the right pattern** - users can select which document collections to include in their RAG queries without any re-vectorization overhead.
+
+Does this align with your ADK-RAG architecture, or do you need specific guidance on the Vertex AI Agent Builder configuration? ------- Excellent question - this clarifies your architecture. Let me explain exactly how Vertex AI Agent Builder handles multiple corpora from separate GCS buckets:
+
+## How Vertex AI Federates Multiple Corpora
+
+**The Key Concept:** Vertex AI Agent Builder treats each GCS bucket as a separate **Data Store**, but can query them together at runtime through **federated search** - they don't become "one source," but rather multiple sources queried simultaneously.
+
+## Architecture Flow
+
+```
+GCS Bucket 1 (Tropical Plants)     GCS Bucket 2 (Rainforest Vegetation)
+         ↓                                      ↓
+   Data Store 1                           Data Store 2
+   (Vector Index 1)                       (Vector Index 2)
+         ↓                                      ↓
+         └──────────────┬───────────────────────┘
+                        ↓
+              Vertex AI Search Engine
+                   (Query Time)
+                        ↓
+              Merged Results + Citations
+```
+
+## Step-by-Step Implementation
+
+### 1. **Create Separate Data Stores**
+```python
+# Data Store 1: Tropical Plants
+data_store_1 = {
+    'display_name': 'tropical-plants-corpus',
+    'industry_vertical': 'GENERIC',
+    'content_config': 'CONTENT_REQUIRED',
+    'document_processing_config': {
+        'chunking_config': {
+            'layout_based_chunking_config': {
+                'chunk_size': 500,
+                'include_ancestor_headings': True
+            }
+        }
+    }
+}
+
+# Data Store 2: Rainforest Vegetation  
+data_store_2 = {
+    'display_name': 'rainforest-vegetation-corpus',
+    # Same config...
+}
+```
+
+### 2. **Import Documents from Each Bucket**
+```python
+# Import from GCS Bucket 1
+import_config_1 = {
+    'gcs_source': {
+        'input_uris': ['gs://tropical-plants-bucket/*.pdf']
+    }
+}
+
+# Import from GCS Bucket 2
+import_config_2 = {
+    'gcs_source': {
+        'input_uris': ['gs://rainforest-vegetation-bucket/*.pdf']
+    }
+}
+```
+
+### 3. **Create a Search Engine (App) That References Both**
+```python
+from google.cloud import discoveryengine_v1
+
+# Create search engine that queries both data stores
+search_engine_config = {
+    'display_name': 'desert-plants-research-engine',
+    'data_store_ids': [
+        'tropical-plants-corpus',
+        'rainforest-vegetation-corpus'
+    ],
+    'search_tier': 'SEARCH_TIER_ENTERPRISE',
+    'search_add_ons': ['SEARCH_ADD_ON_LLM']  # Enables RAG
+}
+```
+
+## How Vertex AI Treats Them "As One"
+
+**At Query Time:**
+
+1. **User Query:** "What adaptations do tropical plants have for water conservation?"
+
+2. **Vertex AI Process:**
+   - Converts query to vector embedding
+   - **Simultaneously searches both vector indices** (Data Store 1 & 2)
+   - Retrieves top-k chunks from each corpus based on semantic similarity
+   - **Merges and re-ranks** results across both corpora
+   - Generates RAG response using combined context
+
+3. **Response Includes:**
+   - Citations showing which corpus/document each piece came from
+   - Unified answer synthesized from both sources
+
+## Critical Points
+
+**They Are NOT Combined Into One Index:**
+- Each corpus maintains its own vector index
+- No re-vectorization when adding corpora
+- Each bucket/corpus can be updated independently
+
+**They ARE Queried Together:**
+- Single API call searches both
+- Results merged by relevance score
+- LLM receives context from both corpora
+
+**User Control:**
+```python
+# Query both corpora
+response = search_service.search(
+    serving_config="projects/.../servingConfigs/default_search",
+    query="water conservation in tropical plants"
+    # Searches both data stores automatically
+)
+
+# Or query just one if needed
+response = search_service.search(
+    serving_config="projects/.../servingConfigs/tropical-only",
+    query="...",
+    filter="data_store_id='tropical-plants-corpus'"  # Filter to one
+)
+```
+
+## For Your Desert Plants Research
+
+Even though you're researching **desert plants** using corpora about **tropical** and **rainforest** plants (perhaps for comparative analysis?), Vertex AI will:
+
+1. Search both GCS buckets simultaneously
+2. Return relevant chunks from both
+3. Cite sources from each corpus
+4. Generate comparative insights if the LLM finds relevant patterns
+
+**You never merge the buckets or re-vectorize** - Vertex AI's federated search handles the multi-corpus querying transparently.
+
+Does this clarify the architecture? Would you like guidance on the actual API calls or App configuration in the Vertex AI console?
 
