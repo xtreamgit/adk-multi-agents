@@ -55,7 +55,7 @@ export default function CorpusManagementPage() {
     try {
       setSyncing(true);
       setError(null);
-      const result = await apiClient.admin_syncCorpora();
+      const result = await apiClient.admin_syncCorpora() as { message: string };
       await loadCorpora();
       alert(`Sync complete: ${result.message}`);
     } catch (err) {
