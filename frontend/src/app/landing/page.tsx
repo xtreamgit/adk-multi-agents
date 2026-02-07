@@ -10,17 +10,25 @@ export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if already authenticated
+  // Check if already authenticated (Bearer token or IAP)
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // First check existing Bearer token
         if (apiClient.isAuthenticated()) {
           const userData = await apiClient.verifyToken();
           if (userData && userData.username !== 'guest') {
-            // Redirect authenticated users to main app
             router.push('/');
             return;
           }
+        }
+        
+        // Then try IAP authentication (behind load balancer)
+        const iapUser = await apiClient.checkIapAuth();
+        if (iapUser) {
+          console.log('✅ IAP authenticated:', iapUser.email);
+          router.push('/');
+          return;
         }
       } catch (error) {
         console.error('Auth check failed:', error);

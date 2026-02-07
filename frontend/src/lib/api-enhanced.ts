@@ -125,6 +125,7 @@ class EnhancedApiClient {
   private sessionId: string | null = null;
   private currentUser: User | null = null;
   private baseUrl: string;
+  private iapAuthenticated: boolean = false;
 
   constructor() {
     // Use relative URLs when behind load balancer (production), localhost for development
@@ -172,6 +173,7 @@ class EnhancedApiClient {
 
   public clearToken(): void {
     this.token = null;
+    this.iapAuthenticated = false;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('current_user');
@@ -186,7 +188,37 @@ class EnhancedApiClient {
   }
 
   isAuthenticated(): boolean {
-    return !!this.token;
+    return !!this.token || this.iapAuthenticated;
+  }
+
+  isIapAuthenticated(): boolean {
+    return this.iapAuthenticated;
+  }
+
+  /**
+   * Check if the user is authenticated via IAP (Identity-Aware Proxy).
+   * When behind IAP, the load balancer injects authentication headers
+   * automatically — no Bearer token needed.
+   * Returns the user if IAP auth succeeds, null otherwise.
+   */
+  async checkIapAuth(): Promise<User | null> {
+    try {
+      const response = await fetch(this.buildUrl('/api/users/me'), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const user: User = await response.json();
+        this.iapAuthenticated = true;
+        this.setCurrentUser(user);
+        return user;
+      }
+    } catch (error) {
+      console.debug('IAP auth check failed (expected in local dev):', error);
+    }
+    return null;
   }
 
   getCurrentUser(): User | null {

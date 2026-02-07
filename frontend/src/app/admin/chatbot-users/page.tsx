@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAuthHeaders, getAuthHeadersOnly } from '../../../lib/auth-headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
@@ -76,9 +77,7 @@ export default function ChatbotUsersPage() {
 
   const fetchChatbotUsers = async () => {
     const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-      },
+      headers: getAuthHeadersOnly(),
     });
     if (!response.ok) throw new Error('Failed to fetch chatbot users');
     return response.json();
@@ -86,9 +85,7 @@ export default function ChatbotUsersPage() {
 
   const fetchChatbotGroups = async () => {
     const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-      },
+      headers: getAuthHeadersOnly(),
     });
     if (!response.ok) throw new Error('Failed to fetch chatbot groups');
     return response.json();
@@ -104,10 +101,7 @@ export default function ChatbotUsersPage() {
       // Create user
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           username: createForm.username,
           email: createForm.email,
@@ -130,7 +124,7 @@ export default function ChatbotUsersPage() {
         if (defaultGroup) {
           await fetch(`${BACKEND_URL}/api/admin/chatbot/users/${newUser.id}/groups/${defaultGroup.id}`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+            headers: getAuthHeadersOnly(),
           });
         }
       }
@@ -149,10 +143,7 @@ export default function ChatbotUsersPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/${selectedUser.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(editForm),
       });
 
@@ -175,9 +166,7 @@ export default function ChatbotUsersPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/${userId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        headers: getAuthHeadersOnly(),
       });
 
       if (!response.ok) throw new Error('Failed to deactivate user');
@@ -199,9 +188,7 @@ export default function ChatbotUsersPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/${userId}/permanent`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        headers: getAuthHeadersOnly(),
       });
 
       if (!response.ok) {
@@ -236,10 +223,7 @@ export default function ChatbotUsersPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/bulk-delete`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ user_ids: inactiveSelected.map(u => u.id) }),
       });
 
@@ -281,9 +265,7 @@ export default function ChatbotUsersPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/${selectedUser.id}/groups/${groupId}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        headers: getAuthHeadersOnly(),
       });
 
       if (!response.ok) throw new Error('Failed to assign group');
@@ -306,9 +288,7 @@ export default function ChatbotUsersPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/users/${selectedUser.id}/groups/${groupId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
+        headers: getAuthHeadersOnly(),
       });
 
       if (!response.ok) throw new Error('Failed to remove group');

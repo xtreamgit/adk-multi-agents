@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAuthHeaders, getAuthHeadersOnly } from '../../../../lib/auth-headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
@@ -47,13 +48,13 @@ export default function CorporaGroupAccessPage() {
       setLoading(true);
       const [corporaData, groupsData, accessData] = await Promise.all([
         fetch(`${BACKEND_URL}/api/admin/chatbot/available-corpora`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          headers: getAuthHeadersOnly()
         }).then(r => r.json()),
         fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          headers: getAuthHeadersOnly()
         }).then(r => r.json()),
         fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          headers: getAuthHeadersOnly()
         }).then(r => r.json()),
       ]);
       setCorpora(corporaData);
@@ -84,24 +85,21 @@ export default function CorporaGroupAccessPage() {
         // Revoke access
         const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access/${groupId}/${corpusId}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          headers: getAuthHeadersOnly()
         });
         
         if (!response.ok) throw new Error('Failed to revoke access');
         
         // Update state without full page reload
         const updatedAccess = await fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          headers: getAuthHeadersOnly()
         }).then(r => r.json());
         setAccess(updatedAccess);
       } else {
         // Grant access
         const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            'Content-Type': 'application/json'
-          },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             chatbot_group_id: groupId,
             corpus_id: corpusId,
@@ -113,7 +111,7 @@ export default function CorporaGroupAccessPage() {
         
         // Update state without full page reload
         const updatedAccess = await fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          headers: getAuthHeadersOnly()
         }).then(r => r.json());
         setAccess(updatedAccess);
       }

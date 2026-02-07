@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAuthHeaders, getAuthHeadersOnly } from '../../../lib/auth-headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
@@ -26,9 +27,9 @@ export default function ChatbotCorporaPage() {
     try {
       setLoading(true);
       const [corporaData, groupsData, accessData] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/admin/chatbot/available-corpora`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` } }).then(r => r.json()),
-        fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` } }).then(r => r.json()),
-        fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` } }).then(r => r.json()),
+        fetch(`${BACKEND_URL}/api/admin/chatbot/available-corpora`, { headers: getAuthHeadersOnly() }).then(r => r.json()),
+        fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, { headers: getAuthHeadersOnly() }).then(r => r.json()),
+        fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, { headers: getAuthHeadersOnly() }).then(r => r.json()),
       ]);
       setCorpora(corporaData);
       setGroups(groupsData);
@@ -45,7 +46,7 @@ export default function ChatbotCorporaPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ chatbot_group_id: grantForm.chatbot_group_id, corpus_id: selectedCorpus.id, permission: grantForm.permission }),
       });
       setShowGrantDialog(false);
@@ -58,7 +59,7 @@ export default function ChatbotCorporaPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/corpus-access/${groupId}/${corpusId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeadersOnly(),
       });
       await loadData();
     } catch { alert('Failed'); }

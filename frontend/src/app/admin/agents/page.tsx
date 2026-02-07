@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAuthHeaders, getAuthHeadersOnly } from '../../../lib/auth-headers';
 import { useAgentPermissions } from '@/hooks/useAgentPermissions';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
@@ -43,8 +44,8 @@ export default function ChatbotRolesPage() {
     try {
       setLoading(true);
       const [rolesData, permsData] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/admin/chatbot/roles`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` } }).then(r => r.json()),
-        fetch(`${BACKEND_URL}/api/admin/chatbot/permissions`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` } }).then(r => r.json()),
+        fetch(`${BACKEND_URL}/api/admin/chatbot/roles`, { headers: getAuthHeadersOnly() }).then(r => r.json()),
+        fetch(`${BACKEND_URL}/api/admin/chatbot/permissions`, { headers: getAuthHeadersOnly() }).then(r => r.json()),
       ]);
       setRoles(rolesData);
       setAllPermissions(permsData);
@@ -60,7 +61,7 @@ export default function ChatbotRolesPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/roles`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeaders(),
         body: JSON.stringify(createForm),
       });
       setShowCreateDialog(false);
@@ -74,7 +75,7 @@ export default function ChatbotRolesPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/roles/${selectedRole.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeaders(),
         body: JSON.stringify(editForm),
       });
       setShowEditDialog(false);
@@ -87,7 +88,7 @@ export default function ChatbotRolesPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/roles/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeadersOnly(),
       });
       await loadData();
     } catch { alert('Failed to delete'); }
@@ -98,7 +99,7 @@ export default function ChatbotRolesPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/roles/${selectedRole.id}/permissions/${permId}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeadersOnly(),
       });
       await loadData();
       setSelectedRole(roles.find(r => r.id === selectedRole.id) || null);
@@ -110,7 +111,7 @@ export default function ChatbotRolesPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/roles/${selectedRole.id}/permissions/${permId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeadersOnly(),
       });
       await loadData();
     } catch { alert('Failed'); }
