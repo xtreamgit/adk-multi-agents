@@ -245,6 +245,7 @@ export default function EmeraldRetriever() {
             documents={documents}
             selectedDocumentId={selectedDocument?.file_id || null}
             onSelectDocument={handleSelectDocument}
+            onOpenDocument={() => handleOpenDocument()}
             loading={loadingDocuments}
           />
 

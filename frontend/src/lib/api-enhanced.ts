@@ -140,7 +140,7 @@ class EnhancedApiClient {
         try {
           this.currentUser = JSON.parse(userStr);
         } catch (_e) {
-          console.error('Failed to parse stored user:', e);
+          console.error('Failed to parse stored user:', _e);
         }
       }
     }
@@ -238,7 +238,7 @@ class EnhancedApiClient {
       const error = await response.json();
       // Handle FastAPI validation errors (422) which return an array
       if (Array.isArray(error.detail)) {
-        const messages = error.detail.map((err: unknown) => err.msg).join(', ');
+        const messages = error.detail.map((err: Record<string, string>) => err.msg).join(', ');
         throw new Error(messages || 'Registration failed');
       }
       throw new Error(error.detail || 'Registration failed');
@@ -1034,7 +1034,7 @@ class EnhancedApiClient {
           errorMessage = error.detail;
         } else if (Array.isArray(error.detail)) {
           // Pydantic validation errors are arrays
-          errorMessage = `Validation error: ${error.detail.map((e: unknown) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+          errorMessage = `Validation error: ${error.detail.map((e: Record<string, string | string[]>) => `${Array.isArray(e.loc) ? e.loc.join('.') : ''} - ${e.msg}`).join(', ')}`;
         } else if (typeof error.detail === 'object') {
           errorMessage = `Failed to create user: ${JSON.stringify(error.detail)}`;
         } else {
@@ -1070,7 +1070,7 @@ class EnhancedApiClient {
           errorMessage = error.detail;
         } else if (Array.isArray(error.detail)) {
           // Pydantic validation errors are arrays
-          errorMessage = `Validation error: ${error.detail.map((e: unknown) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+          errorMessage = `Validation error: ${error.detail.map((e: Record<string, string | string[]>) => `${Array.isArray(e.loc) ? e.loc.join('.') : ''} - ${e.msg}`).join(', ')}`;
         } else if (typeof error.detail === 'object') {
           errorMessage = `Failed to update user: ${JSON.stringify(error.detail)}`;
         } else {
