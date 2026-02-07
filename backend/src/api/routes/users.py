@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from services.user_service import UserService
 from services.agent_service import AgentService
 from models.user import User, UserUpdate, UserProfile, UserProfileUpdate, UserWithProfile
-from middleware.auth_middleware import get_current_user
+from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
 
 logger = logging.getLogger(__name__)
 

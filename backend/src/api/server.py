@@ -40,7 +40,7 @@ if backend_src not in sys.path:
     sys.path.insert(0, backend_src)
 
 # Now import after sys.path is set
-from middleware.auth_middleware import get_current_user as get_current_user_from_middleware
+from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user_from_middleware
 
 # Import agent manager for dynamic agent loading (after path setup)
 try:

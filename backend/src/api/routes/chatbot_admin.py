@@ -12,7 +12,7 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 
-from middleware.auth_middleware import get_current_user
+from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
 from database.connection import get_db_connection
 from services.agent_hierarchy import (
     get_agent_type_hierarchy_list,

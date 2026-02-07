@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, status
 
 from services.group_service import GroupService
 from models.user import User
-from middleware.auth_middleware import get_current_user
+from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
 
 logger = logging.getLogger(__name__)
 

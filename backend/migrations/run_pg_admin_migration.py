@@ -10,7 +10,7 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src'))
 
-from database.connection import get_db_connection, DB_TYPE
+from database.connection import get_db_connection
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -18,10 +18,6 @@ logger = logging.getLogger(__name__)
 
 def run_admin_tables_migration():
     """Create admin tables if they don't exist."""
-    
-    if DB_TYPE != 'postgresql':
-        logger.info("Skipping PostgreSQL admin tables migration (not using PostgreSQL)")
-        return
     
     migration_sql = """
     -- Audit log for all corpus changes

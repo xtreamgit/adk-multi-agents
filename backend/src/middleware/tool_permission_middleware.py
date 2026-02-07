@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends
 from typing import Optional
 import logging
 
-from middleware.auth_middleware import get_current_user
+from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
 from database.connection import get_db_connection
 from services.agent_hierarchy import (
     can_agent_type_use_tool,
