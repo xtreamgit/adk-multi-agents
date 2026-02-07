@@ -21,3 +21,5 @@ apply_missing_schema.sql
 cloud_schema_updates.sql
 backend/apply_schema_updates.py
 DEPLOYMENT_VERIFICATION.md
+
+.DS_Store
