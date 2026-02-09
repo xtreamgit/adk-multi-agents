@@ -1,0 +1,92 @@
+# =============================================================================
+# Client Environment Configuration Template
+# =============================================================================
+# Copy this file and rename to: environments/<client-name>.yaml
+# Fill in all values for your client environment.
+# Used by: db_sync.py, deploy_env_config.py
+# =============================================================================
+
+# Client identifier (must match backend/config/<account_env>/ directory name)
+client_name: "CHANGE_ME"
+account_env: "CHANGE_ME"
+
+# Google Cloud Project
+project_id: "CHANGE_ME"
+project_number: "CHANGE_ME"
+region: "us-west1"
+organization_domain: "example.com"
+
+# IAP / Admin
+iap_admin_user: "admin@example.com"
+
+# Repository
+repo: "cloud-run-repo1"
+
+# ---- Database Configuration ----
+
+database:
+  # Cloud SQL instance details
+  cloud_sql_instance: "CHANGE_ME-multi-agents-db"
+  cloud_sql_connection: "PROJECT_ID:REGION:INSTANCE_NAME"
+  name: "adk_agents_db"
+  user: "adk_app_user"
+  password: ""  # Leave empty if using IAM auth; otherwise set here or use secret_manager_key
+
+  # Optional: GCP Secret Manager key name for DB password
+  # If set, the deploy script will fetch the password from Secret Manager
+  password_secret_name: ""
+
+  # Local development database (used as sync SOURCE)
+  local:
+    host: "localhost"
+    port: 5433
+    name: "adk_agents_db_dev"
+    user: "adk_dev_user"
+    password: "dev_password_123"
+
+# ---- Vertex AI Configuration ----
+
+vertex_ai:
+  location: "us-west1"
+  embedding_model: "publishers/google/models/text-embedding-005"
+  embedding_requests_per_min: 1000
+
+# ---- RAG Settings ----
+
+rag:
+  default_chunk_size: 512
+  default_chunk_overlap: 100
+  default_top_k: 3
+  default_distance_threshold: 0.5
+
+# ---- Corpus to GCS Bucket Mapping ----
+# Maps corpus display names to their GCS bucket names
+corpus_to_bucket_mapping:
+  # "corpus-display-name": "gcs-bucket-name"
+
+# Default corpus name for this client
+default_corpus_name: "CHANGE_ME"
+
+# ---- Frontend Configuration ----
+
+frontend:
+  # Leave empty for IAP-protected deployments (backend is accessed via same domain)
+  backend_url: ""
+
+# ---- Secrets ----
+
+secrets:
+  # "generate" = auto-generate a new SECRET_KEY
+  # "file" = read from secrets.env
+  # "gcp" = fetch from GCP Secret Manager
+  secret_key_source: "file"
+  # Only used if secret_key_source is "gcp"
+  secret_key_secret_name: "app-secret-key"
+
+# ---- Service Accounts ----
+# These are auto-derived from project_id during deployment, but can be overridden
+
+service_accounts:
+  backend_sa: ""       # e.g., "backend-sa@PROJECT_ID.iam.gserviceaccount.com"
+  frontend_sa: ""      # e.g., "frontend-sa@PROJECT_ID.iam.gserviceaccount.com"
+  rag_agent_sa: ""     # e.g., "rag-agent-sa@PROJECT_ID.iam.gserviceaccount.com"

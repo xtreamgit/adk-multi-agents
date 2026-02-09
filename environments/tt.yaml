@@ -1,0 +1,80 @@
+# =============================================================================
+# TechTrend Environment Configuration
+# =============================================================================
+# Client: TechTrend
+# Project: adk-rag-tt | Region: us-west1
+# =============================================================================
+
+client_name: "tt"
+account_env: "tt"
+
+# Google Cloud Project
+project_id: "adk-rag-tt"
+project_number: ""  # TODO: Fill in actual project number
+region: "us-west1"
+organization_domain: "techtrend.com"
+
+# IAP / Admin
+iap_admin_user: ""  # TODO: Fill in TechTrend admin email
+
+# Repository
+repo: "cloud-run-repo1"
+
+# ---- Database Configuration ----
+
+database:
+  cloud_sql_instance: "tt-multi-agents-db"
+  cloud_sql_connection: "adk-rag-tt:us-west1:tt-multi-agents-db"
+  name: "adk_agents_db"
+  user: "adk_app_user"
+  password: ""
+  password_secret_name: ""
+
+  local:
+    host: "localhost"
+    port: 5433
+    name: "adk_agents_db_dev"
+    user: "adk_dev_user"
+    password: "dev_password_123"
+
+# ---- Vertex AI Configuration ----
+
+vertex_ai:
+  location: "us-west1"
+  embedding_model: "publishers/google/models/text-embedding-005"
+  embedding_requests_per_min: 1000
+
+# ---- RAG Settings ----
+
+rag:
+  default_chunk_size: 512
+  default_chunk_overlap: 100
+  default_top_k: 3
+  default_distance_threshold: 0.5
+
+# ---- Corpus to GCS Bucket Mapping ----
+
+corpus_to_bucket_mapping:
+  "tech-articles": "techtrend-articles"
+  "product-docs": "techtrend-product-documentation"
+  "research-papers": "techtrend-research"
+
+default_corpus_name: "techtrend-general"
+
+# ---- Frontend Configuration ----
+
+frontend:
+  backend_url: ""
+
+# ---- Secrets ----
+
+secrets:
+  secret_key_source: "file"
+  secret_key_secret_name: ""
+
+# ---- Service Accounts ----
+
+service_accounts:
+  backend_sa: ""
+  frontend_sa: ""
+  rag_agent_sa: ""

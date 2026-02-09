@@ -62,7 +62,6 @@ class AdminCorpusService:
                 'metadata': metadata,
                 'groups_with_access': groups_with_access,
                 'recent_activity': recent_activity,
-                'document_count': metadata.get('document_count', 0) if metadata else 0
             })
         
         return result
@@ -108,7 +107,6 @@ class AdminCorpusService:
             'metadata': metadata,
             'groups_with_access': groups_with_access,
             'recent_activity': recent_activity,
-            'document_count': metadata.get('document_count', 0) if metadata else 0
         }
     
     @staticmethod
