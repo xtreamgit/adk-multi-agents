@@ -43,9 +43,9 @@ export default function AdminPage() {
       setError(null);
       
       const [usersResponse, statsResponse, sessionsResponse] = await Promise.all([
-        apiClient.admin_getAllUsers(),
-        apiClient.admin_getUserStats(),
-        apiClient.admin_getAllSessions()
+        apiClient.admin_getAllUsers() as Promise<UserData[]>,
+        apiClient.admin_getUserStats() as Promise<UserStats>,
+        apiClient.admin_getAllSessions() as Promise<SessionData[]>
       ]);
       
       // API returns data directly

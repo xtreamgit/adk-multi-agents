@@ -45,66 +45,77 @@ export default function Home() {
 
   // Check for existing authentication on component mount; redirect to landing if not authenticated
   useEffect(() => {
+    const loadUserData = async (userData: User) => {
+      setUser(userData);
+      setUserProfile({
+        name: userData.full_name,
+        preferences: ''
+      });
+      
+      // Check if there's an existing session
+      const existingSessionId = apiClient.getSessionId();
+      if (existingSessionId) {
+        setSessionId(existingSessionId);
+        setShowChatInterface(true);
+        setIsLoadingExistingSession(true);
+      }
+      
+      // Load user's agents to get the current agent
+      try {
+        const myAgents = await apiClient.getMyAgents();
+        setAvailableAgents(myAgents);
+        if (myAgents.length > 0) {
+          setCurrentAgent(myAgents[0]);
+          console.log('✅ Loaded default agent:', myAgents[0].display_name);
+        }
+      } catch (err) {
+        console.error('Failed to load user agents:', err);
+      } finally {
+        setIsLoadingAgents(false);
+      }
+      
+      // Load saved corpus preferences
+      try {
+        const profile = await apiClient.getMyProfile();
+        if (profile.profile?.preferences?.selected_corpora && Array.isArray(profile.profile.preferences.selected_corpora)) {
+          setSelectedCorpora(profile.profile.preferences.selected_corpora as string[]);
+          console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
+        }
+      } catch (err) {
+        console.error('Failed to load corpus preferences:', err);
+      }
+      
+      // Check if this is first-time user (check localStorage)
+      const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+      if (!hasSeenWelcome) {
+        setShowWelcome(true);
+      }
+      
+      setIsLoading(false);
+    };
+
     const checkAuth = async () => {
       try {
+        // First: check existing Bearer token
         if (apiClient.isAuthenticated()) {
           const userData = await apiClient.verifyToken();
-          setUser(userData);
-          // Create a basic user profile from user data
-          setUserProfile({
-            name: userData.full_name,
-            preferences: ''
-          });
-          
-          // Check if there's an existing session
-          const existingSessionId = apiClient.getSessionId();
-          if (existingSessionId) {
-            setSessionId(existingSessionId);
-            setShowChatInterface(true);
-            setIsLoadingExistingSession(true); // This ensures chat history is loaded
-          }
-          
-          // Load user's agents to get the current agent
-          try {
-            const myAgents = await apiClient.getMyAgents();
-            setAvailableAgents(myAgents);
-            // Set the first available agent as default (users only have one agent per group)
-            if (myAgents.length > 0) {
-              setCurrentAgent(myAgents[0]);
-              console.log('✅ Loaded default agent:', myAgents[0].display_name);
-            }
-          } catch (err) {
-            console.error('Failed to load user agents:', err);
-          } finally {
-            setIsLoadingAgents(false);
-          }
-          
-          // Load saved corpus preferences
-          try {
-            const profile = await apiClient.getMyProfile();
-            if (profile.profile?.preferences?.selected_corpora && Array.isArray(profile.profile.preferences.selected_corpora)) {
-              setSelectedCorpora(profile.profile.preferences.selected_corpora as string[]);
-              console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
-            }
-          } catch (err) {
-            console.error('Failed to load corpus preferences:', err);
-          }
-          
-          // Check if this is first-time user (check localStorage)
-          const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
-          if (!hasSeenWelcome) {
-            setShowWelcome(true);
-          }
-          
-          setIsLoading(false);
-        } else {
-          // No token present: redirect to landing page
-          router.push('/landing');
+          await loadUserData(userData);
+          return;
         }
+        
+        // Second: try IAP authentication (behind load balancer)
+        const iapUser = await apiClient.checkIapAuth();
+        if (iapUser) {
+          console.log('✅ IAP authenticated:', iapUser.email);
+          await loadUserData(iapUser);
+          return;
+        }
+        
+        // Neither auth method worked: redirect to landing page
+        router.push('/landing');
       } catch (error) {
         console.error('Auth verification failed:', error);
         apiClient.clearToken();
-        // Redirect to landing on verification failure
         router.push('/landing');
       }
     };

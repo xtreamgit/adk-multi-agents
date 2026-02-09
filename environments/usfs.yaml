@@ -1,0 +1,80 @@
+# =============================================================================
+# USFS (U.S. Forest Service) Environment Configuration
+# =============================================================================
+# Client: U.S. Forest Service
+# Project: usfs-gcp-arch-testing | Region: us-east4
+# =============================================================================
+
+client_name: "usfs"
+account_env: "usfs"
+
+# Google Cloud Project
+project_id: "usfs-gcp-arch-testing"
+project_number: ""  # TODO: Fill in actual project number
+region: "us-east4"
+organization_domain: "usda.gov"
+
+# IAP / Admin
+iap_admin_user: ""  # TODO: Fill in USFS admin email
+
+# Repository
+repo: "cloud-run-repo1"
+
+# ---- Database Configuration ----
+
+database:
+  cloud_sql_instance: "usfs-multi-agents-db"
+  cloud_sql_connection: "usfs-gcp-arch-testing:us-east4:usfs-multi-agents-db"
+  name: "adk_agents_db"
+  user: "adk_app_user"
+  password: ""
+  password_secret_name: ""
+
+  local:
+    host: "localhost"
+    port: 5433
+    name: "adk_agents_db_dev"
+    user: "adk_dev_user"
+    password: "dev_password_123"
+
+# ---- Vertex AI Configuration ----
+
+vertex_ai:
+  location: "us-east4"
+  embedding_model: "publishers/google/models/text-embedding-005"
+  embedding_requests_per_min: 1000
+
+# ---- RAG Settings ----
+
+rag:
+  default_chunk_size: 512
+  default_chunk_overlap: 100
+  default_top_k: 5
+  default_distance_threshold: 0.5
+
+# ---- Corpus to GCS Bucket Mapping ----
+
+corpus_to_bucket_mapping:
+  "forest-policies": "usfs-forest-policies"
+  "environmental-reports": "usfs-environmental-reports"
+  "fire-management": "usfs-fire-management-docs"
+
+default_corpus_name: "usfs-forest-service"
+
+# ---- Frontend Configuration ----
+
+frontend:
+  backend_url: ""
+
+# ---- Secrets ----
+
+secrets:
+  secret_key_source: "file"
+  secret_key_secret_name: ""
+
+# ---- Service Accounts ----
+
+service_accounts:
+  backend_sa: ""
+  frontend_sa: ""
+  rag_agent_sa: ""

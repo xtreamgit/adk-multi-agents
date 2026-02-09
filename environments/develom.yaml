@@ -1,0 +1,79 @@
+# =============================================================================
+# Develom (Root) Environment Configuration
+# =============================================================================
+# Active production environment for the develom account
+# Project: adk-rag-ma | Region: us-west1
+# =============================================================================
+
+client_name: "develom"
+account_env: "develom"
+
+# Google Cloud Project
+project_id: "adk-rag-ma"
+project_number: "351592762922"
+region: "us-west1"
+organization_domain: "develom.com"
+
+# IAP / Admin
+iap_admin_user: "hector@develom.com"
+
+# Repository
+repo: "cloud-run-repo1"
+
+# ---- Database Configuration ----
+
+database:
+  cloud_sql_instance: "adk-multi-agents-db"
+  cloud_sql_connection: "adk-rag-ma:us-west1:adk-multi-agents-db"
+  name: "adk_agents_db"
+  user: "adk_app_user"
+  password: ""
+  password_secret_name: ""
+
+  local:
+    host: "localhost"
+    port: 5433
+    name: "adk_agents_db_dev"
+    user: "adk_dev_user"
+    password: "dev_password_123"
+
+# ---- Vertex AI Configuration ----
+
+vertex_ai:
+  location: "us-west1"
+  embedding_model: "publishers/google/models/text-embedding-005"
+  embedding_requests_per_min: 1000
+
+# ---- RAG Settings ----
+
+rag:
+  default_chunk_size: 512
+  default_chunk_overlap: 100
+  default_top_k: 3
+  default_distance_threshold: 0.5
+
+# ---- Corpus to GCS Bucket Mapping ----
+
+corpus_to_bucket_mapping:
+  "ai-books": "ipad-book-collection"
+  "general-docs": "develom-documents"
+
+default_corpus_name: "ai-books"
+
+# ---- Frontend Configuration ----
+
+frontend:
+  backend_url: ""
+
+# ---- Secrets ----
+
+secrets:
+  secret_key_source: "file"
+  secret_key_secret_name: ""
+
+# ---- Service Accounts ----
+
+service_accounts:
+  backend_sa: ""
+  frontend_sa: ""
+  rag_agent_sa: ""

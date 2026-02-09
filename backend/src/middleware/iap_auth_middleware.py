@@ -118,44 +118,5 @@ async def get_current_user_optional_iap(request: Request) -> Optional[User]:
         return None
 
 
-async def get_current_user_hybrid(request: Request) -> User:
-    """
-    Hybrid authentication middleware supporting both IAP and legacy JWT.
-    
-    This allows gradual migration from JWT to IAP authentication.
-    Priority: IAP first, then fall back to legacy JWT.
-    
-    Raises:
-        HTTPException 401: If neither authentication method succeeds
-        
-    Returns:
-        User object from local database
-    """
-    # Try IAP first
-    iap_jwt = request.headers.get(IAP_JWT_HEADER)
-    if iap_jwt:
-        try:
-            return await get_current_user_iap(request)
-        except HTTPException as e:
-            logger.warning(f"IAP authentication failed, trying legacy JWT: {e.detail}")
-    
-    # Fall back to legacy JWT authentication
-    from middleware.auth_middleware import get_current_user
-    try:
-        # Import here to avoid circular dependency
-        from fastapi.security import HTTPBearer
-        from fastapi import Depends
-        
-        # Extract Bearer token
-        auth_header = request.headers.get('Authorization')
-        if auth_header and auth_header.startswith('Bearer '):
-            # Use existing JWT authentication
-            return await get_current_user(request)
-    except Exception as e:
-        logger.error(f"Legacy JWT authentication also failed: {e}")
-    
-    # Both methods failed
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication required. Please authenticate via IAP or provide valid JWT token.",
-    )
+# Re-export canonical hybrid auth from hybrid_auth_middleware for backward compatibility
+from middleware.hybrid_auth_middleware import get_current_user_hybrid

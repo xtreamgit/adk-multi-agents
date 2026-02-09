@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAuthHeaders, getAuthHeadersOnly } from '../../../lib/auth-headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
@@ -55,7 +56,7 @@ export default function ChatbotGroupsPage() {
 
   const fetchGroups = async () => {
     const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+      headers: getAuthHeadersOnly(),
     });
     if (!response.ok) throw new Error('Failed to fetch groups');
     return response.json();
@@ -63,7 +64,7 @@ export default function ChatbotGroupsPage() {
 
   const fetchRoles = async () => {
     const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/roles`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+      headers: getAuthHeadersOnly(),
     });
     if (!response.ok) throw new Error('Failed to fetch roles');
     return response.json();
@@ -74,7 +75,7 @@ export default function ChatbotGroupsPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeaders(),
         body: JSON.stringify(createForm),
       });
       if (!response.ok) throw new Error('Failed to create group');
@@ -91,7 +92,7 @@ export default function ChatbotGroupsPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/groups/${selectedGroup.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeaders(),
         body: JSON.stringify(editForm),
       });
       if (!response.ok) throw new Error('Failed to update group');
@@ -107,7 +108,7 @@ export default function ChatbotGroupsPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/groups/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeadersOnly(),
       });
       if (!response.ok) throw new Error('Failed to delete group');
       await loadData();
@@ -121,7 +122,7 @@ export default function ChatbotGroupsPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/groups/${selectedGroup.id}/roles/${roleId}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeadersOnly(),
       });
       const updatedGroups = await fetchGroups();
       setGroups(updatedGroups);
@@ -138,7 +139,7 @@ export default function ChatbotGroupsPage() {
     try {
       await fetch(`${BACKEND_URL}/api/admin/chatbot/groups/${selectedGroup.id}/roles/${roleId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: getAuthHeadersOnly(),
       });
       const updatedGroups = await fetchGroups();
       setGroups(updatedGroups);

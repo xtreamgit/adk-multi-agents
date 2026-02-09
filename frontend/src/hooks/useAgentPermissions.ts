@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { getAuthHeadersOnly } from '../lib/auth-headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
@@ -41,9 +42,7 @@ export function useAgentPermissions() {
     try {
       setLoading(true);
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/my-agent-type`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        headers: getAuthHeadersOnly()
       });
 
       if (!response.ok) {
@@ -150,9 +149,7 @@ export function useAgentTypeHierarchy() {
     try {
       setLoading(true);
       const response = await fetch(`${BACKEND_URL}/api/admin/chatbot/agent-type-hierarchy`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        headers: getAuthHeadersOnly()
       });
 
       if (!response.ok) {

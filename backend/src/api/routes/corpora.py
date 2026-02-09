@@ -12,7 +12,7 @@ from services.session_service import SessionService
 from services.group_service import GroupService
 from models.corpus import Corpus, CorpusCreate, CorpusUpdate, CorpusWithAccess
 from models.user import User
-from middleware.auth_middleware import get_current_user
+from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
 from middleware.authorization_middleware import require_permission
 from database.repositories import AuditRepository
 

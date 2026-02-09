@@ -25,7 +25,7 @@ class AuditLogEntry(BaseModel):
 
 class CorpusMetadataBase(BaseModel):
     """Base corpus metadata model."""
-    tags: Optional[str] = None  # JSON array as string
+    tags: Optional[Any] = None  # Can be text string or JSON array (jsonb)
     notes: Optional[str] = None
 
 

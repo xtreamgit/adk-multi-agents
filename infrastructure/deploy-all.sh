@@ -340,6 +340,13 @@ echo "  FRONTEND_URL              = ${FRONTEND_URL:-<not set>}"
 echo "  LOAD_BALANCER_URL         = ${LOAD_BALANCER_URL:-<not set>}"
 echo ""
 
+echo -e "${YELLOW}Cloud SQL Database:${NC}"
+echo "  DB_NAME                   = ${DB_NAME:-<not set>}"
+echo "  DB_USER                   = ${DB_USER:-<not set>}"
+echo "  CLOUD_SQL_INSTANCE        = ${CLOUD_SQL_INSTANCE:-<not set>}"
+echo "  CLOUD_SQL_CONNECTION      = ${CLOUD_SQL_CONNECTION:-<not set>}"
+echo ""
+
 echo -e "${YELLOW}Infrastructure:${NC}"
 echo "  STATIC_IP                 = ${STATIC_IP:-<not set>}"
 echo "  SSL_STATUS                = ${SSL_STATUS:-<not set>}"

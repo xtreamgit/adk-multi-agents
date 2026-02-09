@@ -125,6 +125,7 @@ class EnhancedApiClient {
   private sessionId: string | null = null;
   private currentUser: User | null = null;
   private baseUrl: string;
+  private iapAuthenticated: boolean = false;
 
   constructor() {
     // Use relative URLs when behind load balancer (production), localhost for development
@@ -139,7 +140,7 @@ class EnhancedApiClient {
         try {
           this.currentUser = JSON.parse(userStr);
         } catch (_e) {
-          console.error('Failed to parse stored user:', e);
+          console.error('Failed to parse stored user:', _e);
         }
       }
     }
@@ -172,6 +173,7 @@ class EnhancedApiClient {
 
   public clearToken(): void {
     this.token = null;
+    this.iapAuthenticated = false;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('current_user');
@@ -186,7 +188,37 @@ class EnhancedApiClient {
   }
 
   isAuthenticated(): boolean {
-    return !!this.token;
+    return !!this.token || this.iapAuthenticated;
+  }
+
+  isIapAuthenticated(): boolean {
+    return this.iapAuthenticated;
+  }
+
+  /**
+   * Check if the user is authenticated via IAP (Identity-Aware Proxy).
+   * When behind IAP, the load balancer injects authentication headers
+   * automatically — no Bearer token needed.
+   * Returns the user if IAP auth succeeds, null otherwise.
+   */
+  async checkIapAuth(): Promise<User | null> {
+    try {
+      const response = await fetch(this.buildUrl('/api/users/me'), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const user: User = await response.json();
+        this.iapAuthenticated = true;
+        this.setCurrentUser(user);
+        return user;
+      }
+    } catch (error) {
+      console.debug('IAP auth check failed (expected in local dev):', error);
+    }
+    return null;
   }
 
   getCurrentUser(): User | null {
@@ -206,7 +238,7 @@ class EnhancedApiClient {
       const error = await response.json();
       // Handle FastAPI validation errors (422) which return an array
       if (Array.isArray(error.detail)) {
-        const messages = error.detail.map((err: unknown) => err.msg).join(', ');
+        const messages = error.detail.map((err: Record<string, string>) => err.msg).join(', ');
         throw new Error(messages || 'Registration failed');
       }
       throw new Error(error.detail || 'Registration failed');
@@ -1002,7 +1034,7 @@ class EnhancedApiClient {
           errorMessage = error.detail;
         } else if (Array.isArray(error.detail)) {
           // Pydantic validation errors are arrays
-          errorMessage = `Validation error: ${error.detail.map((e: unknown) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+          errorMessage = `Validation error: ${error.detail.map((e: Record<string, string | string[]>) => `${Array.isArray(e.loc) ? e.loc.join('.') : ''} - ${e.msg}`).join(', ')}`;
         } else if (typeof error.detail === 'object') {
           errorMessage = `Failed to create user: ${JSON.stringify(error.detail)}`;
         } else {
@@ -1038,7 +1070,7 @@ class EnhancedApiClient {
           errorMessage = error.detail;
         } else if (Array.isArray(error.detail)) {
           // Pydantic validation errors are arrays
-          errorMessage = `Validation error: ${error.detail.map((e: unknown) => `${e.loc?.join('.')} - ${e.msg}`).join(', ')}`;
+          errorMessage = `Validation error: ${error.detail.map((e: Record<string, string | string[]>) => `${Array.isArray(e.loc) ? e.loc.join('.') : ''} - ${e.msg}`).join(', ')}`;
         } else if (typeof error.detail === 'object') {
           errorMessage = `Failed to update user: ${JSON.stringify(error.detail)}`;
         } else {
