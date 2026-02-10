@@ -10,19 +10,20 @@ Complete step-by-step instructions for deploying the ADK RAG Multi-Agent applica
 2. [Gather Client Information](#2-gather-client-information)
 3. [Create the Environment YAML](#3-create-the-environment-yaml)
 4. [Generate Configuration Files](#4-generate-configuration-files)
-5. [Register the New Account in the Config Loader](#5-register-the-new-account-in-the-config-loader)
-6. [Create the Agent Instructions](#6-create-the-agent-instructions)
-7. [Generate the Secret Key](#7-generate-the-secret-key)
-8. [Create the Frontend Environment File](#8-create-the-frontend-environment-file)
-9. [Initialize the GCP Project](#9-initialize-the-gcp-project)
-10. [Create GCS Buckets for Corpora](#10-create-gcs-buckets-for-corpora)
-11. [Create Vertex AI Corpora and Upload Documents](#11-create-vertex-ai-corpora-and-upload-documents)
-12. [Create and Seed the Database](#12-create-and-seed-the-database)
-13. [Deploy to Cloud Run](#13-deploy-to-cloud-run)
-14. [Verify the Deployment](#14-verify-the-deployment)
-15. [Set Up Local Development](#15-set-up-local-development)
-16. [File Reference](#16-file-reference)
-17. [Troubleshooting](#17-troubleshooting)
+5. [**Pre-Deployment Environment Check**](#5-pre-deployment-environment-check)
+6. [Register the New Account in the Config Loader](#6-register-the-new-account-in-the-config-loader)
+7. [Create the Agent Instructions](#7-create-the-agent-instructions)
+8. [Generate the Secret Key](#8-generate-the-secret-key)
+9. [Create the Frontend Environment File](#9-create-the-frontend-environment-file)
+10. [Initialize the GCP Project](#10-initialize-the-gcp-project)
+11. [Create GCS Buckets for Corpora](#11-create-gcs-buckets-for-corpora)
+12. [Create Vertex AI Corpora and Upload Documents](#12-create-vertex-ai-corpora-and-upload-documents)
+13. [Create and Seed the Database](#13-create-and-seed-the-database)
+14. [Deploy to Cloud Run](#14-deploy-to-cloud-run)
+15. [Verify the Deployment](#15-verify-the-deployment)
+16. [Set Up Local Development](#16-set-up-local-development)
+17. [File Reference](#17-file-reference)
+18. [Troubleshooting](#18-troubleshooting)
 
 ---
 
@@ -284,11 +285,57 @@ cat backend/config/<account-env>/config.py     # Should show CORPUS_TO_BUCKET_MA
 
 ---
 
-## 5. Register the New Account in the Config Loader
+## 5. Pre-Deployment Environment Check
+
+**Before touching the GCP project**, run the pre-deploy check to scan for existing resources that could be overwritten or conflict with the deployment.
+
+```bash
+./infrastructure/pre-deploy-check.sh
+```
+
+Or target a specific project:
+
+```bash
+./infrastructure/pre-deploy-check.sh --project-id=<your-project-id> --region=<your-region>
+```
+
+This script is **read-only** — it never creates, modifies, or deletes anything. It checks:
+
+- **Artifact Registry** — existing repos and images
+- **Service Accounts** — all 7 SAs the deploy creates
+- **Cloud Run Services** — `backend`, `frontend`, agent services + any other services
+- **Cloud SQL Instances** — existing instances and databases
+- **Secret Manager** — `db-password` and other secrets
+- **GCS Buckets** — all buckets in the project
+- **Vertex AI RAG Corpora** — existing corpora in the region
+- **Load Balancer** — static IP, SSL cert, NEGs, backend services, URL map, proxy, forwarding rule
+- **OAuth & IAP** — OAuth brand and clients (⚠️ `deploy-all.sh` **deletes and recreates** OAuth clients)
+- **Cloud Build** — recent build history
+- **IAM Policy** — broad admin roles already bound
+
+### 5.1 Interpreting Results
+
+| Result | Action |
+|--------|--------|
+| **CLEAN ENVIRONMENT** | Safe to proceed |
+| **WARNINGS FOUND** | Review — other resources exist but no naming conflicts |
+| **CONFLICTS FOUND** | Existing resources share names with ours. If this is a re-deploy, it's safe. If it's a shared project, review carefully or use a fresh project. |
+
+> **Critical:** The `iap.sh` module deletes **all existing OAuth clients** before creating a new one. If the project has other apps using OAuth, they will break. See [PRE-DEPLOY-CHECK.md](docs/PRE-DEPLOY-CHECK.md) for details.
+
+Save the report for your records:
+
+```bash
+./infrastructure/pre-deploy-check.sh --report=pre-deploy-report-$(date +%Y%m%d).txt
+```
+
+---
+
+## 6. Register the New Account in the Config Loader
 
 The backend uses a config loader that validates account identifiers. You must register your new account.
 
-### 5.1 Edit `backend/config/config_loader.py`
+### 6.1 Edit `backend/config/config_loader.py`
 
 Add your account to the `VALID_ACCOUNTS` list (around line 25):
 
@@ -304,7 +351,7 @@ VALID_ACCOUNTS = [
 ]
 ```
 
-### 5.2 Verify the Config Directory Was Created
+### 6.2 Verify the Config Directory Was Created
 
 The `deploy_env_config.py` script should have created:
 
@@ -322,17 +369,17 @@ echo '"""Configuration for <client-name> account."""' > backend/config/<account-
 
 ---
 
-## 6. Create the Agent Instructions
+## 7. Create the Agent Instructions
 
 Each account needs an agent instruction file that defines the AI agent's behavior, tools, and personality.
 
-### 6.1 Copy the Template
+### 7.1 Copy the Template
 
 ```bash
 cp backend/config/agent_instructions/develom.json backend/config/agent_instructions/<account-env>.json
 ```
 
-### 6.2 Customize the Agent Instructions
+### 7.2 Customize the Agent Instructions
 
 Edit `backend/config/agent_instructions/<account-env>.json` and update:
 
@@ -360,7 +407,7 @@ Example changes for a USFS client:
 
 ---
 
-## 7. Generate the Secret Key
+## 8. Generate the Secret Key
 
 The application needs a cryptographic secret key for JWT token signing.
 
@@ -378,7 +425,7 @@ echo "SECRET_KEY=<paste-generated-key-here>" > secrets.env
 
 ---
 
-## 8. Create the Frontend Environment File
+## 9. Create the Frontend Environment File
 
 The frontend needs to know the backend URL. For local development:
 
@@ -392,18 +439,18 @@ For cloud deployment, this is set automatically during the Docker build via the 
 
 ---
 
-## 9. Initialize the GCP Project
+## 10. Initialize the GCP Project
 
 This step creates the GCP project, enables billing, and enables required APIs.
 
-### 9.1 Authenticate with Google Cloud
+### 10.1 Authenticate with Google Cloud
 
 ```bash
 gcloud auth login
 gcloud auth application-default login
 ```
 
-### 9.2 Run the Initialization Script
+### 10.2 Run the Initialization Script
 
 ```bash
 cd infrastructure
@@ -428,7 +475,7 @@ This script will:
 
 ---
 
-## 10. Create GCS Buckets for Corpora
+## 11. Create GCS Buckets for Corpora
 
 Each corpus needs a GCS bucket to store its source documents. Create one bucket per corpus.
 
@@ -442,7 +489,7 @@ gsutil mb -p $PROJECT_ID -l $REGION gs://<bucket-name-2>/
 gsutil mb -p $PROJECT_ID -l $REGION gs://<bucket-name-3>/
 ```
 
-### 10.1 Upload Source Documents
+### 11.1 Upload Source Documents
 
 Upload the documents that will be indexed into each corpus:
 
@@ -452,7 +499,7 @@ gsutil -m cp /path/to/documents/*.pdf gs://<bucket-name-1>/
 gsutil -m cp /path/to/other-docs/*.pdf gs://<bucket-name-2>/
 ```
 
-### 10.2 Update Bucket IAM in Infrastructure Script
+### 11.2 Update Bucket IAM in Infrastructure Script
 
 The RAG agent service accounts need read access to these buckets. The `infrastructure/lib/infrastructure.sh` script grants this access, but **it has hardcoded bucket names** that must be updated for your client.
 
@@ -488,11 +535,11 @@ gcloud storage buckets add-iam-policy-binding "gs://<your-bucket-2>" \
 
 ---
 
-## 11. Create Vertex AI Corpora and Upload Documents
+## 12. Create Vertex AI Corpora and Upload Documents
 
 Vertex AI RAG corpora are the searchable indexes that the agent queries. They are created from the documents in your GCS buckets.
 
-### 11.1 Create Corpora via the Application
+### 12.1 Create Corpora via the Application
 
 Once the backend is running (locally or in the cloud), you can create corpora through the chat interface:
 
@@ -504,7 +551,7 @@ User: "Add data from gs://<bucket-name>/ to forest-policies"
 Agent: "Added documents to forest-policies"
 ```
 
-### 11.2 Or Create Corpora via Python SDK
+### 12.2 Or Create Corpora via Python SDK
 
 ```python
 import vertexai
@@ -525,7 +572,7 @@ rag.import_files(
 )
 ```
 
-### 11.3 Verify Corpora Exist
+### 12.3 Verify Corpora Exist
 
 ```python
 for corpus in rag.list_corpora():
@@ -534,11 +581,11 @@ for corpus in rag.list_corpora():
 
 ---
 
-## 12. Create and Seed the Database
+## 13. Create and Seed the Database
 
 See [DATABASE-DEPLOYMENT-GUIDE.md](docs/DATABASE-DEPLOYMENT-GUIDE.md) for the full detailed procedure. Here is the summary:
 
-### 12.1 Create Cloud SQL Instance
+### 13.1 Create Cloud SQL Instance
 
 ```bash
 PROJECT_ID="<your-project-id>"
@@ -563,7 +610,7 @@ gcloud sql users create $DB_USER --instance=$INSTANCE --project=$PROJECT_ID --pa
 echo -n "$DB_PASSWORD" | gcloud secrets create db-password --data-file=- --project=$PROJECT_ID
 ```
 
-### 12.2 Apply Schema
+### 13.2 Apply Schema
 
 ```bash
 # Terminal 1: Start Cloud SQL Proxy
@@ -574,7 +621,7 @@ PGPASSWORD=$DB_PASSWORD psql -h 127.0.0.1 -p 5434 -U $DB_USER -d $DB_NAME \
   -f backend/init_postgresql_schema.sql
 ```
 
-### 12.3 Run Migrations
+### 13.3 Run Migrations
 
 ```bash
 cd backend
@@ -582,7 +629,7 @@ python src/database/migrations/run_migrations.py
 python add_missing_columns.py
 ```
 
-### 12.4 Sync Corpora from Vertex AI
+### 13.4 Sync Corpora from Vertex AI
 
 This is the **source of truth** for corpora. Do NOT manually insert corpora into the database.
 
@@ -593,7 +640,7 @@ export GOOGLE_CLOUD_LOCATION="<your-region>"
 python sync_corpora_from_vertex.py
 ```
 
-### 12.5 Seed Users, Groups & Permissions
+### 13.5 Seed Users, Groups & Permissions
 
 ```bash
 # Preview first
@@ -606,9 +653,9 @@ cd ..
 
 ---
 
-## 13. Deploy to Cloud Run
+## 14. Deploy to Cloud Run
 
-### 13.1 Verify Prerequisites
+### 14.1 Verify Prerequisites
 
 Ensure these files exist and are correct:
 
@@ -617,7 +664,7 @@ cat deployment.config    # Core variables (PROJECT_ID, REGION, etc.)
 cat secrets.env          # SECRET_KEY=...
 ```
 
-### 13.2 Run the Full Deployment
+### 14.2 Run the Full Deployment
 
 ```bash
 cd infrastructure
@@ -636,7 +683,7 @@ This orchestrates 7 deployment phases:
 | 6 | `lib/iap.sh` | Enables Identity-Aware Proxy |
 | 7 | `lib/finalize.sh` | Rebuilds frontend with final URLs, prints summary |
 
-### 13.3 Partial Redeployment
+### 14.3 Partial Redeployment
 
 After the first full deployment, you can skip phases:
 
@@ -650,9 +697,9 @@ After the first full deployment, you can skip phases:
 
 ---
 
-## 14. Verify the Deployment
+## 15. Verify the Deployment
 
-### 14.1 Check Cloud Run Services
+### 15.1 Check Cloud Run Services
 
 ```bash
 gcloud run services list --project=<your-project-id> --region=<your-region>
@@ -665,14 +712,14 @@ You should see:
 - `backend-agent3` — Agent 3 backend
 - `frontend` — Next.js frontend
 
-### 14.2 Test the Health Endpoint
+### 15.2 Test the Health Endpoint
 
 ```bash
 BACKEND_URL=$(gcloud run services describe backend --region=<your-region> --format='value(status.url)')
 curl $BACKEND_URL/api/health
 ```
 
-### 14.3 Test Authentication
+### 15.3 Test Authentication
 
 ```bash
 curl -s -X POST $BACKEND_URL/api/auth/login \
@@ -680,7 +727,7 @@ curl -s -X POST $BACKEND_URL/api/auth/login \
   -d '{"username":"<admin-username>","password":"<admin-password>"}' | python3 -m json.tool
 ```
 
-### 14.4 Test Corpora Listing
+### 15.4 Test Corpora Listing
 
 ```bash
 TOKEN="<token-from-login-response>"
@@ -688,7 +735,7 @@ curl -s $BACKEND_URL/api/admin/corpora \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
 ```
 
-### 14.5 Check Logs
+### 15.5 Check Logs
 
 ```bash
 gcloud logging read \
@@ -700,18 +747,18 @@ gcloud logging read \
 
 ---
 
-## 15. Set Up Local Development
+## 16. Set Up Local Development
 
 For local development after the cloud deployment is complete:
 
-### 15.1 Start the Local PostgreSQL Database
+### 16.1 Start the Local PostgreSQL Database
 
 ```bash
 cd backend
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-### 15.2 Apply Schema to Local DB
+### 16.2 Apply Schema to Local DB
 
 The Docker Compose file auto-applies `init_postgresql_schema.sql` on first start via the `docker-entrypoint-initdb.d` mount. If you need to re-apply:
 
@@ -719,7 +766,7 @@ The Docker Compose file auto-applies `init_postgresql_schema.sql` on first start
 docker exec adk-postgres-dev psql -U adk_dev_user -d adk_agents_db_dev -f /docker-entrypoint-initdb.d/01-schema.sql
 ```
 
-### 15.3 Sync Corpora to Local DB
+### 16.3 Sync Corpora to Local DB
 
 ```bash
 cd backend
@@ -728,19 +775,19 @@ export GOOGLE_CLOUD_LOCATION="<your-region>"
 python sync_corpora_from_vertex.py
 ```
 
-### 15.4 Seed Local Database
+### 16.4 Seed Local Database
 
 ```bash
 python seed_data.py --env ../environments/<client-name>.yaml --target local
 ```
 
-### 15.5 Authenticate with Google Cloud (for Vertex AI access)
+### 16.5 Authenticate with Google Cloud (for Vertex AI access)
 
 ```bash
 gcloud auth application-default login
 ```
 
-### 15.6 Start the Backend
+### 16.6 Start the Backend
 
 ```bash
 cd backend
@@ -748,7 +795,7 @@ source .venv/bin/activate
 python -m uvicorn src.api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 15.7 Start the Frontend
+### 16.7 Start the Frontend
 
 ```bash
 cd frontend
@@ -759,7 +806,7 @@ Open http://localhost:3000 in your browser.
 
 ---
 
-## 16. File Reference
+## 17. File Reference
 
 ### Files You Create or Edit Per Client
 
@@ -797,7 +844,7 @@ Open http://localhost:3000 in your browser.
 
 ---
 
-## 17. Troubleshooting
+## 18. Troubleshooting
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
@@ -830,6 +877,9 @@ cp environments/client-template.yaml environments/<client>.yaml
 # Edit environments/<client>.yaml with ALL client values
 
 cd backend && python deploy_env_config.py --env ../environments/<client>.yaml && cd ..
+
+# ── Step 2.5: Pre-Deploy Check ──
+./infrastructure/pre-deploy-check.sh --project-id=<project-id> --region=<region>
 
 # Edit backend/config/config_loader.py → add account to VALID_ACCOUNTS
 cp backend/config/agent_instructions/develom.json backend/config/agent_instructions/<account>.json
