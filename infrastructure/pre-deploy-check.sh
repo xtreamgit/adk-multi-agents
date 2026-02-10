@@ -174,19 +174,99 @@ fi
 [[ -n "$CLI_PROJECT_ID" ]] && PROJECT_ID="$CLI_PROJECT_ID"
 [[ -n "$CLI_REGION" ]]     && REGION="$CLI_REGION"
 
-# Validate minimum inputs
-if [[ -z "${PROJECT_ID:-}" ]]; then
-    echo -e "${RED}ERROR: PROJECT_ID is required.${NC}"
-    echo "Provide via deployment.config or --project-id=ID"
-    exit 1
-fi
-if [[ -z "${REGION:-}" ]]; then
-    echo -e "${RED}ERROR: REGION is required.${NC}"
-    echo "Provide via deployment.config or --region=REGION"
+REPO="${REPO:-cloud-run-repo1}"
+
+# ── Verify gcloud config vs deployment.config ────────────────────────────────
+GCLOUD_PROJECT=$(gcloud config get-value project 2>/dev/null || echo "")
+GCLOUD_ACCOUNT=$(gcloud config get-value account 2>/dev/null || echo "")
+GCLOUD_REGION=$(gcloud config get-value compute/region 2>/dev/null || echo "(not set)")
+
+echo ""
+echo -e "${BOLD}Current gcloud configuration:${NC}"
+echo -e "  Account  : ${CYAN}${GCLOUD_ACCOUNT:-<none>}${NC}"
+echo -e "  Project  : ${CYAN}${GCLOUD_PROJECT:-<none>}${NC}"
+echo -e "  Region   : ${CYAN}${GCLOUD_REGION}${NC}"
+echo ""
+
+if [[ -z "$GCLOUD_ACCOUNT" ]]; then
+    echo -e "${RED}❌ Not authenticated with gcloud. Run: gcloud auth login${NC}"
     exit 1
 fi
 
-REPO="${REPO:-cloud-run-repo1}"
+CONFIG_PROJECT="${PROJECT_ID:-}"
+
+if [[ -n "$CLI_PROJECT_ID" ]]; then
+    # CLI flag takes highest priority — no prompt needed
+    echo -e "${GREEN}✅ Using CLI-provided project: ${PROJECT_ID}${NC}"
+    gcloud config set project "$PROJECT_ID" --quiet 2>/dev/null
+elif [[ -n "$CONFIG_PROJECT" && "$GCLOUD_PROJECT" != "$CONFIG_PROJECT" ]]; then
+    echo -e "${YELLOW}⚠️  Mismatch detected:${NC}"
+    echo -e "     gcloud project      : ${CYAN}${GCLOUD_PROJECT:-<none>}${NC}"
+    echo -e "     deployment.config   : ${CYAN}${CONFIG_PROJECT}${NC}"
+    echo ""
+    echo -e "  ${YELLOW}This usually means deployment.config has values from a previous${NC}"
+    echo -e "  ${YELLOW}environment and needs to be regenerated for the new project.${NC}"
+    echo -e "  ${YELLOW}Run: python backend/deploy_env_config.py <new-client>.yaml${NC}"
+    echo ""
+    echo -e "  ${BOLD}Which project should this scan target?${NC}"
+    echo -e "  ${BOLD}[1]${NC} Use gcloud project '${GCLOUD_PROJECT}' (current environment)"
+    echo -e "  ${BOLD}[2]${NC} Use deployment.config project '${CONFIG_PROJECT}' (previous environment)"
+    echo -e "  ${BOLD}[3]${NC} Enter a different project ID"
+    echo -e "  ${BOLD}[4]${NC} Abort"
+    echo ""
+    read -rp "  Choose [1/2/3/4]: " CHOICE
+    case "$CHOICE" in
+        1)
+            PROJECT_ID="$GCLOUD_PROJECT"
+            echo -e "  ${GREEN}✅ Scanning gcloud project: '$PROJECT_ID'${NC}"
+            ;;
+        2)
+            PROJECT_ID="$CONFIG_PROJECT"
+            gcloud config set project "$PROJECT_ID" --quiet 2>/dev/null
+            echo -e "  ${GREEN}✅ Scanning deployment.config project: '$PROJECT_ID'${NC}"
+            ;;
+        3)
+            read -rp "  Enter project ID: " NEW_PROJECT
+            if [[ -z "$NEW_PROJECT" ]]; then
+                echo -e "  ${RED}No project entered. Aborting.${NC}"
+                exit 1
+            fi
+            PROJECT_ID="$NEW_PROJECT"
+            gcloud config set project "$PROJECT_ID" --quiet 2>/dev/null
+            echo -e "  ${GREEN}✅ Scanning project: '$PROJECT_ID'${NC}"
+            ;;
+        4|*)
+            echo -e "  ${YELLOW}Aborted by user.${NC}"
+            exit 0
+            ;;
+    esac
+    echo ""
+elif [[ -z "$CONFIG_PROJECT" && -n "$GCLOUD_PROJECT" ]]; then
+    # No deployment.config — use gcloud project
+    PROJECT_ID="$GCLOUD_PROJECT"
+    echo -e "${GREEN}✅ No deployment.config found. Using gcloud project: ${PROJECT_ID}${NC}"
+elif [[ -z "$CONFIG_PROJECT" && -z "$GCLOUD_PROJECT" ]]; then
+    echo -e "${RED}❌ No project configured. Set via gcloud or --project-id=ID${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✅ gcloud and deployment.config agree: ${PROJECT_ID}${NC}"
+fi
+
+# ── Validate REGION ──────────────────────────────────────────────────────────
+if [[ -z "${REGION:-}" ]]; then
+    # Try gcloud compute/region as fallback
+    if [[ "$GCLOUD_REGION" != "(not set)" && -n "$GCLOUD_REGION" ]]; then
+        REGION="$GCLOUD_REGION"
+        echo -e "${GREEN}✅ Using gcloud region: ${REGION}${NC}"
+    else
+        read -rp "  Enter target region (e.g. us-west1): " REGION
+        if [[ -z "$REGION" ]]; then
+            echo -e "${RED}❌ REGION is required. Aborting.${NC}"
+            exit 1
+        fi
+    fi
+fi
+echo ""
 
 # ── Start report (optionally tee to file) ──────────────────────────────────────
 if [[ -n "$REPORT_FILE" ]]; then
@@ -212,15 +292,11 @@ echo "  Region     : $REGION"
 echo "  Repo       : $REPO"
 echo "  Scan time  : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
-# ── Verify gcloud auth ─────────────────────────────────────────────────────
-header "0. Authentication & Project Access"
+# ── Verify project access ─────────────────────────────────────────────────
+header "0. Project Access"
 
-ACTIVE_ACCOUNT=$(gcloud auth list --filter=status=ACTIVE --format="value(account)" 2>/dev/null | head -1)
-if [[ -z "$ACTIVE_ACCOUNT" ]]; then
-    echo -e "  ${RED}❌ Not authenticated with gcloud. Run: gcloud auth login${NC}"
-    exit 1
-fi
-info "Authenticated as: $ACTIVE_ACCOUNT"
+info "Authenticated as: $GCLOUD_ACCOUNT"
+info "Target project: $PROJECT_ID"
 
 # Check project exists and is accessible
 if gcloud projects describe "$PROJECT_ID" --format="value(projectId)" >/dev/null 2>&1; then
