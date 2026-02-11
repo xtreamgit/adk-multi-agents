@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """
-Sync corpora from Vertex AI RAG with local database.
-
-This is a standalone script that uses the CorpusSyncService.
-For automatic sync on backend startup, see server.py.
+Test script for CorpusSyncService.
+Verifies that the sync service can connect to Vertex AI and sync corpora.
 
 Usage:
-    python backend/sync_corpora_from_vertex.py
+    python backend/test_corpus_sync.py
 """
 
 import os
@@ -20,7 +18,8 @@ if env_path.exists():
     load_dotenv(dotenv_path=env_path, override=True)
     print(f"✅ Loaded environment from {env_path}")
 else:
-    print(f"⚠️  No .env.local found - using environment variables or defaults")
+    print(f"⚠️  No .env.local found at {env_path}")
+    print("   Using environment variables or defaults")
 
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -29,20 +28,21 @@ from services.corpus_sync_service import CorpusSyncService
 from rag_agent.config import PROJECT_ID, LOCATION
 
 
-def main():
-    """Run corpus sync from Vertex AI to database."""
+def test_sync():
+    """Test the corpus sync service."""
     print("=" * 70)
-    print("Vertex AI Corpus Synchronization Tool")
+    print("Testing CorpusSyncService")
     print("=" * 70)
     print(f"Project: {PROJECT_ID}")
     print(f"Location: {LOCATION}")
     print()
     
+    print("Running sync test...")
     result = CorpusSyncService.sync_from_vertex(PROJECT_ID, LOCATION)
     
     print()
     print("=" * 70)
-    print("Sync Results:")
+    print("Test Results:")
     print("=" * 70)
     print(f"Status: {result['status'].upper()}")
     print(f"Vertex AI corpora: {result['vertex_count']}")
@@ -55,12 +55,24 @@ def main():
         print(f"\nErrors ({len(result['errors'])}):")
         for error in result['errors']:
             print(f"  - {error}")
+        print()
+        print("❌ Test FAILED with errors")
+        return False
     
-    print("=" * 70)
-    
-    return result['status'] in ['success', 'partial']
+    if result['status'] == 'success':
+        print()
+        print("✅ Test PASSED - Sync completed successfully")
+        return True
+    elif result['status'] == 'partial':
+        print()
+        print("⚠️  Test PARTIAL - Sync completed with some errors")
+        return True
+    else:
+        print()
+        print("❌ Test FAILED")
+        return False
 
 
 if __name__ == "__main__":
-    success = main()
+    success = test_sync()
     sys.exit(0 if success else 1)

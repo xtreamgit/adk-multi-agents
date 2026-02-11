@@ -319,140 +319,45 @@ async def trigger_corpus_sync(
     This will add new corpora from Vertex AI and deactivate ones that no longer exist.
     """
     try:
-        # Import sync logic from existing sync script
-        from services.corpus_service import CorpusService
-        from database.repositories import CorpusRepository
+        from services.corpus_sync_service import CorpusSyncService
+        from config.config_loader import load_config
+        import os
         
-        # Get all corpora from Vertex AI
-        try:
-            from rag_agent.tools.list_corpora import list_corpora
-            result = list_corpora()
-            if result['status'] != 'success':
-                raise Exception(result.get('message', 'Failed to list corpora'))
-            
-            vertex_corpora = result['corpora']
-            vertex_corpus_names = {c['display_name'] for c in vertex_corpora}
-            
-        except Exception as e:
-            logger.error(f"Failed to fetch from Vertex AI: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to sync with Vertex AI: {str(e)}"
-            )
+        # Get project and location from config
+        account = os.getenv('ACCOUNT_ENV', 'develom')
+        config = load_config(account)
+        project_id = config.PROJECT_ID
+        location = config.LOCATION
         
-        # Get all corpora from database
-        db_corpora = CorpusRepository.get_all(active_only=False)
-        db_corpus_names = {c['name'] for c in db_corpora}
+        # Run sync using the service
+        result = CorpusSyncService.sync_from_vertex(project_id, location)
         
-        # Track changes
-        added_count = 0
-        deactivated_count = 0
-        updated_count = 0
-        errors = []
-        
-        # Add new corpora from Vertex AI
-        for vertex_corpus in vertex_corpora:
-            if vertex_corpus['display_name'] not in db_corpus_names:
-                try:
-                    # Create new corpus
-                    new_corpus = CorpusRepository.create(
-                        name=vertex_corpus['display_name'],
-                        display_name=vertex_corpus['display_name'],
-                        description=f"Synced from Vertex AI",
-                        gcs_bucket="",  # Will be populated later
-                        vertex_corpus_id=vertex_corpus['resource_name']
-                    )
-                    
-                    # Create metadata
-                    CorpusMetadataRepository.create(
-                        corpus_id=new_corpus['id'],
-                        created_by=current_user.id
-                    )
-                    
-                    # Log the action
+        # Log audit entries for added corpora
+        if result['added'] > 0:
+            try:
+                from database.repositories import CorpusRepository
+                # Get recently added corpora (those added in this sync)
+                all_corpora = CorpusRepository.get_all(active_only=True)
+                for corpus in all_corpora[-result['added']:]:  # Last N added
                     AuditRepository.create({
-                        'corpus_id': new_corpus['id'],
+                        'corpus_id': corpus['id'],
                         'user_id': current_user.id,
                         'action': 'created',
                         'changes': {'source': 'vertex_ai_sync'},
-                        'metadata': {'operation': 'sync'}
+                        'metadata': {'operation': 'manual_sync'}
                     })
-                    
-                    added_count += 1
-                except Exception as e:
-                    logger.error(f"Failed to add corpus {vertex_corpus['display_name']}: {e}")
-                    errors.append(str(e))
+            except Exception as e:
+                logger.warning(f"Failed to create audit entries: {e}")
         
-        # Update sync timestamp and document count for existing corpora that are still in Vertex AI
-        for db_corpus in db_corpora:
-            if db_corpus['name'] in vertex_corpus_names:
-                try:
-                    # Get vertex_corpus_id for this corpus
-                    vertex_corpus = next(
-                        (vc for vc in vertex_corpora if vc['display_name'] == db_corpus['name']),
-                        None
-                    )
-                    vertex_corpus_id = vertex_corpus['resource_name'] if vertex_corpus else None
-                    
-                    # Fetch document count from Vertex AI
-                    try:
-                        if vertex_corpus_id:
-                            from vertexai import rag
-                            files = list(rag.list_files(vertex_corpus_id))
-                            doc_count = len(files)
-                        else:
-                            doc_count = 0
-                    except Exception as doc_err:
-                        logger.warning(f"Failed to fetch document count for {db_corpus['name']}: {doc_err}")
-                        doc_count = None  # Don't update if fetch fails
-                    
-                    # Update last synced timestamp
-                    CorpusMetadataRepository.update_sync_status(
-                        corpus_id=db_corpus['id'],
-                        status='active',
-                        user_id=current_user.id
-                    )
-                    
-                    # Update document count if we successfully fetched it
-                    if doc_count is not None:
-                        CorpusMetadataRepository.update_document_count(
-                            corpus_id=db_corpus['id'],
-                            count=doc_count
-                        )
-                    
-                    updated_count += 1
-                except Exception as e:
-                    logger.error(f"Failed to update sync data for corpus {db_corpus['name']}: {e}")
-                    errors.append(str(e))
-        
-        # Deactivate corpora not in Vertex AI
-        for db_corpus in db_corpora:
-            if db_corpus['name'] not in vertex_corpus_names and db_corpus['is_active']:
-                try:
-                    CorpusRepository.update(db_corpus['id'], is_active=False)
-                    
-                    # Log the action
-                    AuditRepository.create({
-                        'corpus_id': db_corpus['id'],
-                        'user_id': current_user.id,
-                        'action': 'deactivated',
-                        'changes': {'reason': 'not_in_vertex_ai'},
-                        'metadata': {'operation': 'sync'}
-                    })
-                    
-                    deactivated_count += 1
-                except Exception as e:
-                    logger.error(f"Failed to deactivate corpus {db_corpus['name']}: {e}")
-                    errors.append(str(e))
-        
+        # Convert to SyncResult model
         return SyncResult(
-            success=len(errors) == 0,
-            total_corpora=len(vertex_corpora),
-            added_count=added_count,
-            deactivated_count=deactivated_count,
-            updated_count=updated_count,
-            errors=errors,
-            message=f"Sync complete: {added_count} added, {deactivated_count} deactivated"
+            success=result['status'] in ['success', 'partial'],
+            total_corpora=result['vertex_count'],
+            added_count=result['added'],
+            deactivated_count=result['deactivated'],
+            updated_count=result['updated'],
+            errors=result['errors'],
+            message=f"Sync complete: {result['added']} added, {result['updated']} updated, {result['deactivated']} deactivated"
         )
         
     except HTTPException:

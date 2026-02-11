@@ -192,6 +192,25 @@ def setup_admin_group():
 
 setup_admin_group()
 
+# Sync corpora from Vertex AI on startup
+def sync_corpora_on_startup():
+    """Sync corpora from Vertex AI to database on application startup."""
+    try:
+        from services.corpus_sync_service import CorpusSyncService
+        from config.config_loader import load_config
+        
+        account = os.getenv('ACCOUNT_ENV', 'develom')
+        config = load_config(account)
+        project_id = config.PROJECT_ID
+        location = config.LOCATION
+        
+        CorpusSyncService.sync_on_startup(project_id, location)
+    except Exception as e:
+        logger.error(f"⚠️  Corpus sync on startup failed (non-critical): {e}")
+        logger.error("   Application will continue with existing database data")
+
+sync_corpora_on_startup()
+
 # Pydantic models for API requests/responses
 class UserProfile(BaseModel):
     name: str
