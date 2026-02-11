@@ -159,22 +159,44 @@ for arg in "$@"; do
     esac
 done
 
-# ── Load config ─────────────────────────────────────────────────────────────
+# ── Load config (safe parse — NO sourcing) ───────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIG_FILE="$PROJECT_ROOT/deployment.config"
 
+# Extract only simple export VAR="value" lines — never execute gcloud or echo
+CONFIG_PROJECT_ID=""
+CONFIG_REGION=""
+CONFIG_REPO=""
+CONFIG_ORG_DOMAIN=""
+CONFIG_IAP_ADMIN=""
+CONFIG_ACCOUNT_ENV=""
+
 if [[ -f "$CONFIG_FILE" ]]; then
-    # shellcheck disable=SC1090
-    # Suppress stdout — deployment.config has echo statements and gcloud calls
-    source "$CONFIG_FILE" >/dev/null 2>&1 || true
+    # Read only uncommented export lines with simple string values
+    CONFIG_PROJECT_ID=$(grep -E '^\s*export\s+PROJECT_ID=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_REGION=$(grep -E '^\s*export\s+REGION=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | sed 's/#.*//' | xargs)
+    CONFIG_REPO=$(grep -E '^\s*export\s+REPO=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_ORG_DOMAIN=$(grep -E '^\s*export\s+ORGANIZATION_DOMAIN=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_IAP_ADMIN=$(grep -E '^\s*export\s+IAP_ADMIN_USER=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_ACCOUNT_ENV=$(grep -E '^\s*export\s+ACCOUNT_ENV=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    echo -e "${BOLD}Values from deployment.config:${NC}"
+    echo -e "  PROJECT_ID : ${CONFIG_PROJECT_ID:-<not set>}"
+    echo -e "  REGION     : ${CONFIG_REGION:-<not set>}"
+    echo -e "  REPO       : ${CONFIG_REPO:-<not set>}"
+    echo -e "  ACCOUNT_ENV: ${CONFIG_ACCOUNT_ENV:-<not set>}"
+else
+    echo -e "${YELLOW}⚠️  deployment.config not found — will use gcloud config or CLI flags${NC}"
 fi
 
-# CLI overrides
+# Start with config values (may be overridden below)
+PROJECT_ID="${CONFIG_PROJECT_ID:-}"
+REGION="${CONFIG_REGION:-}"
+REPO="${CONFIG_REPO:-cloud-run-repo1}"
+
+# CLI overrides take priority over deployment.config
 [[ -n "$CLI_PROJECT_ID" ]] && PROJECT_ID="$CLI_PROJECT_ID"
 [[ -n "$CLI_REGION" ]]     && REGION="$CLI_REGION"
-
-REPO="${REPO:-cloud-run-repo1}"
 
 # ── Verify gcloud config vs deployment.config ────────────────────────────────
 GCLOUD_PROJECT=$(gcloud config get-value project 2>/dev/null || echo "")
@@ -266,6 +288,19 @@ if [[ -z "${REGION:-}" ]]; then
         fi
     fi
 fi
+
+# ── Lock in the resolved project ─────────────────────────────────────────────
+# From this point forward, PROJECT_ID and REGION are the confirmed targets.
+# Set gcloud config so any implicit gcloud calls also use the right project.
+gcloud config set project "$PROJECT_ID" --quiet 2>/dev/null
+
+echo ""
+echo -e "${BOLD}${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+echo -e "${BOLD}${CYAN}│  SCAN TARGET (confirmed)                             │${NC}"
+echo -e "${BOLD}${CYAN}│  Project : ${PROJECT_ID}$(printf '%*s' $((38 - ${#PROJECT_ID})) '')│${NC}"
+echo -e "${BOLD}${CYAN}│  Region  : ${REGION}$(printf '%*s' $((38 - ${#REGION})) '')│${NC}"
+echo -e "${BOLD}${CYAN}│  Repo    : ${REPO}$(printf '%*s' $((38 - ${#REPO})) '')│${NC}"
+echo -e "${BOLD}${CYAN}└──────────────────────────────────────────────────────┘${NC}"
 echo ""
 
 # ── Start report (optionally tee to file) ──────────────────────────────────────
@@ -311,9 +346,6 @@ else
     exit 0
 fi
 
-# Set project context for remaining checks
-gcloud config set project "$PROJECT_ID" --quiet 2>/dev/null
-
 ###############################################################################
 # 1. ENABLED APIs
 ###############################################################################
@@ -336,15 +368,16 @@ REQUIRED_APIS=(
     secretmanager.googleapis.com
 )
 
-ENABLED_APIS=$(gcloud services list --enabled --format="value(name)" 2>/dev/null || echo "")
+ENABLED_APIS=$(gcloud services list --enabled --project="$PROJECT_ID" --format="value(name)" 2>/dev/null || echo "")
 
 for api in "${REQUIRED_APIS[@]}"; do
     # Shorten API name for table: strip .googleapis.com suffix
     api_short=$(echo "$api" | sed 's/\.googleapis\.com$//')
-    if echo "$ENABLED_APIS" | grep -q "^${api}$"; then
-        info "$api — already enabled"
+    # Match API name in the full path format: projects/NUMBER/services/API_NAME
+    if echo "$ENABLED_APIS" | grep -q "/${api}$"; then
+        ok "API '$api_short' — already enabled"
     else
-        ok "API '$api_short' — not enabled"
+        conflict "API '$api_short' NOT enabled" "Will be enabled by deploy-init.sh"
     fi
 done
 
@@ -353,10 +386,10 @@ done
 ###############################################################################
 header "2. Artifact Registry"
 
-if gcloud artifacts repositories describe "$REPO" --location="$REGION" --format="value(name)" >/dev/null 2>&1; then
+if gcloud artifacts repositories describe "$REPO" --project="$PROJECT_ID" --location="$REGION" --format="value(name)" >/dev/null 2>&1; then
     conflict "Repo '$REPO' exists in $REGION" "Has images"
     # List images inside
-    IMAGES=$(gcloud artifacts docker images list "$REGION-docker.pkg.dev/$PROJECT_ID/$REPO" --format="value(package)" 2>/dev/null || echo "")
+    IMAGES=$(gcloud artifacts docker images list "$REGION-docker.pkg.dev/$PROJECT_ID/$REPO" --project="$PROJECT_ID" --format="value(package)" 2>/dev/null || echo "")
     if [[ -n "$IMAGES" ]]; then
         detail "Existing images:"
         echo "$IMAGES" | while read -r img; do detail "  - $img"; done
@@ -382,7 +415,7 @@ SA_NAMES=(
 
 for sa_short in "${SA_NAMES[@]}"; do
     sa_full="${sa_short}@${PROJECT_ID}.iam.gserviceaccount.com"
-    if gcloud iam service-accounts describe "$sa_full" --format="value(email)" >/dev/null 2>&1; then
+    if gcloud iam service-accounts describe "$sa_full" --project="$PROJECT_ID" --format="value(email)" >/dev/null 2>&1; then
         conflict "SA '$sa_short' exists" "$sa_full"
     else
         ok "SA '$sa_short' — not found"
@@ -402,12 +435,12 @@ CR_SERVICES=(
     "frontend"
 )
 
-EXISTING_CR=$(gcloud run services list --region="$REGION" --format="value(metadata.name)" 2>/dev/null || echo "")
+EXISTING_CR=$(gcloud run services list --project="$PROJECT_ID" --region="$REGION" --format="value(metadata.name)" 2>/dev/null || echo "")
 
 for svc in "${CR_SERVICES[@]}"; do
     if echo "$EXISTING_CR" | grep -q "^${svc}$"; then
         conflict "Service '$svc' exists" "Deployed in $REGION"
-        URL=$(gcloud run services describe "$svc" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "unknown")
+        URL=$(gcloud run services describe "$svc" --project="$PROJECT_ID" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "unknown")
         detail "URL: $URL"
     else
         ok "Service '$svc' — not found"
@@ -428,20 +461,20 @@ fi
 ###############################################################################
 header "5. Cloud SQL Instances"
 
-EXISTING_SQL=$(gcloud sql instances list --format="value(name)" 2>/dev/null || echo "")
+EXISTING_SQL=$(gcloud sql instances list --project="$PROJECT_ID" --format="value(name)" 2>/dev/null || echo "")
 
 if [[ -n "$EXISTING_SQL" ]]; then
     warn "Cloud SQL instances found" "Review instances below"
     echo "$EXISTING_SQL" | while read -r inst; do
-        INST_REGION=$(gcloud sql instances describe "$inst" --format="value(region)" 2>/dev/null || echo "unknown")
-        INST_VERSION=$(gcloud sql instances describe "$inst" --format="value(databaseVersion)" 2>/dev/null || echo "unknown")
-        INST_STATE=$(gcloud sql instances describe "$inst" --format="value(state)" 2>/dev/null || echo "unknown")
+        INST_REGION=$(gcloud sql instances describe "$inst" --project="$PROJECT_ID" --format="value(region)" 2>/dev/null || echo "unknown")
+        INST_VERSION=$(gcloud sql instances describe "$inst" --project="$PROJECT_ID" --format="value(databaseVersion)" 2>/dev/null || echo "unknown")
+        INST_STATE=$(gcloud sql instances describe "$inst" --project="$PROJECT_ID" --format="value(state)" 2>/dev/null || echo "unknown")
         detail "  - $inst  (region=$INST_REGION, version=$INST_VERSION, state=$INST_STATE)"
     done
     
     # Check for databases inside each instance
     echo "$EXISTING_SQL" | while read -r inst; do
-        DBS=$(gcloud sql databases list --instance="$inst" --format="value(name)" 2>/dev/null || echo "")
+        DBS=$(gcloud sql databases list --instance="$inst" --project="$PROJECT_ID" --format="value(name)" 2>/dev/null || echo "")
         if echo "$DBS" | grep -q "adk_agents_db"; then
             detail "  ⚠️  Instance '$inst' already has database 'adk_agents_db'"
         fi
@@ -455,7 +488,7 @@ fi
 ###############################################################################
 header "6. Secret Manager"
 
-EXISTING_SECRETS=$(gcloud secrets list --format="value(name)" 2>/dev/null || echo "")
+EXISTING_SECRETS=$(gcloud secrets list --project="$PROJECT_ID" --format="value(name)" 2>/dev/null || echo "")
 
 EXPECTED_SECRETS=("db-password")
 
@@ -487,7 +520,55 @@ if [[ -n "$EXISTING_BUCKETS" ]]; then
     echo "$EXISTING_BUCKETS" | while read -r bucket; do
         # Get bucket location
         BUCKET_LOC=$(gsutil ls -L -b "gs://$bucket/" 2>/dev/null | grep "Location constraint:" | awk '{print $NF}' || echo "unknown")
-        detail "  - gs://$bucket/  (location: $BUCKET_LOC)"
+        
+        # Sample bucket contents to identify type (check first 20 files)
+        BUCKET_SAMPLE=$(gsutil ls "gs://$bucket/**" 2>/dev/null | head -20)
+        
+        if [[ -z "$BUCKET_SAMPLE" ]]; then
+            # Empty bucket or only directories
+            detail "  - gs://$bucket/  (location: $BUCKET_LOC, type: Empty or directories only)"
+        else
+            # Count file types
+            TOTAL_SAMPLE=$(echo "$BUCKET_SAMPLE" | wc -l | xargs)
+            PDF_MATCHES=$(echo "$BUCKET_SAMPLE" | grep '\.pdf$' 2>/dev/null || true)
+            SQL_MATCHES=$(echo "$BUCKET_SAMPLE" | grep '\.sql$' 2>/dev/null || true)
+            
+            # Count matches (empty string = 0, otherwise count lines)
+            if [[ -z "$PDF_MATCHES" ]]; then
+                PDF_COUNT=0
+            else
+                PDF_COUNT=$(echo "$PDF_MATCHES" | wc -l | xargs)
+            fi
+            
+            if [[ -z "$SQL_MATCHES" ]]; then
+                SQL_COUNT=0
+            else
+                SQL_COUNT=$(echo "$SQL_MATCHES" | wc -l | xargs)
+            fi
+            
+            # Get total object count (more accurate but slower)
+            TOTAL_OBJECTS=$(gsutil ls -r "gs://$bucket/**" 2>/dev/null | grep -v ':$' | wc -l | xargs)
+            
+            # Determine bucket type
+            BUCKET_TYPE="Mixed content"
+            if [[ $PDF_COUNT -gt 0 ]] && [[ $PDF_COUNT -eq $TOTAL_SAMPLE ]]; then
+                BUCKET_TYPE="📚 PDF Collection (RAG corpus candidate)"
+            elif [[ $PDF_COUNT -gt 0 ]] && [[ $PDF_COUNT -ge $((TOTAL_SAMPLE * 70 / 100)) ]]; then
+                BUCKET_TYPE="📚 Mostly PDFs (${PDF_COUNT}/${TOTAL_SAMPLE} sampled)"
+            elif echo "$bucket" | grep -q "cloudbuild"; then
+                BUCKET_TYPE="🔧 Cloud Build artifacts"
+            elif echo "$bucket" | grep -q "migration"; then
+                BUCKET_TYPE="🗄️  Database migrations"
+            elif echo "$bucket" | grep -q "run-sources"; then
+                BUCKET_TYPE="🚀 Cloud Run sources"
+            elif [[ "$SQL_COUNT" -gt 0 ]]; then
+                BUCKET_TYPE="🗄️  SQL files"
+            fi
+            
+            detail "  - gs://$bucket/  (location: $BUCKET_LOC)"
+            detail "    Type: $BUCKET_TYPE"
+            detail "    Objects: $TOTAL_OBJECTS total, sampled $TOTAL_SAMPLE (PDFs: $PDF_COUNT)"
+        fi
     done
 else
     ok "No GCS buckets found"
@@ -498,18 +579,60 @@ fi
 ###############################################################################
 header "8. Vertex AI RAG Corpora"
 
-# Use gcloud to list RAG corpora
-CORPORA_OUTPUT=$(gcloud ai rag-corpora list --region="$REGION" --format="table(name,displayName)" 2>/dev/null || echo "ERROR")
-
-if [[ "$CORPORA_OUTPUT" == "ERROR" ]]; then
-    info "Could not list Vertex AI RAG corpora (API may not be enabled yet)"
-elif [[ -z "$CORPORA_OUTPUT" ]] || echo "$CORPORA_OUTPUT" | grep -q "Listed 0 items"; then
-    ok "No RAG corpora in $REGION"
+# Use REST API to list RAG corpora (gcloud CLI doesn't support this yet)
+ACCESS_TOKEN=$(gcloud auth print-access-token 2>/dev/null)
+if [[ -z "$ACCESS_TOKEN" ]]; then
+    info "Could not get access token for Vertex AI API"
 else
-    warn "RAG corpora found in $REGION" "See corpora list below"
-    echo "$CORPORA_OUTPUT" | while read -r line; do
-        detail "  $line"
-    done
+    CORPORA_JSON=$(curl -s "https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/ragCorpora" \
+        -H "Authorization: Bearer ${ACCESS_TOKEN}" 2>/dev/null)
+    
+    # Check if API returned an error
+    if echo "$CORPORA_JSON" | grep -q '"error"'; then
+        ERROR_MSG=$(echo "$CORPORA_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('error',{}).get('message','Unknown error'))" 2>/dev/null || echo "API error")
+        info "Could not list RAG corpora: $ERROR_MSG"
+    else
+        # Parse corpora count
+        CORPUS_COUNT=$(echo "$CORPORA_JSON" | python3 -c "import json,sys; data=json.load(sys.stdin); print(len(data.get('ragCorpora',[])))" 2>/dev/null || echo "0")
+        
+        if [[ "$CORPUS_COUNT" -eq 0 ]]; then
+            ok "No RAG corpora in $REGION"
+        else
+            warn "RAG corpora found in $REGION" "$CORPUS_COUNT corpora exist"
+            
+            # Extract and display corpus details
+            echo "$CORPORA_JSON" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for corpus in data.get('ragCorpora', []):
+    name = corpus.get('name', '')
+    corpus_id = name.split('/')[-1] if name else 'unknown'
+    display_name = corpus.get('displayName', 'unnamed')
+    status = corpus.get('corpusStatus', {}).get('state', 'UNKNOWN')
+    created = corpus.get('createTime', 'unknown')[:10]  # Just date part
+    print(f'{display_name}|{corpus_id}|{status}|{created}')
+" 2>/dev/null | while IFS='|' read -r display_name corpus_id status created; do
+                detail "  - $display_name (ID: $corpus_id, Status: $status, Created: $created)"
+                
+                # Fetch additional details for each corpus
+                CORPUS_DETAIL=$(curl -s "https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/ragCorpora/${corpus_id}" \
+                    -H "Authorization: Bearer ${ACCESS_TOKEN}" 2>/dev/null)
+                
+                # Extract embedding model
+                EMBEDDING_MODEL=$(echo "$CORPUS_DETAIL" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    endpoint = data.get('vectorDbConfig', {}).get('ragEmbeddingModelConfig', {}).get('vertexPredictionEndpoint', {}).get('endpoint', '')
+    model = endpoint.split('/')[-1] if endpoint else 'unknown'
+    print(model)
+except:
+    print('unknown')
+" 2>/dev/null)
+                detail "    Embedding model: $EMBEDDING_MODEL"
+            done
+        fi
+    fi
 fi
 
 ###############################################################################
@@ -518,16 +641,16 @@ fi
 header "9. Load Balancer"
 
 # Static IP
-if gcloud compute addresses describe rag-agent-ip --global --format="value(address)" >/dev/null 2>&1; then
-    STATIC_IP=$(gcloud compute addresses describe rag-agent-ip --global --format="value(address)" 2>/dev/null)
+if gcloud compute addresses describe rag-agent-ip --global --project="$PROJECT_ID" --format="value(address)" >/dev/null 2>&1; then
+    STATIC_IP=$(gcloud compute addresses describe rag-agent-ip --global --project="$PROJECT_ID" --format="value(address)" 2>/dev/null)
     conflict "Static IP 'rag-agent-ip' exists" "$STATIC_IP"
 else
     ok "Static IP 'rag-agent-ip' — not found"
 fi
 
 # SSL Certificate
-if gcloud compute ssl-certificates describe rag-agent-ssl-cert --global >/dev/null 2>&1; then
-    SSL_STATUS=$(gcloud compute ssl-certificates describe rag-agent-ssl-cert --global --format="value(managed.status)" 2>/dev/null || echo "unknown")
+if gcloud compute ssl-certificates describe rag-agent-ssl-cert --global --project="$PROJECT_ID" >/dev/null 2>&1; then
+    SSL_STATUS=$(gcloud compute ssl-certificates describe rag-agent-ssl-cert --global --project="$PROJECT_ID" --format="value(managed.status)" 2>/dev/null || echo "unknown")
     conflict "SSL cert 'rag-agent-ssl-cert' exists" "Status: $SSL_STATUS"
 else
     ok "SSL cert 'rag-agent-ssl-cert' — not found"
@@ -536,7 +659,7 @@ fi
 # Network Endpoint Groups
 NEGS=("frontend-neg" "backend-neg" "backend-agent1-neg" "backend-agent2-neg" "backend-agent3-neg")
 for neg in "${NEGS[@]}"; do
-    if gcloud compute network-endpoint-groups describe "$neg" --region="$REGION" >/dev/null 2>&1; then
+    if gcloud compute network-endpoint-groups describe "$neg" --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
         conflict "NEG '$neg' exists" "In $REGION"
     else
         ok "NEG '$neg' — not found"
@@ -548,7 +671,7 @@ LB_BACKENDS=("frontend-backend-service" "backend-backend-service" "backend-agent
 for bs in "${LB_BACKENDS[@]}"; do
     # Shorten name for display: remove "-backend-service" suffix
     bs_short=$(echo "$bs" | sed 's/-backend-service$//')
-    if gcloud compute backend-services describe "$bs" --global >/dev/null 2>&1; then
+    if gcloud compute backend-services describe "$bs" --global --project="$PROJECT_ID" >/dev/null 2>&1; then
         conflict "LB backend '$bs_short' exists" "Global LB backend service"
     else
         ok "LB backend '$bs_short' — not found"
@@ -556,28 +679,28 @@ for bs in "${LB_BACKENDS[@]}"; do
 done
 
 # URL Map
-if gcloud compute url-maps describe rag-agent-url-map --global >/dev/null 2>&1; then
+if gcloud compute url-maps describe rag-agent-url-map --global --project="$PROJECT_ID" >/dev/null 2>&1; then
     conflict "URL map 'rag-agent-url-map' exists" "Global"
 else
     ok "URL map 'rag-agent-url-map' — not found"
 fi
 
 # HTTPS Proxy
-if gcloud compute target-https-proxies describe rag-agent-https-proxy --global >/dev/null 2>&1; then
+if gcloud compute target-https-proxies describe rag-agent-https-proxy --global --project="$PROJECT_ID" >/dev/null 2>&1; then
     conflict "HTTPS proxy exists" "rag-agent-https-proxy"
 else
     ok "HTTPS proxy — not found"
 fi
 
 # Forwarding Rule
-if gcloud compute forwarding-rules describe rag-agent-forwarding-rule --global >/dev/null 2>&1; then
+if gcloud compute forwarding-rules describe rag-agent-forwarding-rule --global --project="$PROJECT_ID" >/dev/null 2>&1; then
     conflict "Forwarding rule exists" "rag-agent-forwarding-rule"
 else
     ok "Forwarding rule — not found"
 fi
 
 # Check for OTHER load balancer resources not managed by us
-OTHER_FORWARDING=$(gcloud compute forwarding-rules list --global --format="value(name)" 2>/dev/null | grep -v "rag-agent-forwarding-rule" || true)
+OTHER_FORWARDING=$(gcloud compute forwarding-rules list --global --project="$PROJECT_ID" --format="value(name)" 2>/dev/null | grep -v "rag-agent-forwarding-rule" || true)
 if [[ -n "$OTHER_FORWARDING" ]]; then
     warn "Other forwarding rules found" "Not managed by this app"
     echo "$OTHER_FORWARDING" | while read -r fr; do detail "  - $fr"; done
@@ -588,14 +711,14 @@ fi
 ###############################################################################
 header "10. OAuth Brand & IAP"
 
-BRAND_LIST=$(gcloud iap oauth-brands list --format="value(name)" 2>/dev/null || echo "")
+BRAND_LIST=$(gcloud iap oauth-brands list --project="$PROJECT_ID" --format="value(name)" 2>/dev/null || echo "")
 if [[ -n "$BRAND_LIST" ]]; then
     warn "OAuth brand configured" "Already exists"
     echo "$BRAND_LIST" | while read -r brand; do detail "  - $brand"; done
     
     # Check for existing OAuth clients
     BRAND_PATH=$(echo "$BRAND_LIST" | head -1)
-    OAUTH_CLIENTS=$(gcloud iap oauth-clients list "$BRAND_PATH" --format="value(name,displayName)" 2>/dev/null || echo "")
+    OAUTH_CLIENTS=$(gcloud iap oauth-clients list "$BRAND_PATH" --project="$PROJECT_ID" --format="value(name,displayName)" 2>/dev/null || echo "")
     if [[ -n "$OAUTH_CLIENTS" ]]; then
         warn "OAuth clients exist" "DELETED on redeploy!"
         echo "$OAUTH_CLIENTS" | while read -r client; do detail "  - $client"; done
@@ -609,7 +732,7 @@ fi
 ###############################################################################
 header "11. Cloud Build"
 
-RECENT_BUILDS=$(gcloud builds list --limit=5 --format="table(id,status,createTime,source.storageSource.bucket)" 2>/dev/null || echo "")
+RECENT_BUILDS=$(gcloud builds list --project="$PROJECT_ID" --limit=5 --format="table(id,status,createTime,source.storageSource.bucket)" 2>/dev/null || echo "")
 if [[ -n "$RECENT_BUILDS" ]] && ! echo "$RECENT_BUILDS" | grep -q "Listed 0 items"; then
     info "Recent Cloud Build history (last 5):"
     echo "$RECENT_BUILDS" | while read -r line; do detail "  $line"; done
@@ -636,7 +759,7 @@ fi
 header "12. IAM Policy (broad role check)"
 
 # Check if any of our expected roles are already bound
-IAM_POLICY=$(gcloud projects get-iam-policy "$PROJECT_ID" --format=json 2>/dev/null || echo "{}")
+IAM_POLICY=$(gcloud projects get-iam-policy "$PROJECT_ID" --project="$PROJECT_ID" --format=json 2>/dev/null || echo "{}")
 
 BROAD_ROLES=("roles/aiplatform.admin" "roles/storage.admin" "roles/bigquery.admin")
 for role in "${BROAD_ROLES[@]}"; do
