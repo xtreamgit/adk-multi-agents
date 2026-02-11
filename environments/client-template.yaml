@@ -90,3 +90,39 @@ service_accounts:
   backend_sa: ""       # e.g., "backend-sa@PROJECT_ID.iam.gserviceaccount.com"
   frontend_sa: ""      # e.g., "frontend-sa@PROJECT_ID.iam.gserviceaccount.com"
   rag_agent_sa: ""     # e.g., "rag-agent-sa@PROJECT_ID.iam.gserviceaccount.com"
+
+# ---- Seed Data ----
+# Baseline users, groups, and permissions for a fresh deployment.
+# Corpora are NOT seeded here — they come from Vertex AI via sync_corpora_from_vertex.py.
+# Group-corpus access uses corpus names (resolved at seed time against the corpora table).
+# Run: python seed_data.py --env ../environments/<client>.yaml [--target cloud|local]
+
+seed_data:
+  users:
+    - username: "admin"
+      email: "admin@example.com"
+      full_name: "Admin User"
+      password: "CHANGE_ME"
+      auth_provider: "local"
+
+  groups:
+    - name: "admin-users"
+      description: "Administrators with full system access"
+    - name: "users"
+      description: "Default user group"
+
+  # user_group memberships: username → list of group names
+  memberships:
+    admin:
+      - "admin-users"
+      - "users"
+
+  # group_corpus_access: group_name → list of {corpus_name, permission}
+  # permission: "read", "write", or "admin"
+  group_corpus_access:
+    admin-users:
+      - corpus: "CHANGE_ME"
+        permission: "admin"
+    users:
+      - corpus: "CHANGE_ME"
+        permission: "read"
