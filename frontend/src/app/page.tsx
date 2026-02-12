@@ -65,8 +65,9 @@ export default function Home() {
         const myAgents = await apiClient.getMyAgents();
         setAvailableAgents(myAgents);
         if (myAgents.length > 0) {
-          setCurrentAgent(myAgents[0]);
-          console.log('✅ Loaded default agent:', myAgents[0].display_name);
+          const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
+          setCurrentAgent(defaultAgent);
+          console.log('✅ Loaded default agent:', defaultAgent.display_name);
         }
       } catch (err) {
         console.error('Failed to load user agents:', err);
@@ -133,10 +134,11 @@ export default function Home() {
       setIsLoadingAgents(true);
       const myAgents = await apiClient.getMyAgents();
       setAvailableAgents(myAgents);
-      // Set the first available agent as default
+      // Set the default agent (or first available)
       if (myAgents.length > 0) {
-        setCurrentAgent(myAgents[0]);
-        console.log('✅ Loaded agent after login:', myAgents[0].display_name);
+        const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
+        setCurrentAgent(defaultAgent);
+        console.log('✅ Loaded agent after login:', defaultAgent.display_name);
       }
     } catch (err) {
       console.error('Failed to load user agents after login:', err);
