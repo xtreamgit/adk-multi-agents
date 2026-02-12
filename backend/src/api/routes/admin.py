@@ -832,3 +832,238 @@ async def delete_user(
     except Exception as e:
         logger.error(f"Failed to delete user: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
+
+
+# ========== Agent Assignment Management ==========
+
+@router.get("/agent-assignments")
+async def list_user_agent_assignments(
+    current_user: User = Depends(require_admin)
+):
+    """Get all users with their agent assignments."""
+    try:
+        from database.connection import get_db_connection
+        from services.agent_loader import load_agent_config
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT 
+                        u.id, u.username, u.email, u.full_name, u.is_active,
+                        u.default_agent_id,
+                        a.id as agent_id, a.name as agent_name, 
+                        a.display_name as agent_display_name,
+                        a.config_path
+                    FROM users u
+                    LEFT JOIN agents a ON u.default_agent_id = a.id
+                    WHERE u.is_active = true
+                    ORDER BY u.username
+                """)
+                users = cur.fetchall()
+                
+                # Get all agent access for each user
+                cur.execute("""
+                    SELECT uaa.user_id, a.id as agent_id, a.name, a.display_name, a.config_path
+                    FROM user_agent_access uaa
+                    JOIN agents a ON uaa.agent_id = a.id
+                    WHERE a.is_active = true
+                    ORDER BY uaa.user_id, a.id
+                """)
+                access_rows = cur.fetchall()
+        
+        # Group access by user_id
+        access_by_user = {}
+        for row in access_rows:
+            uid = row['user_id']
+            if uid not in access_by_user:
+                access_by_user[uid] = []
+            access_by_user[uid].append({
+                'id': row['agent_id'],
+                'name': row['name'],
+                'display_name': row['display_name'],
+                'config_path': row['config_path'],
+            })
+        
+        result = []
+        for u in users:
+            result.append({
+                'id': u['id'],
+                'username': u['username'],
+                'email': u['email'],
+                'full_name': u['full_name'],
+                'is_active': u['is_active'],
+                'default_agent': {
+                    'id': u['agent_id'],
+                    'name': u['agent_name'],
+                    'display_name': u['agent_display_name'],
+                    'config_path': u['config_path'],
+                } if u['agent_id'] else None,
+                'accessible_agents': access_by_user.get(u['id'], []),
+            })
+        
+        return result
+    except Exception as e:
+        logger.error(f"Failed to list agent assignments: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/agents-list")
+async def list_all_agents_admin(
+    current_user: User = Depends(require_admin)
+):
+    """Get all agents with their tools (for admin assignment UI)."""
+    try:
+        from services.agent_service import AgentService
+        from services.agent_loader import load_agent_config
+        
+        agents = AgentService.get_all_agents(active_only=True)
+        result = []
+        for agent in agents:
+            tools = []
+            agent_type = None
+            try:
+                config = load_agent_config(agent.config_path)
+                tools = config.get('tools', [])
+                agent_type = config.get('agent_name', agent.config_path)
+            except Exception:
+                pass
+            
+            result.append({
+                'id': agent.id,
+                'name': agent.name,
+                'display_name': agent.display_name,
+                'description': agent.description,
+                'config_path': agent.config_path,
+                'agent_type': agent_type,
+                'tools': tools,
+            })
+        
+        return result
+    except Exception as e:
+        logger.error(f"Failed to list agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/users/{user_id}/default-agent/{agent_id}")
+async def admin_set_user_default_agent(
+    user_id: int,
+    agent_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """Set a user's default agent (admin only)."""
+    try:
+        from services.agent_service import AgentService
+        from services.user_service import UserService
+        
+        # Verify user exists
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Verify agent exists
+        agent = AgentService.get_agent_by_id(agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Grant access if not already granted
+        if not AgentService.validate_agent_access(user_id, agent_id):
+            AgentService.grant_user_access(user_id, agent_id)
+            logger.info(f"Auto-granted user {user_id} access to agent {agent_id}")
+        
+        # Set default agent
+        success = UserService.set_default_agent(user_id, agent_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to set default agent")
+        
+        # Log the action
+        AuditRepository.create({
+            'user_id': current_user.id,
+            'action': 'set_user_default_agent',
+            'changes': {
+                'target_user_id': user_id,
+                'target_username': user.username,
+                'agent_id': agent_id,
+                'agent_name': agent.name,
+            },
+            'metadata': {'operation': 'agent_assignment'}
+        })
+        
+        logger.info(f"Admin {current_user.username} set user {user.username} default agent to {agent.name}")
+        return {
+            "success": True,
+            "message": f"Set {user.username}'s default agent to {agent.display_name}",
+            "user_id": user_id,
+            "agent_id": agent_id,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to set default agent: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/users/{user_id}/agent-access/{agent_id}")
+async def admin_grant_agent_access(
+    user_id: int,
+    agent_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """Grant a user access to an agent (admin only)."""
+    try:
+        from services.agent_service import AgentService
+        from services.user_service import UserService
+        
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        agent = AgentService.get_agent_by_id(agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        success = AgentService.grant_user_access(user_id, agent_id)
+        if not success:
+            return {"success": True, "message": "User already has access"}
+        
+        logger.info(f"Admin {current_user.username} granted user {user.username} access to agent {agent.name}")
+        return {"success": True, "message": f"Granted {user.username} access to {agent.display_name}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to grant agent access: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/users/{user_id}/agent-access/{agent_id}")
+async def admin_revoke_agent_access(
+    user_id: int,
+    agent_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """Revoke a user's access to an agent (admin only)."""
+    try:
+        from services.agent_service import AgentService
+        from services.user_service import UserService
+        
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Don't allow revoking access to the user's default agent
+        if user.default_agent_id == agent_id:
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot revoke access to user's default agent. Change default agent first."
+            )
+        
+        success = AgentService.revoke_user_access(user_id, agent_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Access not found")
+        
+        logger.info(f"Admin {current_user.username} revoked user {user.username} access to agent {agent_id}")
+        return {"success": True, "message": "Access revoked"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to revoke agent access: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

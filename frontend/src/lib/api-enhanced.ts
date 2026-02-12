@@ -1170,6 +1170,76 @@ class EnhancedApiClient {
 
     return response.json();
   }
+
+  // ========== Admin Agent Assignment APIs ==========
+
+  async admin_getAgentAssignments(): Promise<any[]> {
+    const response = await fetch(this.buildUrl('/api/admin/agent-assignments'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get agent assignments: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_getAgentsList(): Promise<any[]> {
+    const response = await fetch(this.buildUrl('/api/admin/agents-list'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get agents list: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async admin_setUserDefaultAgent(userId: number, agentId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/default-agent/${agentId}`), {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Failed to set default agent');
+    }
+
+    return response.json();
+  }
+
+  async admin_grantAgentAccess(userId: number, agentId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/agent-access/${agentId}`), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Failed to grant agent access');
+    }
+
+    return response.json();
+  }
+
+  async admin_revokeAgentAccess(userId: number, agentId: number): Promise<any> {
+    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/agent-access/${agentId}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Failed to revoke agent access');
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

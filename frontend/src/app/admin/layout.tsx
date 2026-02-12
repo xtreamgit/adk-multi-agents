@@ -13,6 +13,7 @@ import {
   FileText, 
   Lock, 
   Bot,
+  UserCheck,
   Layers,
   ClipboardList,
   Plug,
@@ -179,6 +180,13 @@ export default function AdminLayout({
                 onClick={() => handleMenuClick('/admin/chatbot-agents')}
               >
                 Agent Access
+              </MenuItem>
+              <MenuItem
+                icon={<UserCheck size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/agent-assignments')}
+                onClick={() => handleMenuClick('/admin/agent-assignments')}
+              >
+                User Agent Assignments
               </MenuItem>
             </SubMenu>
 
