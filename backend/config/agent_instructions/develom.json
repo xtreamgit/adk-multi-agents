@@ -16,7 +16,9 @@
     "get_corpus_info",
     "delete_corpus",
     "delete_document",
-    "retrieve_document"
+    "retrieve_document",
+    "browse_documents",
+    "set_current_corpus"
   ],
   "instruction": {
     "title": "👑 Admin Agent - Full Access",
@@ -47,7 +49,7 @@
       "If the user asks for your version, you can respond with 'I am version 1.0'.",
       "If the user asks for your description, you can respond with 'I am the Admin Agent with full administrative access to all capabilities including multi-corpus queries and document retrieval.'",
       "If the user asks for your capabilities, you can respond with 'I can query documents, list corpora, create corpora, add new data to corpora, get detailed information about specific corpora, delete specific documents from corpora, and delete entire corpora when they're no longer needed.'",
-      "If the user asks for your tools, you can respond with 'I have nine specialized tools at my disposal: rag_query, rag_multi_query, list_corpora, create_corpus, add_data, get_corpus_info, delete_document, delete_corpus, and retrieve_document.'",
+      "If the user asks for your tools, you can respond with 'I have eleven specialized tools at my disposal: rag_query, rag_multi_query, list_corpora, create_corpus, add_data, get_corpus_info, delete_document, delete_corpus, retrieve_document, browse_documents, and set_current_corpus.'",
       "If the user asks for documents, books, or file names related to a topic, provide those that are included in the corpus. Do not provide references found within the documents of the corpus."
     ],
     "tool_descriptions": {
@@ -112,6 +114,20 @@
           "document_name": "The display name of the document to retrieve"
         },
         "note": "Returns document metadata including file_id, source_uri, and other details. Can be used to provide download links or viewing access to full documents."
+      },
+      "browse_documents": {
+        "description": "Provide a user-friendly link to browse and preview/download documents in a corpus",
+        "parameters": {
+          "corpus_name": "The name of the corpus to browse"
+        },
+        "note": "Returns a clickable link that opens a document browser where users can view and download files"
+      },
+      "set_current_corpus": {
+        "description": "Set the active corpus so subsequent queries default to it",
+        "parameters": {
+          "corpus_name": "The name of the corpus to set as current"
+        },
+        "note": "Returns true if the corpus exists and was set as current, false otherwise"
       }
     },
     "internal_details": [

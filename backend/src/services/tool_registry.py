@@ -30,6 +30,7 @@ def register_tools():
         from rag_agent.tools.delete_corpus import delete_corpus
         from rag_agent.tools.delete_document import delete_document
         from rag_agent.tools.retrieve_document import retrieve_document
+        from rag_agent.tools.browse_documents import browse_documents
         from rag_agent.tools.utils import set_current_corpus
         
         TOOL_REGISTRY.update({
@@ -42,6 +43,7 @@ def register_tools():
             "delete_corpus": delete_corpus,
             "delete_document": delete_document,
             "retrieve_document": retrieve_document,
+            "browse_documents": browse_documents,
             "set_current_corpus": set_current_corpus,
         })
         

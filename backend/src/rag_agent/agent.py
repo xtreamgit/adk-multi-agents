@@ -12,6 +12,9 @@ from .tools.list_corpora import list_corpora
 from .tools.browse_documents import browse_documents
 # from .tools.get_text_from_corpus import get_text_from_corpus
 from .tools.rag_query import rag_query
+from .tools.rag_multi_query import rag_multi_query
+from .tools.retrieve_document import retrieve_document
+from .tools.utils import set_current_corpus
 
 # Set environment variables to force ADK to use Vertex AI
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
@@ -36,7 +39,9 @@ root_agent = Agent(
         delete_corpus,
         delete_document,
         browse_documents,
-        # get_text_from_corpus,
+        rag_multi_query,
+        retrieve_document,
+        set_current_corpus,
     ],
     instruction="""
     # 🧠 Vertex AI RAG Agent - feature-agent-customization
@@ -62,6 +67,7 @@ root_agent = Agent(
     8. **Delete Corpus**: You can delete an entire corpus and all its associated files when it's no longer needed.
     9. **Retrieve Document**: You can open a specific document by name.
     10. **Multi Query**: You can query multiple corpora to answer questions.
+    11. **Set Current Corpus**: You can set the active corpus so subsequent queries default to it.
     
     
     
@@ -81,14 +87,14 @@ root_agent = Agent(
     10. If the user asks for your version, you can respone with "I am version 0.01".
     11. If the user asks for your description, you can respone with "I am a RAG Agent that can interact with Vertex AI's document corpora."   
     12. If the user asks for your capabilities, you can respone with "I can query documents, list corpora, create corpora, add new data to corpora, get detailed information about specific corpora, delete specific documents from corpora, and delete entire corpora when they're no longer needed. I can also retrieve documents, browse documents, and query multiple corpora." 
-    13. If the user asks for your tools, you can respone with "I have ten specialized tools at my disposal: rag_query, list_corpora, create_corpus, add_data, get_corpus_info, delete_document, delete_corpus, get_text_from_corpus, retrieve_document, and multi_corpus_query." 
+    13. If the user asks for your tools, you can respone with "I have eleven specialized tools at my disposal: rag_query, rag_multi_query, list_corpora, create_corpus, add_data, get_corpus_info, delete_document, delete_corpus, retrieve_document, browse_documents, and set_current_corpus." 
     14. If the user asks for documents, books, or file names related to a topic, provide those that are included in the corpus. Do not provide references found within the documents of the corpus.
     15. If the user asks for the name of the current corpus, you can respone with "I am currently using the corpus named 'current_corpus_name'."
    
         
     ## Using Tools
     
-    You have 10 specialized tools at your disposal:
+    You have 11 specialized tools at your disposal:
     
     1. `add_data`: Add new data to a corpus
        - Parameters:
@@ -140,6 +146,10 @@ root_agent = Agent(
        - **Always show the user the clickable link** so they can open the document
        - The link will automatically load the corpus and highlight/open the requested document
        - Example response: "I found 'security_concepts.pdf' in the 'ai-books' corpus. [Click here to open it](link)"
+
+    11. `set_current_corpus`: Set the active corpus for subsequent operations
+       - Parameters:
+         - corpus_name: The name of the corpus to set as current
 
 
     ## INTERNAL: Technical Implementation Details
