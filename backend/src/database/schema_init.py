@@ -162,6 +162,53 @@ CREATE INDEX IF NOT EXISTS idx_corpora_active ON corpora(is_active);
 CREATE INDEX IF NOT EXISTS idx_agents_active ON agents(is_active);
 
 -- Default data will be inserted separately after schema creation
+
+-- ============================================================================
+-- GOOGLE GROUPS BRIDGE TABLES
+-- Maps Google Groups to chatbot groups and corpus access
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS google_group_agent_mappings (
+    id SERIAL PRIMARY KEY,
+    google_group_email VARCHAR(255) NOT NULL,
+    chatbot_group_id INTEGER NOT NULL REFERENCES chatbot_groups(id) ON DELETE CASCADE,
+    priority INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(id),
+    UNIQUE(google_group_email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_gg_agent_map_email ON google_group_agent_mappings(google_group_email);
+CREATE INDEX IF NOT EXISTS idx_gg_agent_map_active ON google_group_agent_mappings(is_active);
+
+CREATE TABLE IF NOT EXISTS google_group_corpus_mappings (
+    id SERIAL PRIMARY KEY,
+    google_group_email VARCHAR(255) NOT NULL,
+    corpus_id INTEGER NOT NULL REFERENCES corpora(id) ON DELETE CASCADE,
+    permission VARCHAR(50) NOT NULL DEFAULT 'query',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(id),
+    UNIQUE(google_group_email, corpus_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_gg_corpus_map_email ON google_group_corpus_mappings(google_group_email);
+CREATE INDEX IF NOT EXISTS idx_gg_corpus_map_corpus ON google_group_corpus_mappings(corpus_id);
+CREATE INDEX IF NOT EXISTS idx_gg_corpus_map_active ON google_group_corpus_mappings(is_active);
+
+CREATE TABLE IF NOT EXISTS user_google_group_sync (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    google_groups JSONB,
+    last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sync_source VARCHAR(50) DEFAULT 'login',
+    UNIQUE(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_gg_sync_user ON user_google_group_sync(user_id);
+CREATE INDEX IF NOT EXISTS idx_gg_sync_time ON user_google_group_sync(last_synced_at);
 """
 
 

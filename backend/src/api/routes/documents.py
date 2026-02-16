@@ -13,7 +13,7 @@ import requests
 from services.corpus_service import CorpusService
 from services.document_service import DocumentService
 from models.user import User
-from middleware.hybrid_auth_middleware import get_current_user_hybrid
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user_hybrid
 
 logger = logging.getLogger(__name__)
 

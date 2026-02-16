@@ -10,7 +10,7 @@ from services.group_service import GroupService
 from services.user_service import UserService
 from models.group import Group, GroupCreate, GroupUpdate, Role, RoleCreate
 from models.user import User
-from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)

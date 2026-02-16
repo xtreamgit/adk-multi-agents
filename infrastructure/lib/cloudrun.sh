@@ -103,7 +103,7 @@ deploy_backend_service() {
         --min-instances=0 \
         --max-instances=10 \
         --add-cloudsql-instances="${CLOUD_SQL_CONNECTION}" \
-        --set-env-vars="PROJECT_ID=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=$REGION,VERTEXAI_PROJECT=$PROJECT_ID,VERTEXAI_LOCATION=$REGION,SECRET_KEY=$SECRET_KEY,DB_NAME=${DB_NAME:-adk_agents_db},DB_USER=${DB_USER:-adk_app_user},CLOUD_SQL_CONNECTION_NAME=${CLOUD_SQL_CONNECTION},LOG_LEVEL=INFO,ENVIRONMENT=production,ACCOUNT_ENV=${account_env},ROOT_PATH=${root_path}" \
+        --set-env-vars="PROJECT_ID=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=$REGION,VERTEXAI_PROJECT=$PROJECT_ID,VERTEXAI_LOCATION=$REGION,SECRET_KEY=$SECRET_KEY,DB_NAME=${DB_NAME:-adk_agents_db},DB_USER=${DB_USER:-adk_app_user},CLOUD_SQL_CONNECTION_NAME=${CLOUD_SQL_CONNECTION},LOG_LEVEL=INFO,ENVIRONMENT=production,ACCOUNT_ENV=${account_env},ROOT_PATH=${root_path},GOOGLE_GROUPS_ENABLED=${GOOGLE_GROUPS_ENABLED:-false},GOOGLE_GROUPS_CACHE_TTL=${GOOGLE_GROUPS_CACHE_TTL:-300}" \
         --labels=app=adk-rag-agent,role=backend,security=iap-protected,agent=${account_env} \
         --quiet
 

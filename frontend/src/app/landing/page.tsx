@@ -3,27 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '../../lib/api-enhanced';
-import LoginForm from '../../components/LoginForm';
 
 export default function LandingPage() {
   const router = useRouter();
-  const [showLogin, setShowLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if already authenticated (Bearer token or IAP)
+  // Check if already authenticated via IAP
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // First check existing Bearer token
-        if (apiClient.isAuthenticated()) {
-          const userData = await apiClient.verifyToken();
-          if (userData && userData.username !== 'guest') {
-            router.push('/');
-            return;
-          }
-        }
-        
-        // Then try IAP authentication (behind load balancer)
         const iapUser = await apiClient.checkIapAuth();
         if (iapUser) {
           console.log('✅ IAP authenticated:', iapUser.email);
@@ -40,30 +28,10 @@ export default function LandingPage() {
     checkAuth();
   }, [router]);
 
-  const handleLoginSuccess = () => {
-    router.push('/');
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>
-      </div>
-    );
-  }
-
-  if (showLogin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
-          <button
-            onClick={() => setShowLogin(false)}
-            className="mb-4 text-sm text-gray-600 hover:text-gray-900 flex items-center"
-          >
-            ← Back to Home
-          </button>
-          <LoginForm onLoginSuccess={handleLoginSuccess} />
-        </div>
       </div>
     );
   }
@@ -80,15 +48,7 @@ export default function LandingPage() {
               </svg>
               <span className="text-xl font-bold text-gray-900">ADK RAG Assistant</span>
             </div>
-            <button
-              onClick={() => setShowLogin(true)}
-              className="px-4 py-2 text-white rounded-lg transition-colors"
-              style={{ backgroundColor: '#005440' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#005440'}
-            >
-              Sign In
-            </button>
+            <span className="text-sm text-gray-600">Sign in via your organization account</span>
           </div>
         </div>
       </nav>
@@ -103,15 +63,10 @@ export default function LandingPage() {
             Query multiple knowledge bases simultaneously with AI-powered intelligence.
             Secure, enterprise-grade retrieval augmented generation for your organization.
           </p>
-          <button
-            onClick={() => setShowLogin(true)}
-            className="px-8 py-4 text-white text-lg font-semibold rounded-lg transition-colors shadow-lg"
-            style={{ backgroundColor: '#005440' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#005440'}
-          >
-            Get Started →
-          </button>
+          <p className="text-gray-500">
+            Access is managed through Google IAP. If you are not automatically signed in,
+            please contact your administrator.
+          </p>
         </div>
 
         {/* Features Grid */}
@@ -198,15 +153,9 @@ export default function LandingPage() {
           <p className="text-xl text-gray-600 mb-8">
             Sign in with your organization account to access all features.
           </p>
-          <button
-            onClick={() => setShowLogin(true)}
-            className="px-8 py-4 text-white text-lg font-semibold rounded-lg transition-colors shadow-lg"
-            style={{ backgroundColor: '#005440' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#005440'}
-          >
-            Sign In with Google →
-          </button>
+          <p className="text-gray-500">
+            Authentication is handled automatically via Google IAP when accessing through your organization URL.
+          </p>
         </div>
       </div>
 

@@ -19,7 +19,8 @@ import {
   Plug,
   MessageSquare,
   FileSearch,
-  ArrowLeft
+  ArrowLeft,
+  Link2
 } from 'lucide-react';
 
 // Brand green color
@@ -187,6 +188,13 @@ export default function AdminLayout({
                 onClick={() => handleMenuClick('/admin/agent-assignments')}
               >
                 User Agent Assignments
+              </MenuItem>
+              <MenuItem
+                icon={<Link2 size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/google-groups')}
+                onClick={() => handleMenuClick('/admin/google-groups')}
+              >
+                Google Groups Bridge
               </MenuItem>
             </SubMenu>
 

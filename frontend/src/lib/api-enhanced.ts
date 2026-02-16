@@ -83,24 +83,6 @@ export type Role = {
   created_at: string;
 };
 
-export type LoginData = {
-  username: string;
-  password: string;
-};
-
-export type RegisterData = {
-  username: string;
-  password: string;
-  full_name: string;
-  email: string;
-};
-
-export type AuthToken = {
-  access_token: string;
-  token_type: string;
-  user: User;
-};
-
 export type UpdateProfileData = {
   theme?: string;
   language?: string;
@@ -121,7 +103,6 @@ export type SessionInfo = {
 // ============================================================================
 
 class EnhancedApiClient {
-  private token: string | null = null;
   private sessionId: string | null = null;
   private currentUser: User | null = null;
   private baseUrl: string;
@@ -133,7 +114,6 @@ class EnhancedApiClient {
     
     // Load from localStorage if available
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token');
       this.sessionId = localStorage.getItem('session_id');
       const userStr = localStorage.getItem('current_user');
       if (userStr) {
@@ -149,30 +129,27 @@ class EnhancedApiClient {
   // ========== Helper Methods ==========
 
   private getAuthHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
+    return {
       'Content-Type': 'application/json',
     };
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-    
-    return headers;
   }
 
   private buildUrl(path: string): string {
     return `${this.baseUrl}${path}`;
   }
 
-  private setToken(token: string) {
-    this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
-    }
+  /**
+   * Wrapper around fetch that always includes credentials for IAP auth.
+   * IAP relies on cookies/headers injected by the load balancer.
+   */
+  private authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+    return fetch(url, {
+      ...options,
+      credentials: 'include',
+    });
   }
 
   public clearToken(): void {
-    this.token = null;
     this.iapAuthenticated = false;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
@@ -188,7 +165,7 @@ class EnhancedApiClient {
   }
 
   isAuthenticated(): boolean {
-    return !!this.token || this.iapAuthenticated;
+    return this.iapAuthenticated;
   }
 
   isIapAuthenticated(): boolean {
@@ -203,7 +180,7 @@ class EnhancedApiClient {
    */
   async checkIapAuth(): Promise<User | null> {
     try {
-      const response = await fetch(this.buildUrl('/api/users/me'), {
+      const response = await this.authFetch(this.buildUrl('/api/users/me'), {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -225,96 +202,12 @@ class EnhancedApiClient {
     return this.currentUser;
   }
 
-  // ========== Authentication Endpoints ==========
-
-  async register(data: RegisterData): Promise<User> {
-    const response = await fetch(this.buildUrl('/api/auth/register'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      // Handle FastAPI validation errors (422) which return an array
-      if (Array.isArray(error.detail)) {
-        const messages = error.detail.map((err: Record<string, string>) => err.msg).join(', ');
-        throw new Error(messages || 'Registration failed');
-      }
-      throw new Error(error.detail || 'Registration failed');
-    }
-
-    return await response.json();
-  }
-
-  async login(data: LoginData): Promise<AuthToken> {
-    const response = await fetch(this.buildUrl('/api/auth/login'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Login failed');
-    }
-
-    const authToken: AuthToken = await response.json();
-    this.setToken(authToken.access_token);
-    this.setCurrentUser(authToken.user);
-    return authToken;
-  }
-
-  async refreshToken(): Promise<AuthToken> {
-    const response = await fetch(this.buildUrl('/api/auth/refresh'), {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      this.clearToken();
-      throw new Error('Token refresh failed');
-    }
-
-    const authToken: AuthToken = await response.json();
-    this.setToken(authToken.access_token);
-    return authToken;
-  }
-
-  async getCurrentUserInfo(): Promise<User> {
-    const response = await fetch(this.buildUrl('/api/auth/me'), {
-      method: 'GET',
-      headers: this.getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to get user info');
-    }
-
-    const user: User = await response.json();
-    this.setCurrentUser(user);
-    return user;
-  }
+  // ========== Authentication ==========
 
   logout(): void {
     this.clearToken();
     this.currentUser = null;
     this.resetSession();
-  }
-
-  // Verify current token and get user data
-  async verifyToken(): Promise<User> {
-    const response = await fetch(this.buildUrl('/api/users/me'), {
-      method: 'GET',
-      headers: this.getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      this.clearToken();
-      throw new Error('Token verification failed');
-    }
-
-    return await response.json();
   }
 
   // Agent selection (placeholder - can be enhanced later)
@@ -328,7 +221,7 @@ class EnhancedApiClient {
   // ========== User Profile Endpoints ==========
 
   async getMyProfile(): Promise<UserWithProfile> {
-    const response = await fetch(this.buildUrl('/api/users/me'), {
+    const response = await this.authFetch(this.buildUrl('/api/users/me'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -341,7 +234,7 @@ class EnhancedApiClient {
   }
 
   async updateProfile(data: UpdateProfileData): Promise<UserProfile> {
-    const response = await fetch(this.buildUrl('/api/users/me/preferences'), {
+    const response = await this.authFetch(this.buildUrl('/api/users/me/preferences'), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(data),
@@ -355,7 +248,7 @@ class EnhancedApiClient {
   }
 
   async getMyRoles(): Promise<Role[]> {
-    const response = await fetch(this.buildUrl('/api/users/me/roles'), {
+    const response = await this.authFetch(this.buildUrl('/api/users/me/roles'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -368,7 +261,7 @@ class EnhancedApiClient {
   }
 
   async setDefaultAgent(agentId: number): Promise<void> {
-    const response = await fetch(this.buildUrl(`/api/users/me/default-agent/${agentId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/users/me/default-agent/${agentId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
     });
@@ -381,7 +274,7 @@ class EnhancedApiClient {
   // ========== Agent Endpoints ==========
 
   async getAllAgents(): Promise<Agent[]> {
-    const response = await fetch(this.buildUrl('/api/agents/'), {
+    const response = await this.authFetch(this.buildUrl('/api/agents/'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -394,7 +287,7 @@ class EnhancedApiClient {
   }
 
   async getMyAgents(): Promise<Agent[]> {
-    const response = await fetch(this.buildUrl('/api/agents/me'), {
+    const response = await this.authFetch(this.buildUrl('/api/agents/me'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -407,7 +300,7 @@ class EnhancedApiClient {
   }
 
   async switchAgent(sessionId: string, agentId: number): Promise<void> {
-    const response = await fetch(this.buildUrl(`/api/agents/session/${sessionId}/switch/${agentId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/agents/session/${sessionId}/switch/${agentId}`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
     });
@@ -420,7 +313,7 @@ class EnhancedApiClient {
   // ========== Corpus Endpoints ==========
 
   async getMyCorpora(): Promise<Corpus[]> {
-    const response = await fetch(this.buildUrl('/api/corpora/'), {
+    const response = await this.authFetch(this.buildUrl('/api/corpora/'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -435,7 +328,7 @@ class EnhancedApiClient {
   }
 
   async getAllCorporaWithAccess(): Promise<Corpus[]> {
-    const response = await fetch(this.buildUrl('/api/corpora/all-with-access'), {
+    const response = await this.authFetch(this.buildUrl('/api/corpora/all-with-access'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -450,7 +343,7 @@ class EnhancedApiClient {
   }
 
   async selectSessionCorpora(sessionId: string, corpusIds: number[]): Promise<void> {
-    const response = await fetch(this.buildUrl(`/api/corpora/session/${sessionId}/select`), {
+    const response = await this.authFetch(this.buildUrl(`/api/corpora/session/${sessionId}/select`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ corpus_ids: corpusIds }),
@@ -474,7 +367,7 @@ class EnhancedApiClient {
     }>;
     count: number;
   }> {
-    const response = await fetch(this.buildUrl(`/api/documents/corpus/${corpusId}/list`), {
+    const response = await this.authFetch(this.buildUrl(`/api/documents/corpus/${corpusId}/list`), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -509,7 +402,7 @@ class EnhancedApiClient {
       generate_url: generateUrl.toString(),
     });
 
-    const response = await fetch(this.buildUrl(`/api/documents/retrieve?${params}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/documents/retrieve?${params}`), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -525,7 +418,7 @@ class EnhancedApiClient {
   // ========== Group Endpoints ==========
 
   async getMyGroups(): Promise<Group[]> {
-    const response = await fetch(this.buildUrl('/api/groups/me'), {
+    const response = await this.authFetch(this.buildUrl('/api/groups/me'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -538,7 +431,7 @@ class EnhancedApiClient {
   }
 
   async getAllGroups(): Promise<Group[]> {
-    const response = await fetch(this.buildUrl('/api/groups/'), {
+    const response = await this.authFetch(this.buildUrl('/api/groups/'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -551,7 +444,7 @@ class EnhancedApiClient {
   }
 
   async createGroup(groupData: { name: string; description: string }): Promise<unknown> {
-    const response = await fetch(this.buildUrl('/api/groups/'), {
+    const response = await this.authFetch(this.buildUrl('/api/groups/'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(groupData),
@@ -572,7 +465,7 @@ class EnhancedApiClient {
   }
 
   async updateGroup(groupId: number, groupData: { name?: string; description?: string }): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/groups/${groupId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/groups/${groupId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(groupData),
@@ -593,7 +486,7 @@ class EnhancedApiClient {
   }
 
   async deleteGroup(groupId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/groups/${groupId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/groups/${groupId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -613,7 +506,7 @@ class EnhancedApiClient {
   }
 
   async getGroupUsers(groupId: number): Promise<any[]> {
-    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users`), {
+    const response = await this.authFetch(this.buildUrl(`/api/groups/${groupId}/users`), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -626,7 +519,7 @@ class EnhancedApiClient {
   }
 
   async addUserToGroupViaGroupAPI(groupId: number, userId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
     });
@@ -646,7 +539,7 @@ class EnhancedApiClient {
   }
 
   async removeUserFromGroupViaGroupAPI(groupId: number, userId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/groups/${groupId}/users/${userId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -668,7 +561,7 @@ class EnhancedApiClient {
   // ========== Role Management APIs ==========
 
   async getAllRoles(): Promise<any[]> {
-    const response = await fetch(this.buildUrl('/api/groups/roles/'), {
+    const response = await this.authFetch(this.buildUrl('/api/groups/roles/'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -681,7 +574,7 @@ class EnhancedApiClient {
   }
 
   async createRole(roleData: { name: string; permissions: string[] }): Promise<unknown> {
-    const response = await fetch(this.buildUrl('/api/groups/roles/'), {
+    const response = await this.authFetch(this.buildUrl('/api/groups/roles/'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(roleData),
@@ -702,7 +595,7 @@ class EnhancedApiClient {
   }
 
   async assignRoleToGroup(groupId: number, roleId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
     });
@@ -722,7 +615,7 @@ class EnhancedApiClient {
   }
 
   async removeRoleFromGroup(groupId: number, roleId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/groups/${groupId}/roles/${roleId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -766,7 +659,7 @@ class EnhancedApiClient {
   }
 
   async createSession(userProfile?: unknown): Promise<SessionInfo> {
-    const response = await fetch(this.buildUrl('/api/sessions'), {
+    const response = await this.authFetch(this.buildUrl('/api/sessions'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: userProfile ? JSON.stringify(userProfile) : JSON.stringify(null),
@@ -788,7 +681,7 @@ class EnhancedApiClient {
 
     console.log('[API DEBUG] Sending message with corpora:', selectedCorpora);
     
-    const response = await fetch(this.buildUrl(`/api/sessions/${this.sessionId}/chat`), {
+    const response = await this.authFetch(this.buildUrl(`/api/sessions/${this.sessionId}/chat`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -816,7 +709,7 @@ class EnhancedApiClient {
       return [];
     }
 
-    const response = await fetch(this.buildUrl(`/api/sessions/${this.sessionId}/history`), {
+    const response = await this.authFetch(this.buildUrl(`/api/sessions/${this.sessionId}/history`), {
       headers: this.getAuthHeaders(),
     });
     
@@ -846,7 +739,7 @@ class EnhancedApiClient {
   }
 
   async admin_getCorpusDetail(corpusId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/admin/corpora/${corpusId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/corpora/${corpusId}`), {
       headers: this.getAuthHeaders(),
     });
 
@@ -861,7 +754,7 @@ class EnhancedApiClient {
     corpusId: number,
     metadata: { tags?: string; notes?: string; sync_status?: string }
   ): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/admin/corpora/${corpusId}/metadata`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/corpora/${corpusId}/metadata`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(metadata),
@@ -932,7 +825,7 @@ class EnhancedApiClient {
     groupId: number,
     permission: string = 'read'
   ): Promise<unknown> {
-    const response = await fetch(this.buildUrl('/api/admin/corpora/bulk/grant-access'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/corpora/bulk/grant-access'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ corpus_ids: corpusIds, group_id: groupId, permission }),
@@ -946,7 +839,7 @@ class EnhancedApiClient {
   }
 
   async admin_bulkUpdateStatus(corpusIds: number[], isActive: boolean): Promise<unknown> {
-    const response = await fetch(this.buildUrl('/api/admin/corpora/bulk/update-status'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/corpora/bulk/update-status'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ corpus_ids: corpusIds, is_active: isActive }),
@@ -973,7 +866,7 @@ class EnhancedApiClient {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await fetch(this.buildUrl(`/api/admin/audit?${params.toString()}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/audit?${params.toString()}`), {
       headers: this.getAuthHeaders(),
     });
 
@@ -985,7 +878,7 @@ class EnhancedApiClient {
   }
 
   async admin_syncCorpora(): Promise<unknown> {
-    const response = await fetch(this.buildUrl('/api/admin/corpora/sync'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/corpora/sync'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
     });
@@ -1000,7 +893,7 @@ class EnhancedApiClient {
   // ========== Admin User Management APIs ==========
 
   async admin_getAllUsers(): Promise<any[]> {
-    const response = await fetch(this.buildUrl('/api/admin/users'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/users'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -1019,7 +912,7 @@ class EnhancedApiClient {
     password: string;
     group_ids?: number[];
   }): Promise<unknown> {
-    const response = await fetch(this.buildUrl('/api/admin/users'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/users'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(userData),
@@ -1055,7 +948,7 @@ class EnhancedApiClient {
     is_active?: boolean;
     password?: string;
   }): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/users/${userId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(userData),
@@ -1086,7 +979,7 @@ class EnhancedApiClient {
   }
 
   async admin_deleteUser(userId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/users/${userId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -1106,7 +999,7 @@ class EnhancedApiClient {
   }
 
   async admin_assignUserToGroup(userId: number, groupId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
     });
@@ -1126,7 +1019,7 @@ class EnhancedApiClient {
   }
 
   async admin_removeUserFromGroup(userId: number, groupId: number): Promise<unknown> {
-    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/users/${userId}/groups/${groupId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -1146,7 +1039,7 @@ class EnhancedApiClient {
   }
 
   async admin_getUserStats(): Promise<unknown> {
-    const response = await fetch(this.buildUrl('/api/admin/user-stats'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/user-stats'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -1159,7 +1052,7 @@ class EnhancedApiClient {
   }
 
   async admin_getAllSessions(): Promise<any[]> {
-    const response = await fetch(this.buildUrl('/api/admin/sessions'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/sessions'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -1174,7 +1067,7 @@ class EnhancedApiClient {
   // ========== Admin Agent Assignment APIs ==========
 
   async admin_getAgentAssignments(): Promise<any[]> {
-    const response = await fetch(this.buildUrl('/api/admin/agent-assignments'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/agent-assignments'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -1187,7 +1080,7 @@ class EnhancedApiClient {
   }
 
   async admin_getAgentsList(): Promise<any[]> {
-    const response = await fetch(this.buildUrl('/api/admin/agents-list'), {
+    const response = await this.authFetch(this.buildUrl('/api/admin/agents-list'), {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -1200,7 +1093,7 @@ class EnhancedApiClient {
   }
 
   async admin_setUserDefaultAgent(userId: number, agentId: number): Promise<any> {
-    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/default-agent/${agentId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/users/${userId}/default-agent/${agentId}`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
     });
@@ -1214,7 +1107,7 @@ class EnhancedApiClient {
   }
 
   async admin_grantAgentAccess(userId: number, agentId: number): Promise<any> {
-    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/agent-access/${agentId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/users/${userId}/agent-access/${agentId}`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
     });
@@ -1228,7 +1121,7 @@ class EnhancedApiClient {
   }
 
   async admin_revokeAgentAccess(userId: number, agentId: number): Promise<any> {
-    const response = await fetch(this.buildUrl(`/api/admin/users/${userId}/agent-access/${agentId}`), {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/users/${userId}/agent-access/${agentId}`), {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -1238,6 +1131,121 @@ class EnhancedApiClient {
       throw new Error(error.detail || 'Failed to revoke agent access');
     }
 
+    return response.json();
+  }
+
+  // ========== Google Groups Bridge Admin APIs ==========
+
+  async ggBridge_getStatus(): Promise<any> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/google-groups/status'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to get bridge status');
+    return response.json();
+  }
+
+  async ggBridge_listAgentMappings(): Promise<any[]> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/google-groups/agent-mappings'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to list agent mappings');
+    return response.json();
+  }
+
+  async ggBridge_createAgentMapping(data: { google_group_email: string; chatbot_group_id: number; priority?: number }): Promise<any> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/google-groups/agent-mappings'), {
+      method: 'POST',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Failed to create agent mapping');
+    }
+    return response.json();
+  }
+
+  async ggBridge_updateAgentMapping(id: number, data: { chatbot_group_id?: number; priority?: number; is_active?: boolean }): Promise<any> {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/google-groups/agent-mappings/${id}`), {
+      method: 'PUT',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Failed to update agent mapping');
+    }
+    return response.json();
+  }
+
+  async ggBridge_deleteAgentMapping(id: number): Promise<void> {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/google-groups/agent-mappings/${id}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to delete agent mapping');
+  }
+
+  async ggBridge_listCorpusMappings(): Promise<any[]> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/google-groups/corpus-mappings'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to list corpus mappings');
+    return response.json();
+  }
+
+  async ggBridge_createCorpusMapping(data: { google_group_email: string; corpus_id: number; permission?: string }): Promise<any> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/google-groups/corpus-mappings'), {
+      method: 'POST',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Failed to create corpus mapping');
+    }
+    return response.json();
+  }
+
+  async ggBridge_updateCorpusMapping(id: number, data: { permission?: string; is_active?: boolean }): Promise<any> {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/google-groups/corpus-mappings/${id}`), {
+      method: 'PUT',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Failed to update corpus mapping');
+    }
+    return response.json();
+  }
+
+  async ggBridge_deleteCorpusMapping(id: number): Promise<void> {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/google-groups/corpus-mappings/${id}`), {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to delete corpus mapping');
+  }
+
+  async ggBridge_syncUser(userId: number): Promise<any> {
+    const response = await this.authFetch(this.buildUrl(`/api/admin/google-groups/sync/${userId}`), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to sync user');
+    return response.json();
+  }
+
+  async ggBridge_syncAllUsers(): Promise<any[]> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/google-groups/sync-all'), {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to sync all users');
     return response.json();
   }
 }

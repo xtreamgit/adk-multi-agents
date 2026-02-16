@@ -10,7 +10,7 @@ from services.agent_service import AgentService
 from services.session_service import SessionService
 from models.agent import Agent, AgentCreate, AgentWithAccess
 from models.user import User
-from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
 from middleware.authorization_middleware import require_permission
 
 logger = logging.getLogger(__name__)

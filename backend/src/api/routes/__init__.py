@@ -2,7 +2,6 @@
 API route modules.
 """
 
-from .auth import router as auth_router
 from .users import router as users_router
 from .groups import router as groups_router
 from .agents import router as agents_router
@@ -11,9 +10,9 @@ from .admin import router as admin_router
 from .iap_auth import router as iap_auth_router
 from .documents import router as documents_router
 from .chatbot_admin import router as chatbot_admin_router
+from .google_groups_admin import router as google_groups_admin_router
 
 __all__ = [
-    "auth_router",
     "users_router",
     "groups_router",
     "agents_router",
@@ -22,4 +21,5 @@ __all__ = [
     "iap_auth_router",
     "documents_router",
     "chatbot_admin_router",
+    "google_groups_admin_router",
 ]

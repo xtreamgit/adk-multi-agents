@@ -7,7 +7,7 @@ import logging
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Query, status, Request
 
-from middleware.hybrid_auth_middleware import get_current_user_hybrid
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user_hybrid
 from models.user import User
 from models.admin import (
     AdminCorpusDetail,
