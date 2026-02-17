@@ -414,7 +414,10 @@ class GoogleGroupsBridge:
                 )
                 status["corpus_mappings_count"] = cursor.fetchone()["cnt"]
 
-                cursor.execute("SELECT COUNT(*) as cnt FROM user_google_group_sync")
+                cursor.execute(
+                    "SELECT COUNT(*) as cnt FROM user_google_group_sync "
+                    "WHERE google_groups IS NOT NULL AND google_groups != '[]'::jsonb"
+                )
                 status["synced_users_count"] = cursor.fetchone()["cnt"]
 
                 cursor.execute(

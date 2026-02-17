@@ -1,14 +1,17 @@
 """
-Google Groups Service — queries Cloud Identity API for user group memberships.
+Google Groups Service — queries Admin SDK Directory API for user group memberships.
 
-Uses the Cloud Identity Groups API (cloudidentity.googleapis.com) to look up
-which Google Groups a user belongs to. This is used by the Google Groups Bridge
-to automatically assign chatbot groups and corpus access based on org group membership.
+Uses the Google Admin SDK Directory API (admin.googleapis.com) with domain-wide
+delegation to look up which Google Groups a user belongs to. This is used by the
+Google Groups Bridge to automatically assign chatbot groups and corpus access
+based on org group membership.
 
 Requirements:
-- Cloud Identity API enabled on the GCP project
-- Service account with roles/cloudidentity.groupsViewer (or equivalent)
-- Environment variable GOOGLE_GROUPS_ENABLED=true to activate
+- Admin SDK API enabled on the GCP project
+- Service account with domain-wide delegation enabled in Google Admin Console
+- Scopes authorized: https://www.googleapis.com/auth/admin.directory.group.readonly
+- GOOGLE_GROUPS_ENABLED=true
+- GOOGLE_GROUPS_ADMIN_EMAIL=<admin-user>@<domain> (user to impersonate for API calls)
 """
 
 import os
@@ -17,22 +20,26 @@ import logging
 from typing import List, Optional
 from datetime import datetime, timedelta
 
-from google.auth import default as google_auth_default
+import google.auth
+import google.auth.iam
+import google.auth.transport.requests
 from google.auth.transport.requests import Request as GoogleAuthRequest
+from google.oauth2 import service_account
 
 logger = logging.getLogger(__name__)
 
 # Configuration
 GOOGLE_GROUPS_ENABLED = os.getenv("GOOGLE_GROUPS_ENABLED", "false").lower() == "true"
 GOOGLE_GROUPS_CACHE_TTL = int(os.getenv("GOOGLE_GROUPS_CACHE_TTL", "300"))  # seconds
-GOOGLE_GROUPS_CUSTOMER_ID = os.getenv("GOOGLE_GROUPS_CUSTOMER_ID", "")  # e.g., "C01234abc"
+GOOGLE_GROUPS_ADMIN_EMAIL = os.getenv("GOOGLE_GROUPS_ADMIN_EMAIL", "")  # admin user to impersonate
+
+ADMIN_SDK_SCOPES = ["https://www.googleapis.com/auth/admin.directory.group.readonly"]
 
 
 class GoogleGroupsService:
-    """Service for querying Google Cloud Identity API for user group memberships."""
+    """Service for querying Admin SDK Directory API for user group memberships."""
 
     _credentials = None
-    _session = None
 
     @staticmethod
     def is_enabled() -> bool:
@@ -42,45 +49,98 @@ class GoogleGroupsService:
     @staticmethod
     async def get_user_groups(user_email: str) -> List[str]:
         """
-        Query Google Cloud Identity API for a user's direct group memberships.
+        Query Admin SDK Directory API for a user's group memberships.
         Returns a list of group email addresses the user belongs to.
 
-        Uses the searchTransitiveGroups method to find all groups (direct + indirect).
-        Falls back to Admin SDK Directory API if Cloud Identity is not available.
+        Uses domain-wide delegation to impersonate an admin user.
         """
         if not GOOGLE_GROUPS_ENABLED:
             logger.debug("Google Groups integration is disabled")
             return []
 
+        if not GOOGLE_GROUPS_ADMIN_EMAIL:
+            logger.error(
+                "GOOGLE_GROUPS_ADMIN_EMAIL not set. "
+                "Set this to a Workspace admin email for domain-wide delegation."
+            )
+            return []
+
         try:
-            return await GoogleGroupsService._query_cloud_identity(user_email)
+            return await GoogleGroupsService._query_admin_sdk(user_email)
         except Exception as e:
             logger.error(f"Failed to query Google Groups for {user_email}: {e}")
             return []
 
     @staticmethod
-    async def _query_cloud_identity(user_email: str) -> List[str]:
+    def _get_delegated_credentials():
         """
-        Query Cloud Identity Groups API for user's group memberships.
-        Uses searchTransitiveGroups to get all groups (direct and inherited).
+        Get credentials with domain-wide delegation.
+        The SA impersonates GOOGLE_GROUPS_ADMIN_EMAIL to call Admin SDK.
+
+        On Cloud Run, google.auth.default() returns compute_engine.Credentials
+        which lack a .signer. We use google.auth.iam.Signer to sign JWTs
+        via the IAM signBlob API instead.
+        """
+        if GoogleGroupsService._credentials and GoogleGroupsService._credentials.valid:
+            return GoogleGroupsService._credentials
+
+        # Get the default SA credentials
+        source_credentials, _ = google.auth.default()
+
+        # Refresh so we have a valid token for IAM signing
+        request = GoogleAuthRequest()
+        if not source_credentials.valid:
+            source_credentials.refresh(request)
+
+        # Get the SA email — works for both local SA key and Cloud Run metadata
+        sa_email = getattr(source_credentials, "service_account_email", None)
+        if not sa_email:
+            sa_email = source_credentials.signer_email if hasattr(source_credentials, "signer_email") else None
+        if not sa_email:
+            # Fallback: query metadata server
+            import requests as http_req
+            resp = http_req.get(
+                "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+                headers={"Metadata-Flavor": "Google"}, timeout=5
+            )
+            sa_email = resp.text
+
+        # Use IAM-based signer (works on Cloud Run without a local key file)
+        iam_signer = google.auth.iam.Signer(
+            request=request,
+            credentials=source_credentials,
+            service_account_email=sa_email,
+        )
+
+        # Create delegated credentials that impersonate the admin user
+        delegated = service_account.Credentials(
+            signer=iam_signer,
+            service_account_email=sa_email,
+            token_uri="https://oauth2.googleapis.com/token",
+            scopes=ADMIN_SDK_SCOPES,
+            subject=GOOGLE_GROUPS_ADMIN_EMAIL,
+        )
+        delegated.refresh(request)
+        GoogleGroupsService._credentials = delegated
+        return delegated
+
+    @staticmethod
+    async def _query_admin_sdk(user_email: str) -> List[str]:
+        """
+        Query Admin SDK Directory API for user's group memberships.
+        Uses domain-wide delegation to impersonate an admin user.
+
+        API: GET https://admin.googleapis.com/admin/directory/v1/groups?userKey={email}
         """
         import aiohttp
 
-        credentials, _ = google_auth_default(
-            scopes=["https://www.googleapis.com/auth/cloud-identity.groups.readonly"]
-        )
-        credentials.refresh(GoogleAuthRequest())
+        credentials = GoogleGroupsService._get_delegated_credentials()
 
-        # Use searchTransitiveGroups to find all groups the user belongs to
-        # This requires a customer ID or we can use the member key
-        base_url = "https://cloudidentity.googleapis.com/v1/groups/-/memberships:searchTransitiveGroups"
-        params = {
-            "query": f"member_key_id == '{user_email}' && 'cloudidentity.googleapis.com/groups.discussion_forum' in labels"
-        }
+        base_url = "https://admin.googleapis.com/admin/directory/v1/groups"
+        params = {"userKey": user_email}
 
         headers = {
             "Authorization": f"Bearer {credentials.token}",
-            "Content-Type": "application/json",
         }
 
         group_emails = []
@@ -93,29 +153,28 @@ class GoogleGroupsService:
 
                 async with session.get(base_url, headers=headers, params=params) as resp:
                     if resp.status == 403:
+                        body = await resp.text()
                         logger.error(
-                            "Permission denied querying Cloud Identity API. "
-                            "Ensure the service account has roles/cloudidentity.groupsViewer"
+                            f"Admin SDK 403 for {user_email}. "
+                            f"SA={credentials.service_account_email}, "
+                            f"subject={GOOGLE_GROUPS_ADMIN_EMAIL}. "
+                            f"Body: {body[:2000]}"
                         )
                         return []
-                    elif resp.status == 404:
-                        logger.warning(
-                            "Cloud Identity API returned 404. "
-                            "Ensure cloudidentity.googleapis.com is enabled."
-                        )
+                    elif resp.status == 400:
+                        body = await resp.text()
+                        logger.error(f"Admin SDK bad request for {user_email}: {body[:500]}")
                         return []
                     elif resp.status != 200:
                         body = await resp.text()
-                        logger.error(f"Cloud Identity API error {resp.status}: {body}")
+                        logger.error(f"Admin SDK error {resp.status}: {body[:500]}")
                         return []
 
                     data = await resp.json()
 
-                memberships = data.get("memberships", [])
-                for membership in memberships:
-                    group = membership.get("group", "")
-                    group_key = membership.get("groupKey", {})
-                    email = group_key.get("id", "")
+                groups = data.get("groups", [])
+                for group in groups:
+                    email = group.get("email", "")
                     if email:
                         group_emails.append(email)
 

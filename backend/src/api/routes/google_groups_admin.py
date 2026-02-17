@@ -465,11 +465,21 @@ async def sync_user(
 
 @router.post("/sync-all", response_model=List[SyncResultResponse])
 async def sync_all_users(current_user: User = Depends(get_current_user_iap)):
-    """Force re-sync all active users' Google Groups."""
+    """Force re-sync all active users whose email matches the org domain."""
     try:
+        # Derive org domain from GOOGLE_GROUPS_ADMIN_EMAIL
+        import os
+        admin_email = os.getenv("GOOGLE_GROUPS_ADMIN_EMAIL", "")
+        org_domain = admin_email.split("@")[1] if "@" in admin_email else ""
+        if not org_domain:
+            raise HTTPException(status_code=500, detail="GOOGLE_GROUPS_ADMIN_EMAIL not configured")
+
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, email FROM users WHERE is_active = TRUE")
+            cursor.execute(
+                "SELECT id, email FROM users WHERE is_active = TRUE AND email LIKE %s",
+                (f"%@{org_domain}",),
+            )
             users = cursor.fetchall()
 
         results = []
