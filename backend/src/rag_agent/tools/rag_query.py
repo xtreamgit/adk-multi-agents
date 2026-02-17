@@ -24,7 +24,7 @@ from ..config import (
     DEFAULT_DISTANCE_THRESHOLD,
     DEFAULT_TOP_K,
 )
-from .utils import check_corpus_exists, get_corpus_resource_name
+from .utils import check_corpus_exists, get_corpus_resource_name, check_user_corpus_access
 
 
 def rag_query(
@@ -51,6 +51,20 @@ def rag_query(
     try:
         logging.info(f"[{account_env}] Querying corpus '{corpus_name}' with query: {query[:50]}...", 
                     extra={"agent": account_env, "corpus": corpus_name, "action": "rag_query"})
+
+        # Check if the user has access to this corpus
+        if not check_user_corpus_access(corpus_name, tool_context):
+            logging.warning(
+                f"[{account_env}] Corpus access denied for '{corpus_name}'",
+                extra={"agent": account_env, "corpus": corpus_name, "action": "rag_query"}
+            )
+            return {
+                "status": "error",
+                "message": f"Access denied: you do not have permission to query corpus '{corpus_name}'. "
+                           f"Your accessible corpora: {tool_context.state.get('accessible_corpus_names', [])}",
+                "query": query,
+                "corpus_name": corpus_name,
+            }
 
         # Check if the corpus exists
         if not check_corpus_exists(corpus_name, tool_context):

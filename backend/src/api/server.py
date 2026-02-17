@@ -638,18 +638,24 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         
         # Ensure ADK session exists - only create if it doesn't exist
         try:
-            session_service.get_session(
+            adk_session = session_service.get_session(
                 app_name="rag_agent_api", 
                 user_id="api_user", 
                 session_id=session_id
             )
         except:
             # Only create if session doesn't exist
-            session_service.create_session(
+            adk_session = session_service.create_session(
                 app_name="rag_agent_api", 
                 user_id="api_user", 
                 session_id=session_id
             )
+        
+        # Inject user identity and accessible corpora into ADK session state
+        # so that tools can enforce corpus-level access control
+        adk_session.state["user_id"] = current_user.id
+        adk_session.state["user_email"] = current_user.email
+        adk_session.state["accessible_corpus_names"] = sorted(accessible_corpus_names)
         
         # Create user content for ADK
         user_content = types.Content(

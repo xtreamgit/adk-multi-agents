@@ -10,7 +10,7 @@ from vertexai import rag
 
 logger = logging.getLogger(__name__)
 
-from .utils import check_corpus_exists, get_corpus_resource_name
+from .utils import check_corpus_exists, get_corpus_resource_name, check_user_corpus_access
 
 
 def get_corpus_info(
@@ -35,6 +35,19 @@ def get_corpus_info(
                 extra={"agent": account_env, "corpus": corpus_name, "action": "get_corpus_info"})
     
     try:
+        # Check if the user has access to this corpus
+        if not check_user_corpus_access(corpus_name, tool_context):
+            logger.warning(
+                f"[{account_env}] Corpus access denied for '{corpus_name}'",
+                extra={"agent": account_env, "corpus": corpus_name, "action": "get_corpus_info"}
+            )
+            return {
+                "status": "error",
+                "message": f"Access denied: you do not have permission to view corpus '{corpus_name}'. "
+                           f"Your accessible corpora: {tool_context.state.get('accessible_corpus_names', [])}",
+                "corpus_name": corpus_name,
+            }
+
         # Check if corpus exists
         if not check_corpus_exists(corpus_name, tool_context):
             return {
