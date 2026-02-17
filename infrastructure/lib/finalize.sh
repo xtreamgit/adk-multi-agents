@@ -20,9 +20,8 @@ configure_cors() {
     log_info "Updating backend CORS configuration..."
     
     # Set FRONTEND_URL to Load Balancer domain for CORS
-    # The --image flag is commented out to use if there are errors with missing images in section 7
+    # Note: If image errors occur in section 7, add --image="$BACKEND_IMAGE" below
     gcloud run services update backend \
-        # --image="BACKEND_IMAGE" \
         --region="$REGION" \
         --update-env-vars="FRONTEND_URL=$LOAD_BALANCER_URL" \
         --quiet
