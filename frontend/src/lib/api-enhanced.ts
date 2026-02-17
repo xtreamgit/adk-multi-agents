@@ -1134,6 +1134,17 @@ class EnhancedApiClient {
     return response.json();
   }
 
+  // ========== Chatbot Admin APIs ==========
+
+  async getChatbotGroups(): Promise<any[]> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/chatbot/groups'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to get chatbot groups');
+    return response.json();
+  }
+
   // ========== Google Groups Bridge Admin APIs ==========
 
   async ggBridge_getStatus(): Promise<any> {

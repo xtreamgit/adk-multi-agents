@@ -28,22 +28,25 @@ setup_google_groups_bridge() {
     # The backend service account needs to be able to query group memberships
     local backend_sa="${RAG_AGENT_SA:-}"
     if [[ -z "$backend_sa" ]]; then
-        # Try to derive from project
-        backend_sa="rag-agent-sa@${PROJECT_ID}.iam.gserviceaccount.com"
-        log_warning "RAG_AGENT_SA not set, using derived: $backend_sa"
+        # Query the actual service account from the Cloud Run backend service
+        backend_sa=$(gcloud run services describe backend \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(spec.template.spec.serviceAccountName)" 2>/dev/null)
+        if [[ -z "$backend_sa" ]]; then
+            backend_sa="adk-rag-agent-sa@${PROJECT_ID}.iam.gserviceaccount.com"
+            log_warning "Could not query backend SA, using default: $backend_sa"
+        else
+            log_info "Detected backend service account: $backend_sa"
+        fi
     fi
 
-    log_info "Granting Cloud Identity Groups Viewer to backend SA..."
-    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-        --member="serviceAccount:${backend_sa}" \
-        --role="roles/cloudidentity.groupsViewer" \
-        --condition=None \
-        --quiet 2>/dev/null || {
-            log_warning "Could not grant cloudidentity.groupsViewer role."
-            log_warning "You may need to grant this manually or use domain-wide delegation."
-            log_warning "See: https://cloud.google.com/identity/docs/how-to/setup"
-        }
-    log_success "IAM binding added for Cloud Identity Groups Viewer"
+    log_warning "Cloud Identity Groups API requires a manual step:"
+    log_warning "  1. Go to https://admin.google.com → Account → Admin roles"
+    log_warning "  2. Click 'Groups Admin' (or 'Groups Reader')"
+    log_warning "  3. Click 'Assign service accounts'"
+    log_warning "  4. Enter: $backend_sa"
+    log_warning "  5. Click 'Assign role'"
+    log_info "(gcloud IAM bindings do NOT work for Cloud Identity roles)"
 
     # Step 3: Update backend Cloud Run service with Google Groups env vars
     log_info "Updating backend Cloud Run service with Google Groups configuration..."
@@ -79,11 +82,12 @@ setup_google_groups_bridge() {
     echo "  Env Vars: GOOGLE_GROUPS_ENABLED=true, GOOGLE_GROUPS_CACHE_TTL=300"
     echo ""
     echo -e "${YELLOW}⚠️  Next Steps:${NC}"
-    echo "  1. Configure Google Group → Chatbot Group mappings via Admin API:"
-    echo "     POST /api/admin/google-groups/agent-mappings"
-    echo "  2. Configure Google Group → Corpus access mappings via Admin API:"
-    echo "     POST /api/admin/google-groups/corpus-mappings"
-    echo "  3. Test with: GET /api/admin/google-groups/status"
+    echo "  1. Configure mappings via Admin UI: https://<your-domain>/admin/google-groups"
+    echo "  2. Or via API:"
+    echo "     curl -s https://<your-domain>/api/admin/google-groups/agent-mappings"
+    echo "     curl -s https://<your-domain>/api/admin/google-groups/corpus-mappings"
+    echo "  3. Test status:"
+    echo "     curl -s https://<your-domain>/api/admin/google-groups/status | python3 -m json.tool"
     echo ""
 
     return 0

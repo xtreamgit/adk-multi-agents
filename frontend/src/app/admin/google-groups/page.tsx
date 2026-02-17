@@ -84,8 +84,8 @@ export default function GoogleGroupsBridgePage() {
 
       // Load chatbot groups and corpora for dropdowns
       try {
-        const groupsRes = await fetch('/api/admin/chatbot/groups', { credentials: 'include' });
-        if (groupsRes.ok) setChatbotGroups(await groupsRes.json());
+        const groups = await apiClient.getChatbotGroups();
+        if (Array.isArray(groups)) setChatbotGroups(groups);
       } catch { /* ignore */ }
 
       try {
