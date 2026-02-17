@@ -249,16 +249,17 @@ No additional DB changes this session (tables created in previous commit).
 ## 🚀 **Commits Summary**
 
 1. `57186e3` - feat: Google Groups Bridge + IAP-only auth removal (38 files, +3129/-1009)
-2. `TBD` - fix: Google Groups admin UI dropdown + deploy script SA detection
+2. `fb85bcc` - fix: Google Groups admin UI dropdown + deploy script SA detection
+3. `90105a5` - fix: remove comment inside gcloud line continuation in finalize.sh
 
-**Total:** 2 commits
+**Total:** 3 commits
 
 ---
 
 ## 🔮 **Next Steps**
 
 ### Immediate Tasks (Today/Tomorrow)
-- [ ] Deploy to cloud (backend + frontend)
+- [x] Deploy to cloud (backend + frontend) — completed in 19m 10s
 - [ ] Create Google Groups in Admin Console (rag-viewers, rag-contributors, etc.)
 - [ ] Create corpus Google Groups in Admin Console
 - [ ] Test end-to-end bridge sync with real IAP login
@@ -277,36 +278,43 @@ No additional DB changes this session (tables created in previous commit).
 
 ## ⚙️ **Environment Status**
 
-### Current Configuration
+### Local Development
 - **Backend:** Running on port 8000
 - **Frontend:** Running on port 3000
 - **Database:** PostgreSQL (Docker container: adk-postgres-dev, port 5433)
+
+### Cloud Production
+- **Load Balancer:** https://34.49.46.115.nip.io
+- **Backend:** `backend-00123-k25` (+ agent1/agent2/agent3)
+- **Frontend:** deployed with LB URL
+- **Database:** Cloud SQL PostgreSQL (`adk-rag-ma:us-west1:adk-multi-agents-db`)
 - **Google Cloud Project:** `adk-rag-ma`
 - **Vertex AI Region:** `us-west1`
-
-### Active Corpora
-- `ai-books` (AI Books Collection) - [N] documents
-- `test-corpus` (Test Corpus) - [N] documents
+- **CORS:** `FRONTEND_URL=https://34.49.46.115.nip.io` ✅
+- **Google Groups Bridge:** `GOOGLE_GROUPS_ENABLED=true` on all 4 backends ✅
+- **Schema:** 3 new tables auto-created on Cloud SQL ✅
 
 ---
 
 ## ✅ **Session Complete**
 
-**End Time:** 05:18 PM  
-**Total Duration:** ~3.5 hours  
-**Goals Achieved:** 8/8  
-**Commits Made:** 2  
-**Files Changed:** 42+  
+**End Time:** 08:30 PM  
+**Total Duration:** ~6.5 hours  
+**Goals Achieved:** 9/9  
+**Commits Made:** 3  
+**Files Changed:** 44+  
 
 **Summary:**
-Committed the full Google Groups Bridge implementation (7 phases) + IAP-only auth removal. Ran GCP setup script, fixed SA derivation bug, assigned Groups Admin role via Admin Console, fixed chatbot groups dropdown bug, configured 4 agent + 4 corpus mappings, and created comprehensive mapping model documentation. Ready for cloud deployment.
+Committed the full Google Groups Bridge implementation (7 phases) + IAP-only auth removal. Ran GCP setup script, fixed SA derivation bug, assigned Groups Admin role via Admin Console, fixed chatbot groups dropdown bug, configured 4 agent + 4 corpus mappings, created mapping model documentation. Deployed all services to cloud (19m 10s) — 4 backend services + frontend. Fixed finalize.sh CORS bug and manually set FRONTEND_URL. All 3 new DB tables auto-created on Cloud SQL.
 
 ---
 
 ## 📌 **Remember for Next Session**
 
-- Google Groups Bridge is deployed and configured with 4 agent + 4 corpus mappings
+- Google Groups Bridge is deployed to cloud and configured with 4 agent + 4 corpus mappings
 - Cloud Identity API is enabled, SA has Groups Admin role
 - Still need to create actual Google Groups in Google Admin Console (rag-viewers@, corpus-ai-books@, etc.)
 - Bridge is disabled locally (`GOOGLE_GROUPS_ENABLED` not in `.env.local`) — only active on Cloud Run
 - `google-groups.sh` is a one-time script, no need to re-run on restarts
+- Backend revision: `backend-00123-k25` with CORS fixed
+- finalize.sh bug fixed in `90105a5` — future deploys won't prompt for region
