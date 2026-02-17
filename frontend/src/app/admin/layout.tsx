@@ -8,7 +8,6 @@ import {
   UserCog, 
   Shield, 
   Database, 
-  Settings, 
   BarChart3, 
   FileText, 
   Lock, 
@@ -16,8 +15,7 @@ import {
   UserCheck,
   Layers,
   ClipboardList,
-  Plug,
-  MessageSquare,
+  Activity,
   FileSearch,
   ArrowLeft,
   Link2
@@ -35,9 +33,9 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [corporaMenuOpen, setCorporaMenuOpen] = useState(false);
-  const [chatbotMenuOpen, setChatbotMenuOpen] = useState(false);
-  const [appManagementMenuOpen, setAppManagementMenuOpen] = useState(false);
+  const [usersAccessMenuOpen, setUsersAccessMenuOpen] = useState(false);
+  const [agentsCorporaMenuOpen, setAgentsCorporaMenuOpen] = useState(false);
+  const [monitoringMenuOpen, setMonitoringMenuOpen] = useState(false);
   
   const isActive = (path: string) => {
     if (path === '/admin') {
@@ -47,19 +45,24 @@ export default function AdminLayout({
   };
   
   useEffect(() => {
-    if (pathname?.startsWith('/admin/corpora')) {
-      setCorporaMenuOpen(true);
+    // Auto-open Users & Access submenu
+    if (pathname?.startsWith('/admin/chatbot-users') ||
+        pathname?.startsWith('/admin/chatbot-groups') ||
+        pathname?.startsWith('/admin/google-groups') ||
+        pathname?.startsWith('/admin/chatbot-agents') ||
+        pathname?.startsWith('/admin/chatbot-corpora') ||
+        pathname?.startsWith('/admin/agent-assignments')) {
+      setUsersAccessMenuOpen(true);
     }
-    if (pathname?.startsWith('/admin/chatbot')) {
-      setChatbotMenuOpen(true);
+    // Auto-open Agents & Corpora submenu
+    if (pathname?.startsWith('/admin/agents') ||
+        pathname?.startsWith('/admin/corpora')) {
+      setAgentsCorporaMenuOpen(true);
     }
-    // Open Application Management submenu for Dashboard, Users, Groups, Audit, Sessions
-    if (pathname === '/admin' || 
-        pathname?.startsWith('/admin/users') || 
-        pathname?.startsWith('/admin/groups') ||
-        pathname?.startsWith('/admin/audit') ||
-        pathname?.startsWith('/admin/sessions')) {
-      setAppManagementMenuOpen(true);
+    // Auto-open Monitoring submenu
+    if (pathname?.startsWith('/admin/sessions') ||
+        pathname?.startsWith('/admin/audit')) {
+      setMonitoringMenuOpen(true);
     }
   }, [pathname]);
 
@@ -133,17 +136,26 @@ export default function AdminLayout({
               },
             }}
           >
-            {/* Chatbot Access SubMenu */}
+            {/* Dashboard - Top Level */}
+            <MenuItem
+              icon={<BarChart3 size={ICON_SIZE} color={BRAND_GREEN} />}
+              active={pathname === '/admin'}
+              onClick={() => handleMenuClick('/admin')}
+            >
+              Dashboard
+            </MenuItem>
+
+            {/* Users & Access SubMenu */}
             <SubMenu
-              icon={<MessageSquare size={ICON_SIZE} color={BRAND_GREEN} />}
-              label="Chatbot Access"
-              open={chatbotMenuOpen}
-              onOpenChange={(open) => setChatbotMenuOpen(open)}
+              icon={<Users size={ICON_SIZE} color={BRAND_GREEN} />}
+              label="Users & Access"
+              open={usersAccessMenuOpen}
+              onOpenChange={(open) => setUsersAccessMenuOpen(open)}
               rootStyles={{
                 '& > .ps-menu-button': {
                   backgroundColor: 'transparent',
                   color: '#374151',
-                  fontWeight: chatbotMenuOpen ? '700' : '400',
+                  fontWeight: usersAccessMenuOpen ? '700' : '400',
                 },
               }}
             >
@@ -152,28 +164,21 @@ export default function AdminLayout({
                 active={isActive('/admin/chatbot-users')}
                 onClick={() => handleMenuClick('/admin/chatbot-users')}
               >
-                Chatbot Users
+                Users
               </MenuItem>
               <MenuItem
                 icon={<UserCog size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/chatbot-groups')}
                 onClick={() => handleMenuClick('/admin/chatbot-groups')}
               >
-                Chatbot Groups
+                Groups
               </MenuItem>
               <MenuItem
-                icon={<Bot size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={isActive('/admin/agents')}
-                onClick={() => handleMenuClick('/admin/agents')}
+                icon={<Link2 size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/google-groups')}
+                onClick={() => handleMenuClick('/admin/google-groups')}
               >
-                Agents
-              </MenuItem>
-              <MenuItem
-                icon={<Database size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={isActive('/admin/chatbot-corpora')}
-                onClick={() => handleMenuClick('/admin/chatbot-corpora')}
-              >
-                Corpora Access
+                Google Groups Bridge
               </MenuItem>
               <MenuItem
                 icon={<Shield size={ICON_SIZE} color={BRAND_GREEN} />}
@@ -183,106 +188,92 @@ export default function AdminLayout({
                 Agent Access
               </MenuItem>
               <MenuItem
+                icon={<Database size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/chatbot-corpora')}
+                onClick={() => handleMenuClick('/admin/chatbot-corpora')}
+              >
+                Corpora Access
+              </MenuItem>
+              <MenuItem
                 icon={<UserCheck size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/agent-assignments')}
                 onClick={() => handleMenuClick('/admin/agent-assignments')}
               >
                 User Agent Assignments
               </MenuItem>
-              <MenuItem
-                icon={<Link2 size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={isActive('/admin/google-groups')}
-                onClick={() => handleMenuClick('/admin/google-groups')}
-              >
-                Google Groups Bridge
-              </MenuItem>
             </SubMenu>
 
-            {/* Corpora with SubMenu */}
+            {/* Agents & Corpora SubMenu */}
             <SubMenu
-              icon={<Database size={ICON_SIZE} color={BRAND_GREEN} />}
-              label="Corpora"
-              open={corporaMenuOpen}
-              onOpenChange={(open) => setCorporaMenuOpen(open)}
+              icon={<Bot size={ICON_SIZE} color={BRAND_GREEN} />}
+              label="Agents & Corpora"
+              open={agentsCorporaMenuOpen}
+              onOpenChange={(open) => setAgentsCorporaMenuOpen(open)}
               rootStyles={{
                 '& > .ps-menu-button': {
                   backgroundColor: 'transparent',
                   color: '#374151',
-                  fontWeight: corporaMenuOpen ? '700' : '400',
+                  fontWeight: agentsCorporaMenuOpen ? '700' : '400',
                 },
               }}
             >
+              <MenuItem
+                icon={<Bot size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/agents')}
+                onClick={() => handleMenuClick('/admin/agents')}
+              >
+                Agents
+              </MenuItem>
               <MenuItem
                 icon={<Layers size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={pathname === '/admin/corpora'}
                 onClick={() => handleMenuClick('/admin/corpora')}
               >
-                Corpus Management
-              </MenuItem>
-              <MenuItem
-                icon={<FileText size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={isActive('/admin/corpora/audit')}
-                onClick={() => handleMenuClick('/admin/corpora/audit')}
-              >
-                Audit Log
+                Corpora
               </MenuItem>
               <MenuItem
                 icon={<Lock size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/corpora/access')}
                 onClick={() => handleMenuClick('/admin/corpora/access')}
               >
-                Group Access Matrix
+                Access Matrix
               </MenuItem>
             </SubMenu>
 
-            {/* Application Management SubMenu */}
+            {/* Monitoring SubMenu */}
             <SubMenu
-              icon={<Settings size={ICON_SIZE} color={BRAND_GREEN} />}
-              label="Application Management"
-              open={appManagementMenuOpen}
-              onOpenChange={(open) => setAppManagementMenuOpen(open)}
+              icon={<Activity size={ICON_SIZE} color={BRAND_GREEN} />}
+              label="Monitoring"
+              open={monitoringMenuOpen}
+              onOpenChange={(open) => setMonitoringMenuOpen(open)}
               rootStyles={{
                 '& > .ps-menu-button': {
                   backgroundColor: 'transparent',
                   color: '#374151',
-                  fontWeight: appManagementMenuOpen ? '700' : '400',
+                  fontWeight: monitoringMenuOpen ? '700' : '400',
                 },
               }}
             >
               <MenuItem
-                icon={<BarChart3 size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={pathname === '/admin'}
-                onClick={() => handleMenuClick('/admin')}
+                icon={<Activity size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/sessions')}
+                onClick={() => handleMenuClick('/admin/sessions')}
               >
-                Dashboard
+                Sessions
               </MenuItem>
               <MenuItem
-                icon={<Users size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={isActive('/admin/users')}
-                onClick={() => handleMenuClick('/admin/users')}
+                icon={<FileText size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/corpora/audit')}
+                onClick={() => handleMenuClick('/admin/corpora/audit')}
               >
-                Users
-              </MenuItem>
-              <MenuItem
-                icon={<Shield size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={isActive('/admin/groups')}
-                onClick={() => handleMenuClick('/admin/groups')}
-              >
-                Groups
+                Corpus Audit Log
               </MenuItem>
               <MenuItem
                 icon={<ClipboardList size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/audit')}
                 onClick={() => handleMenuClick('/admin/audit')}
               >
-                System Audit Logs
-              </MenuItem>
-              <MenuItem
-                icon={<Plug size={ICON_SIZE} color={BRAND_GREEN} />}
-                active={isActive('/admin/sessions')}
-                onClick={() => handleMenuClick('/admin/sessions')}
-              >
-                Sessions
+                System Audit Log
               </MenuItem>
             </SubMenu>
           </Menu>
