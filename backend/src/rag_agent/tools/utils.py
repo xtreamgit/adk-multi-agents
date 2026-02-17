@@ -204,6 +204,13 @@ def set_current_corpus(corpus_name: str, tool_context: ToolContext) -> bool:
     Returns:
         bool: True if the corpus exists and was set as current, False otherwise
     """
+    # Check if the user has access to this corpus
+    if not check_user_corpus_access(corpus_name, tool_context):
+        logger.warning(
+            f"Corpus access denied for set_current_corpus: '{corpus_name}'",
+        )
+        return False
+
     # Check if corpus exists first
     if check_corpus_exists(corpus_name, tool_context):
         tool_context.state["current_corpus"] = corpus_name

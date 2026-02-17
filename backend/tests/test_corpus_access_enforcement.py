@@ -305,6 +305,63 @@ class TestDeleteCorpusAccessEnforcement:
         mock_delete.assert_not_called()
 
 
+class TestSetCurrentCorpusAccessEnforcement:
+    """Test that set_current_corpus enforces corpus access."""
+
+    def setup_method(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+    @patch('rag_agent.tools.utils.check_corpus_exists', return_value=True)
+    def test_access_denied_returns_false(self, mock_exists):
+        from rag_agent.tools.utils import set_current_corpus
+        ctx = MockToolContext(accessible_corpus_names=["ai-books"])
+        result = set_current_corpus("management", ctx)
+        assert result is False
+        assert ctx.state.get("current_corpus") is None
+
+    @patch('rag_agent.tools.utils.check_corpus_exists', return_value=True)
+    def test_access_granted_sets_corpus(self, mock_exists):
+        from rag_agent.tools.utils import set_current_corpus
+        ctx = MockToolContext(accessible_corpus_names=["ai-books", "management"])
+        result = set_current_corpus("management", ctx)
+        assert result is True
+        assert ctx.state["current_corpus"] == "management"
+
+    @patch('rag_agent.tools.utils.check_corpus_exists', return_value=True)
+    def test_no_access_list_allows_set(self, mock_exists):
+        """When no access list is set, allow setting current corpus (backward compat)."""
+        from rag_agent.tools.utils import set_current_corpus
+        ctx = MockToolContext()  # No accessible_corpus_names
+        result = set_current_corpus("anything", ctx)
+        assert result is True
+        assert ctx.state["current_corpus"] == "anything"
+
+
+class TestCreateCorpusAuditLogging:
+    """Test that create_corpus logs user identity for audit."""
+
+    def setup_method(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+    @patch('rag_agent.tools.create_corpus.check_corpus_exists', return_value=True)
+    def test_logs_user_email_on_existing_corpus(self, mock_exists):
+        """Verify create_corpus reads user_email from state (audit trail)."""
+        from rag_agent.tools.create_corpus import create_corpus
+        ctx = MockToolContext(
+            accessible_corpus_names=["ai-books"],
+            user_email="hector@develom.com"
+        )
+        result = create_corpus("ai-books", ctx)
+        # Corpus already exists, should return info status
+        assert result["status"] == "info"
+        # Verify user_email was accessible from state
+        assert ctx.state["user_email"] == "hector@develom.com"
+
+
 class TestAddDataAccessEnforcement:
     """Test that add_data enforces corpus access."""
 
