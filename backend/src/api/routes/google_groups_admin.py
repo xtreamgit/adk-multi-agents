@@ -467,12 +467,22 @@ async def sync_user(
 async def sync_all_users(current_user: User = Depends(get_current_user_iap)):
     """Force re-sync all active users whose email matches the org domain."""
     try:
-        # Derive org domain from GOOGLE_GROUPS_ADMIN_EMAIL
+        # Derive org domain from available env vars
         import os
-        admin_email = os.getenv("GOOGLE_GROUPS_ADMIN_EMAIL", "")
-        org_domain = admin_email.split("@")[1] if "@" in admin_email else ""
+        org_domain = os.getenv("GOOGLE_GROUPS_ORG_DOMAIN", "")
         if not org_domain:
-            raise HTTPException(status_code=500, detail="GOOGLE_GROUPS_ADMIN_EMAIL not configured")
+            # Fallback: derive from GOOGLE_GROUPS_ADMIN_EMAIL or IAP_DEV_USER_EMAIL
+            for env_key in ("GOOGLE_GROUPS_ADMIN_EMAIL", "IAP_DEV_USER_EMAIL"):
+                email = os.getenv(env_key, "")
+                if "@" in email:
+                    org_domain = email.split("@")[1]
+                    break
+        if not org_domain:
+            raise HTTPException(
+                status_code=500,
+                detail="Cannot determine org domain. Set GOOGLE_GROUPS_ORG_DOMAIN, "
+                       "GOOGLE_GROUPS_ADMIN_EMAIL, or IAP_DEV_USER_EMAIL.",
+            )
 
         with get_db_connection() as conn:
             cursor = conn.cursor()
