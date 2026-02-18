@@ -136,13 +136,13 @@ export default function AdminLayout({
               },
             }}
           >
-            {/* Dashboard - Top Level */}
+            {/* Active Session Board - Top Level */}
             <MenuItem
               icon={<BarChart3 size={ICON_SIZE} color={BRAND_GREEN} />}
               active={pathname === '/admin'}
               onClick={() => handleMenuClick('/admin')}
             >
-              Dashboard
+              Active Session Board
             </MenuItem>
 
             {/* Users & Access SubMenu */}

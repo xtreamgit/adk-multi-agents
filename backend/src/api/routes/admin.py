@@ -774,6 +774,145 @@ async def get_all_sessions(
         return []
 
 
+@router.get("/active-session-board")
+async def get_active_session_board(
+    current_user: User = Depends(require_admin)
+):
+    """
+    Get active session data for the Active Session Board dashboard.
+    Returns time-bucketed user activity, session details, and summary stats.
+    """
+    try:
+        from database.connection import get_db_connection
+        from datetime import datetime, timezone
+
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get latest active session per user with aggregated counts
+            cursor.execute("""
+                SELECT latest.session_id, latest.user_id,
+                       latest.username, latest.email, latest.full_name,
+                       latest.created_at, latest.last_activity,
+                       latest.agent_name, latest.agent_key,
+                       latest.active_corpora,
+                       agg.total_messages as message_count,
+                       agg.total_queries as user_query_count,
+                       agg.session_count
+                FROM (
+                    SELECT DISTINCT ON (us.user_id)
+                           us.session_id, us.user_id,
+                           u.username, u.email, u.full_name,
+                           us.created_at, us.last_activity,
+                           a.display_name as agent_name, a.name as agent_key,
+                           us.active_corpora
+                    FROM user_sessions us
+                    LEFT JOIN users u ON us.user_id = u.id
+                    LEFT JOIN agents a ON us.active_agent_id = a.id
+                    WHERE us.is_active = TRUE
+                    ORDER BY us.user_id, us.last_activity DESC NULLS LAST
+                ) latest
+                LEFT JOIN (
+                    SELECT user_id,
+                           COALESCE(SUM(message_count), 0) as total_messages,
+                           COALESCE(SUM(user_query_count), 0) as total_queries,
+                           COUNT(*) as session_count
+                    FROM user_sessions
+                    WHERE is_active = TRUE
+                    GROUP BY user_id
+                ) agg ON latest.user_id = agg.user_id
+                ORDER BY latest.last_activity DESC NULLS LAST
+            """)
+            sessions = [dict(row) for row in cursor.fetchall()]
+
+            # Get time-bucketed counts using database timestamps
+            cursor.execute("""
+                SELECT
+                    COUNT(*) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '5 minutes') as active_5m,
+                    COUNT(*) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '10 minutes') as active_10m,
+                    COUNT(*) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '30 minutes') as active_30m,
+                    COUNT(*) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '60 minutes') as active_60m,
+                    COUNT(*) as total_active,
+                    COALESCE(SUM(us.message_count), 0) as total_messages,
+                    COALESCE(SUM(us.user_query_count), 0) as total_queries,
+                    COUNT(*) FILTER (WHERE DATE(us.created_at) = CURRENT_DATE) as sessions_created_today,
+                    COUNT(DISTINCT us.user_id) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '5 minutes') as users_5m,
+                    COUNT(DISTINCT us.user_id) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '10 minutes') as users_10m,
+                    COUNT(DISTINCT us.user_id) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '30 minutes') as users_30m,
+                    COUNT(DISTINCT us.user_id) FILTER (WHERE us.last_activity >= NOW() - INTERVAL '60 minutes') as users_60m,
+                    COUNT(DISTINCT us.user_id) as total_users_with_sessions
+                FROM user_sessions us
+                WHERE us.is_active = TRUE
+            """)
+            stats_row = cursor.fetchone()
+
+            # Get total registered users count
+            cursor.execute("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")
+            total_users = cursor.fetchone()['count']
+
+        now = datetime.now(timezone.utc)
+
+        # Format sessions with relative time info
+        formatted_sessions = []
+        for s in sessions:
+            last_activity = s['last_activity'] or s['created_at']
+            created_at = s['created_at']
+
+            # Calculate seconds ago for frontend relative time
+            if isinstance(last_activity, str):
+                last_activity_dt = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+            else:
+                last_activity_dt = last_activity if last_activity.tzinfo else last_activity.replace(tzinfo=timezone.utc)
+
+            if isinstance(created_at, str):
+                created_at_dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            else:
+                created_at_dt = created_at if created_at.tzinfo else created_at.replace(tzinfo=timezone.utc)
+
+            seconds_ago = max(0, int((now - last_activity_dt).total_seconds()))
+            duration_seconds = max(0, int((now - created_at_dt).total_seconds()))
+
+            formatted_sessions.append({
+                "session_id": s['session_id'],
+                "user_id": s['user_id'],
+                "username": s['username'] or 'Unknown',
+                "email": s['email'] or '',
+                "full_name": s['full_name'] or '',
+                "created_at": str(created_at),
+                "last_activity": str(last_activity),
+                "seconds_ago": seconds_ago,
+                "duration_seconds": duration_seconds,
+                "agent_name": s['agent_name'] or 'Default',
+                "agent_key": s['agent_key'] or '',
+                "active_corpora": s['active_corpora'] or [],
+                "message_count": s['message_count'],
+                "user_query_count": s['user_query_count'],
+                "session_count": s.get('session_count', 1),
+            })
+
+        stats = dict(stats_row) if stats_row else {}
+
+        return {
+            "sessions": formatted_sessions,
+            "summary": {
+                "users_5m": stats.get('users_5m', 0),
+                "users_10m": stats.get('users_10m', 0),
+                "users_30m": stats.get('users_30m', 0),
+                "users_60m": stats.get('users_60m', 0),
+                "total_active_sessions": stats.get('total_active', 0),
+                "total_users_with_sessions": stats.get('total_users_with_sessions', 0),
+                "total_registered_users": total_users,
+                "sessions_created_today": stats.get('sessions_created_today', 0),
+                "total_messages": stats.get('total_messages', 0),
+                "total_queries": stats.get('total_queries', 0),
+            },
+            "server_time": now.isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to get active session board data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to load session board: {str(e)}")
+
+
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: int,

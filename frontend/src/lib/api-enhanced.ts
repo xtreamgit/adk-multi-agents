@@ -1037,6 +1037,19 @@ class EnhancedApiClient {
     return response.json();
   }
 
+  async admin_getActiveSessionBoard(): Promise<any> {
+    const response = await this.authFetch(this.buildUrl('/api/admin/active-session-board'), {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get session board data: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
   async admin_getUserStats(): Promise<unknown> {
     const response = await this.authFetch(this.buildUrl('/api/admin/user-stats'), {
       method: 'GET',
