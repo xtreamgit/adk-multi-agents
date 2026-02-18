@@ -153,7 +153,14 @@ export default function LandingPage() {
           <p className="text-xl text-gray-600 mb-8">
             Sign in with your organization account to access all features.
           </p>
-          <p className="text-gray-500">
+          <button
+            onClick={() => router.push('/')}
+            className="px-8 py-3 text-lg font-medium text-white rounded-lg shadow-md hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: '#005440' }}
+          >
+            Go to Chatbot
+          </button>
+          <p className="text-gray-500 mt-4">
             Authentication is handled automatically via Google IAP when accessing through your organization URL.
           </p>
         </div>
