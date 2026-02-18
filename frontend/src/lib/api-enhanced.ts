@@ -152,7 +152,6 @@ class EnhancedApiClient {
   public clearToken(): void {
     this.iapAuthenticated = false;
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
       localStorage.removeItem('current_user');
     }
   }
