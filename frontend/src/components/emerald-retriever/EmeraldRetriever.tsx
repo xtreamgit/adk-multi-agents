@@ -120,20 +120,9 @@ export default function EmeraldRetriever() {
       
       console.log('[Thumbnail] Using proxy URL:', proxyUrl);
       
-      // Get auth token from localStorage (stored as 'auth_token' by api client)
-      const token = localStorage.getItem('auth_token');
-      console.log('[Thumbnail] Token available:', !!token);
-      
-      if (!token) {
-        console.error('[Thumbnail] No auth token available');
-        setThumbnailUrl(null);
-        return;
-      }
-      
-      // Fetch PDF with authentication FIRST, then pass blob URL to thumbnail generator
-      console.log('[Thumbnail] Fetching PDF with auth...');
+      // Fetch PDF with IAP authentication (credentials: 'include')
+      console.log('[Thumbnail] Fetching PDF...');
       const response = await fetch(proxyUrl, {
-        headers: { 'Authorization': `Bearer ${token}` },
         credentials: 'include',
       });
       
