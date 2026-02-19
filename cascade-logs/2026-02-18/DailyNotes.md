@@ -45,3 +45,10 @@
 
 ---
 
+This confirms the root issue. The SA key credentials authenticate successfully (HTTP 200) but return 0 groups because the service account is not a Workspace org member. User ADC (hector@develom.com) returns all 10 groups.
+
+1. Add the SA to a Google Group in the Workspace — making it a recognized org member
+2. Grant the SA the "Groups Reader" admin role in the Admin Console — but this defeats the purpose of avoiding admin roles
+
+
+
