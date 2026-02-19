@@ -736,7 +736,7 @@ async def get_all_sessions(
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT us.session_id, u.username, us.created_at, us.last_activity,
+                SELECT us.session_id, u.email, us.created_at, us.last_activity,
                        us.active_agent_id, us.active_corpora,
                        COALESCE(us.message_count, 0) as message_count,
                        COALESCE(us.user_query_count, 0) as user_query_count
@@ -787,7 +787,7 @@ async def get_active_session_board(
             # Get latest active session per user with aggregated counts
             cursor.execute("""
                 SELECT latest.session_id, latest.user_id,
-                       latest.username, latest.email, latest.full_name,
+                       latest.email, latest.full_name,
                        latest.created_at, latest.last_activity,
                        latest.agent_name, latest.agent_key,
                        latest.active_corpora,
@@ -797,7 +797,7 @@ async def get_active_session_board(
                 FROM (
                     SELECT DISTINCT ON (us.user_id)
                            us.session_id, us.user_id,
-                           u.username, u.email, u.full_name,
+                           u.email, u.full_name,
                            us.created_at, us.last_activity,
                            a.display_name as agent_name, a.name as agent_key,
                            us.active_corpora
@@ -983,7 +983,7 @@ async def list_user_agent_assignments(
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT 
-                        u.id, u.username, u.email, u.full_name, u.is_active,
+                        u.id, u.email, u.full_name, u.is_active,
                         u.default_agent_id,
                         a.id as agent_id, a.name as agent_name, 
                         a.display_name as agent_display_name,
@@ -991,7 +991,7 @@ async def list_user_agent_assignments(
                     FROM users u
                     LEFT JOIN agents a ON u.default_agent_id = a.id
                     WHERE u.is_active = true
-                    ORDER BY u.username
+                    ORDER BY u.email
                 """)
                 users = cur.fetchall()
                 
