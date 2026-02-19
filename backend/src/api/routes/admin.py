@@ -870,7 +870,7 @@ async def get_active_session_board(
             formatted_sessions.append({
                 "session_id": s['session_id'],
                 "user_id": s['user_id'],
-                "username": s['username'] or 'Unknown',
+                "username": s['email'] or 'Unknown',
                 "email": s['email'] or '',
                 "full_name": s['full_name'] or '',
                 "created_at": str(created_at),
