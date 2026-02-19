@@ -376,7 +376,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": user_profile.model_dump() if user_profile else None,
-            "username": current_user.username,
+            "username": current_user.email,
             "user_id": current_user.id,
             "agent_id": agent_id,
             "agent_name": agent_name,
@@ -391,7 +391,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
             extra={
                 "session_id": session_id,
                 "account_env": account_env,
-                "username": current_user.username,
+                "username": current_user.email,
                 "agent_id": agent_id,
                 "agent_name": agent_name,
             },
@@ -400,7 +400,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
         return SessionInfo(
             session_id=session_id,
             user_profile=user_profile,
-            username=current_user.username,
+            username=current_user.email,
             created_at=now,
             last_activity=now,
         )
@@ -410,7 +410,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
             extra={
                 "session_id": session_id,
                 "account_env": account_env,
-                "username": current_user.username,
+                "username": current_user.email,
             },
         )
         raise
@@ -429,7 +429,7 @@ async def get_session(session_id: str, current_user: User = Depends(get_current_
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": None,
-            "username": current_user.username,
+            "username": current_user.email,
             "created_at": now,
             "last_activity": now,
             "chat_history": []
@@ -458,7 +458,7 @@ async def update_user_profile(session_id: str, user_profile: UserProfile, curren
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": None,
-            "username": current_user.username,
+            "username": current_user.email,
             "created_at": now,
             "last_activity": now,
             "chat_history": []
@@ -499,7 +499,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": None,
-            "username": current_user.username,
+            "username": current_user.email,
             "user_id": current_user.id,
             "agent_id": agent_id,
             "agent_name": agent_name,
@@ -566,7 +566,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     
     if unauthorized_corpora:
         logging.warning(
-            f"[CORPUS] User {current_user.username} (id={user_id}) attempted to access "
+            f"[CORPUS] User {current_user.email} (id={user_id}) attempted to access "
             f"unauthorized corpora: {unauthorized_corpora}. Allowed: {list(accessible_corpus_names)}"
         )
     
@@ -580,7 +580,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     
     # Build corpus instruction for the LLM using only validated corpora
     corpus_list = ", ".join(validated_corpora)
-    logging.info(f"[CORPUS] User {current_user.username} querying {len(validated_corpora)} validated corpora: {corpus_list}")
+    logging.info(f"[CORPUS] User {current_user.email} querying {len(validated_corpora)} validated corpora: {corpus_list}")
     user_context += f"\n{'='*80}\n"
     user_context += f"CRITICAL INSTRUCTION - READ THIS CAREFULLY:\n"
     user_context += f"The user has selected {len(validated_corpora)} corpora: {corpus_list}\n"
