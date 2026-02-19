@@ -1236,16 +1236,16 @@ async def get_access_matrix(current_user: User = Depends(require_admin)):
                 LEFT JOIN chatbot_user_groups cug ON cu.id = cug.chatbot_user_id
                 LEFT JOIN chatbot_groups cg ON cug.chatbot_group_id = cg.id
                 LEFT JOIN chatbot_group_agents cga ON cg.id = cga.group_id
-                LEFT JOIN agents a ON cga.agent_id = a.id
+                LEFT JOIN chatbot_agents a ON cga.agent_id = a.id
                 WHERE cu.is_active = TRUE
                 ORDER BY cu.email
             """)
             user_agent_rows = cursor.fetchall()
             
-            # Get all available agents
+            # Get all available chatbot agents
             cursor.execute("""
                 SELECT id, name, display_name, description, is_active
-                FROM agents
+                FROM chatbot_agents
                 WHERE is_active = TRUE
                 ORDER BY display_name
             """)
