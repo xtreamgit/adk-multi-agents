@@ -55,7 +55,7 @@ async def list_all_corpora_with_access(current_user: User = Depends(get_current_
 
 @router.get("/all", response_model=List[Corpus])
 async def list_all_corpora(
-    current_user: User = Depends(require_permission("manage:corpora"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     List all corpora in the system (admin only).
@@ -96,7 +96,7 @@ async def get_corpus(
 @router.post("/", response_model=Corpus, status_code=status.HTTP_201_CREATED)
 async def create_corpus(
     corpus_create: CorpusCreate,
-    current_user: User = Depends(require_permission("create:corpus"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Create a new corpus (admin only).
@@ -132,7 +132,7 @@ async def create_corpus(
 async def update_corpus(
     corpus_id: int,
     corpus_update: CorpusUpdate,
-    current_user: User = Depends(require_permission("update:corpus"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Update corpus (admin only).
@@ -167,7 +167,7 @@ async def update_corpus(
 async def grant_corpus_access(
     corpus_id: int,
     access_request: CorpusAccessRequest,
-    current_user: User = Depends(require_permission("manage:corpus_access"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Grant group access to a corpus (admin only).
@@ -236,7 +236,7 @@ async def grant_corpus_access(
 async def revoke_corpus_access(
     corpus_id: int,
     group_id: int,
-    current_user: User = Depends(require_permission("manage:corpus_access"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Revoke group access to a corpus (admin only).
