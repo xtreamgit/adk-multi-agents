@@ -282,7 +282,6 @@ app.add_middleware(
 # ============================================================================
 if NEW_ROUTES_AVAILABLE:
     app.include_router(users_router)
-    app.include_router(groups_router)
     app.include_router(agents_router)
     app.include_router(corpora_router)
     app.include_router(admin_router)
@@ -292,7 +291,6 @@ if NEW_ROUTES_AVAILABLE:
     app.include_router(google_groups_admin_router)
     print("🚀 API Routes Registered (IAP-only auth):")
     print("  ✅ /api/users/*       - User Management (profile, preferences)")
-    print("  ✅ /api/groups/*      - Groups & Roles (admin)")
     print("  ✅ /api/agents/*      - Agent Management (switching, access)")
     print("  ✅ /api/corpora/*     - Corpus Management (access, selection)")
     print("  ✅ /api/admin/*       - Admin Panel (corpus management, audit)")

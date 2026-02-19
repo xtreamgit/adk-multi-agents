@@ -6,7 +6,6 @@ import logging
 from typing import Optional, List, Dict
 
 from database.repositories.user_repository import UserRepository
-from database.repositories.group_repository import GroupRepository
 from models.user import User, UserCreate, UserUpdate, UserProfile, UserProfileUpdate, UserInDB
 from services.auth_service import AuthService
 
@@ -70,16 +69,8 @@ class UserService:
         # Create default profile
         UserRepository.create_profile(user_dict['id'])
         
-        # If this is the first user, add them to admin-users group
-        try:
-            all_users = UserRepository.get_all()
-            if len(all_users) == 1:  # This is the first user
-                admin_group = GroupRepository.get_group_by_name('admin-users')
-                if admin_group:
-                    UserService.add_user_to_group(user_dict['id'], admin_group['id'])
-                    logger.info(f"First user {user_create.username} added to admin-users group")
-        except Exception as e:
-            logger.warning(f"Failed to add first user to admin group: {e}")
+        # Note: User group assignment is now handled by Google Groups Bridge
+        # No need to manually add users to groups
         
         logger.info(f"User created: {user_create.username} (ID: {user_dict['id']})")
         return User(**UserService._convert_user_dict(user_dict))
@@ -185,8 +176,13 @@ class UserService:
     
     @staticmethod
     def get_user_roles(user_id: int) -> List[Dict]:
-        """Get roles for a user (through their groups)."""
-        return GroupRepository.get_user_roles(user_id)
+        """Get roles for a user (through their groups).
+        
+        Note: This method is deprecated. Role-based access is now handled
+        by Google Groups Bridge via chatbot_groups.
+        """
+        logger.warning("get_user_roles is deprecated - use Google Groups Bridge instead")
+        return []
     
     @staticmethod
     def add_user_to_group(user_id: int, group_id: int) -> bool:

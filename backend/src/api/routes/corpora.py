@@ -9,11 +9,9 @@ from pydantic import BaseModel
 
 from services.corpus_service import CorpusService
 from services.session_service import SessionService
-from services.group_service import GroupService
 from models.corpus import Corpus, CorpusCreate, CorpusUpdate, CorpusWithAccess
 from models.user import User
 from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
-from middleware.authorization_middleware import require_permission
 from database.repositories import AuditRepository
 
 logger = logging.getLogger(__name__)
@@ -187,13 +185,12 @@ async def grant_corpus_access(
             detail="Corpus not found"
         )
     
-    # Verify group exists
-    group = GroupService.get_group_by_id(access_request.group_id)
-    if not group:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Group not found"
-        )
+    # Note: Legacy group access endpoint - deprecated
+    # Group access is now managed via Google Groups Bridge
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Legacy group access endpoint deprecated. Use Google Groups Bridge instead."
+    )
     
     # Validate permission level
     if access_request.permission not in ["read", "write", "admin"]:
