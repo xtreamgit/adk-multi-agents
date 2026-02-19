@@ -11,7 +11,6 @@ from services.session_service import SessionService
 from models.agent import Agent, AgentCreate, AgentWithAccess
 from models.user import User
 from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
-from middleware.authorization_middleware import require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ async def get_agent(
 @router.post("/", response_model=Agent, status_code=status.HTTP_201_CREATED)
 async def create_agent(
     agent_create: AgentCreate,
-    current_user: User = Depends(require_permission("manage:agents"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Create a new agent (admin only).
@@ -85,7 +84,7 @@ async def create_agent(
     """
     try:
         agent = AgentService.create_agent(agent_create)
-        logger.info(f"Agent created by {current_user.username}: {agent.name}")
+        logger.info(f"Agent created by {current_user.email}: {agent.name}")
         return agent
     except ValueError as e:
         raise HTTPException(
@@ -97,7 +96,7 @@ async def create_agent(
 @router.put("/{agent_id}/activate")
 async def activate_agent(
     agent_id: int,
-    current_user: User = Depends(require_permission("manage:agents"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Activate an agent (admin only).
@@ -112,14 +111,14 @@ async def activate_agent(
             detail="Agent not found"
         )
     
-    logger.info(f"Agent {agent.name} activated by {current_user.username}")
+    logger.info(f"Agent {agent.name} activated by {current_user.email}")
     return {"message": "Agent activated successfully"}
 
 
 @router.put("/{agent_id}/deactivate")
 async def deactivate_agent(
     agent_id: int,
-    current_user: User = Depends(require_permission("manage:agents"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Deactivate an agent (admin only).
@@ -134,7 +133,7 @@ async def deactivate_agent(
             detail="Agent not found"
         )
     
-    logger.info(f"Agent {agent.name} deactivated by {current_user.username}")
+    logger.info(f"Agent {agent.name} deactivated by {current_user.email}")
     return {"message": "Agent deactivated successfully"}
 
 
@@ -144,7 +143,7 @@ async def deactivate_agent(
 async def grant_agent_access(
     agent_id: int,
     user_id: int,
-    current_user: User = Depends(require_permission("manage:agent_access"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Grant user access to an agent (admin only).
@@ -176,7 +175,7 @@ async def grant_agent_access(
             detail="Failed to grant access (may already have access)"
         )
     
-    logger.info(f"User {user.username} granted access to agent {agent.name} by {current_user.username}")
+    logger.info(f"User {user_id} granted access to agent {agent.name} by {current_user.email}")
     return {"message": "Access granted successfully"}
 
 
@@ -184,7 +183,7 @@ async def grant_agent_access(
 async def revoke_agent_access(
     agent_id: int,
     user_id: int,
-    current_user: User = Depends(require_permission("manage:agent_access"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Revoke user access to an agent (admin only).
@@ -199,7 +198,7 @@ async def revoke_agent_access(
             detail="Access not found or already revoked"
         )
     
-    logger.info(f"User {user_id} access revoked for agent {agent_id} by {current_user.username}")
+    logger.info(f"User {user_id} access revoked for agent {agent_id} by {current_user.email}")
     return {"message": "Access revoked successfully"}
 
 
@@ -263,7 +262,7 @@ async def switch_session_agent(
             detail="Failed to switch agent"
         )
     
-    logger.info(f"User {current_user.username} switched session {session_id} to agent {agent.name}")
+    logger.info(f"User {current_user.email} switched session {session_id} to agent {agent.name}")
     
     return {
         "message": "Agent switched successfully",

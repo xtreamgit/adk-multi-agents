@@ -1285,8 +1285,8 @@ async def get_my_available_agents(current_user = Depends(get_current_user)):
         with conn.cursor() as cur:
             # First, get the chatbot_user_id from the app user
             cur.execute("""
-                SELECT id FROM chatbot_users WHERE username = %s
-            """, (current_user.username,))
+                SELECT id FROM chatbot_users WHERE email = %s
+            """, (current_user.email,))
             chatbot_user = cur.fetchone()
             
             if not chatbot_user:

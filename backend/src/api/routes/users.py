@@ -49,7 +49,7 @@ async def update_my_profile(
                 detail="User not found"
             )
         
-        logger.info(f"User profile updated: {current_user.username}")
+        logger.info(f"User profile updated: {current_user.email}")
         return updated_user
         
     except Exception as e:
@@ -97,7 +97,7 @@ async def update_my_preferences(
                 detail="Profile not found"
             )
         
-        logger.info(f"User preferences updated: {current_user.username}")
+        logger.info(f"User preferences updated: {current_user.email}")
         return updated_profile
         
     except Exception as e:
@@ -144,7 +144,7 @@ async def set_default_agent(
         )
     
     updated_user = UserService.get_user_by_id(current_user.id)
-    logger.info(f"User {current_user.username} set default agent to {agent.name}")
+    logger.info(f"User {current_user.email} set default agent to {agent.name}")
     
     return updated_user
 

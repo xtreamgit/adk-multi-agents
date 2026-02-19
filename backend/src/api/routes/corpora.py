@@ -105,7 +105,7 @@ async def create_corpus(
     """
     try:
         corpus = CorpusService.create_corpus(corpus_create)
-        logger.info(f"Corpus created by {current_user.username}: {corpus.name}")
+        logger.info(f"Corpus created by {current_user.email}: {corpus.name}")
         
         # Create audit log entry
         AuditRepository.create({
@@ -117,7 +117,7 @@ async def create_corpus(
                 'display_name': corpus.display_name,
                 'gcs_bucket': corpus.gcs_bucket
             },
-            'metadata': {'source': 'user_api', 'username': current_user.username}
+            'metadata': {'source': 'user_api', 'user_email': current_user.email}
         })
         
         return corpus
@@ -147,7 +147,7 @@ async def update_corpus(
             detail="Corpus not found"
         )
     
-    logger.info(f"Corpus updated by {current_user.username}: {updated_corpus.name}")
+    logger.info(f"Corpus updated by {current_user.email}: {updated_corpus.name}")
     
     # Create audit log entry
     AuditRepository.create({
@@ -213,7 +213,7 @@ async def grant_corpus_access(
     
     logger.info(
         f"Group {group.name} granted {access_request.permission} access "
-        f"to corpus {corpus.name} by {current_user.username}"
+        f"to corpus {corpus.name} by {current_user.email}"
     )
     
     # Create audit log entry
@@ -251,7 +251,7 @@ async def revoke_corpus_access(
             detail="Access not found or already revoked"
         )
     
-    logger.info(f"Group {group_id} access revoked for corpus {corpus_id} by {current_user.username}")
+    logger.info(f"Group {group_id} access revoked for corpus {corpus_id} by {current_user.email}")
     
     # Create audit log entry
     AuditRepository.create({
@@ -345,7 +345,7 @@ async def update_active_corpora(
         CorpusService.update_session_selection(current_user.id, corpus_id)
     
     logger.info(
-        f"User {current_user.username} updated session {session_id} "
+        f"User {current_user.email} updated session {session_id} "
         f"active corpora to {active_corpora.corpus_ids}"
     )
     

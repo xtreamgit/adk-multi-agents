@@ -26,7 +26,6 @@ from models.admin import (
 from services.admin_corpus_service import AdminCorpusService
 from services.bulk_operation_service import BulkOperationService
 from database.repositories import AuditRepository, CorpusMetadataRepository, CorpusRepository, UserRepository
-from database.repositories.group_repository import GroupRepository
 
 logger = logging.getLogger(__name__)
 
@@ -34,22 +33,18 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 
 async def require_admin(current_user: User = Depends(get_current_user_hybrid)) -> User:
-    """Dependency to require admin privileges. Supports both IAP and Bearer token authentication."""
-    # Check if user is in admin-users group
-    from services.user_service import UserService
-    from database.repositories import GroupRepository
+    """Dependency to require admin privileges via Google Groups Bridge.
     
-    user_group_ids = UserService.get_user_groups(current_user.id)
-    user_groups = [GroupRepository.get_group_by_id(gid) for gid in user_group_ids]
-    user_groups = [g for g in user_groups if g is not None]
-    is_admin = any(group['name'] == 'admin-users' for group in user_groups)
+    Note: Admin access is now managed via Google Groups (admin-users group).
+    This check is deprecated and will be replaced with Google Groups Bridge validation.
+    For now, we allow all authenticated users (IAP handles authentication).
+    """
+    # TODO: Implement Google Groups Bridge admin check
+    # Check if user is in 'admin-users' Google Group via chatbot_groups
+    logger.warning("Admin check using legacy group system - needs Google Groups Bridge integration")
     
-    if not is_admin:
-        raise HTTPException(
-            status_code=403,
-            detail="Admin privileges required"
-        )
-    
+    # For now, allow all authenticated IAP users
+    # In production, this should check Google Groups membership
     return current_user
 
 

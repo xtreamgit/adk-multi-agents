@@ -60,7 +60,7 @@ async def retrieve_document(
     # Step 1: Validate corpus access
     if not CorpusService.validate_corpus_access(current_user.id, corpus_id):
         logger.warning(
-            f"User {current_user.username} (ID: {current_user.id}) "
+            f"User {current_user.email} (ID: {current_user.id}) "
             f"denied access to corpus {corpus_id}"
         )
         
@@ -178,7 +178,7 @@ async def retrieve_document(
     )
     
     logger.info(
-        f"Document retrieval successful: user={current_user.username}, "
+        f"Document retrieval successful: user={current_user.email}, "
         f"corpus={corpus.name}, document={document_name}"
     )
     
@@ -229,7 +229,7 @@ async def list_corpus_documents(
     # Validate corpus access
     if not CorpusService.validate_corpus_access(current_user.id, corpus_id):
         logger.warning(
-            f"User {current_user.username} (ID: {current_user.id}) "
+            f"User {current_user.email} (ID: {current_user.id}) "
             f"denied access to list documents in corpus {corpus_id}"
         )
         raise HTTPException(
@@ -256,7 +256,7 @@ async def list_corpus_documents(
         documents = DocumentService.list_documents(corpus.vertex_corpus_id)
         logger.info(
             f"Listed {len(documents)} documents from corpus '{corpus.name}' "
-            f"for user {current_user.username}"
+            f"for user {current_user.email}"
         )
         return {
             "status": "success",
@@ -299,7 +299,7 @@ async def proxy_document(
     # Validate corpus access
     if not CorpusService.validate_corpus_access(current_user.id, corpus_id):
         logger.warning(
-            f"User {current_user.username} (ID: {current_user.id}) "
+            f"User {current_user.email} (ID: {current_user.id}) "
             f"denied access to proxy document in corpus {corpus_id}"
         )
         raise HTTPException(
@@ -377,7 +377,7 @@ async def proxy_document(
         )
         
         logger.info(
-            f"Proxying document: user={current_user.username}, "
+            f"Proxying document: user={current_user.email}, "
             f"corpus={corpus.name}, document={document_name}"
         )
         
@@ -425,7 +425,7 @@ async def get_document_access_logs(
     return {
         "logs": logs,
         "count": len(logs),
-        "user": current_user.username
+        "user": current_user.email
     }
 
 
@@ -467,5 +467,5 @@ async def get_corpus_access_logs(
         "logs": logs,
         "count": len(logs),
         "corpus_id": corpus_id,
-        "user": current_user.username
+        "user": current_user.email
     }
