@@ -57,7 +57,6 @@ from database.schema_init import initialize_schema
 try:
     from api.routes import (
         users_router,
-        groups_router,
         agents_router,
         corpora_router,
         admin_router,
@@ -96,39 +95,19 @@ initialize_schema()
 
 # Setup admin group and seed default users automatically
 def setup_admin_group():
-    """Create admin-users group and seed default users if needed."""
-    try:
-        from database.repositories import GroupRepository, UserRepository
-        from services.user_service import UserService
-        from database.seed_default_users import seed_default_users
-        
-        # Create admin-users group if it doesn't exist
-        admin_group = GroupRepository.get_group_by_name('admin-users')
-        if not admin_group:
-            admin_group = GroupRepository.create_group(
-                name='admin-users',
-                description='Administrators with full system access'
-            )
-            admin_group_id = admin_group['id']
-            print(f"✅ Created admin-users group (ID: {admin_group_id})")
-        else:
-            admin_group_id = admin_group['id']
-        
-        # Seed default users if none exist
-        seed_default_users()
-        
-        # Get all users and add first user to admin group if they're not already
-        all_users = UserRepository.get_all()
-        if all_users:
-            first_user_id = all_users[0]['id']
-            user_groups = UserService.get_user_groups(first_user_id)
-            if admin_group_id not in user_groups:
-                UserService.add_user_to_group(first_user_id, admin_group_id)
-                print(f"✅ Added user '{all_users[0]['username']}' to admin-users group")
-    except Exception as e:
-        print(f"⚠️  Admin group setup error (non-critical): {e}")
+    """DEPRECATED: Admin groups are now managed via Google Groups Bridge.
+    
+    This function is disabled. User management is handled by:
+    - Google IAP for authentication
+    - Google Groups for authorization
+    - Google Groups Bridge for access control mapping
+    """
+    print("ℹ️  Admin group setup skipped - using Google Groups Bridge")
+    # Legacy admin group setup disabled
+    pass
 
-setup_admin_group()
+# Disabled - admin groups now managed via Google Groups Bridge
+# setup_admin_group()
 
 # Sync corpora from Vertex AI on startup
 def sync_corpora_on_startup():

@@ -41,7 +41,7 @@ class CorpusSyncService:
             from vertexai import rag
             import google.auth
             from database.repositories.corpus_repository import CorpusRepository
-            from database.repositories.group_repository import GroupRepository
+            # Note: GroupRepository removed - groups now managed via Google Groups Bridge
             
             # Initialize Vertex AI
             try:

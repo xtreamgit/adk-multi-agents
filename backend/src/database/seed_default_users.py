@@ -6,7 +6,7 @@ Also syncs corpora from Vertex AI and grants admin-users group access.
 
 import logging
 from database.repositories.user_repository import UserRepository
-from database.repositories.group_repository import GroupRepository
+# Note: GroupRepository removed - groups now managed via Google Groups Bridge
 from database.repositories.corpus_repository import CorpusRepository
 from services.auth_service import AuthService
 
