@@ -133,7 +133,7 @@ class CorpusRepository:
                 JOIN chatbot_corpus_access cca ON c.id = cca.corpus_id
                 JOIN chatbot_user_groups cug ON cca.chatbot_group_id = cug.chatbot_group_id
                 JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id
-                JOIN users u ON cu.username = u.username
+                JOIN users u ON cu.email = u.email
                 LEFT JOIN corpus_metadata cm ON c.id = cm.corpus_id
                 WHERE u.id = %s
             """
@@ -157,7 +157,7 @@ class CorpusRepository:
                 FROM chatbot_corpus_access cca
                 JOIN chatbot_user_groups cug ON cca.chatbot_group_id = cug.chatbot_group_id
                 JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id
-                JOIN users u ON cu.username = u.username
+                JOIN users u ON cu.email = u.email
                 WHERE u.id = %s AND cca.corpus_id = %s
                 ORDER BY 
                     CASE cca.permission 
