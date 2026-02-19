@@ -181,6 +181,13 @@ export default function AdminLayout({
                 Google Groups Bridge
               </MenuItem>
               <MenuItem
+                icon={<ClipboardList size={ICON_SIZE} color={BRAND_GREEN} />}
+                active={isActive('/admin/access-matrix')}
+                onClick={() => handleMenuClick('/admin/access-matrix')}
+              >
+                Access Matrix
+              </MenuItem>
+              <MenuItem
                 icon={<Shield size={ICON_SIZE} color={BRAND_GREEN} />}
                 active={isActive('/admin/chatbot-agents')}
                 onClick={() => handleMenuClick('/admin/chatbot-agents')}

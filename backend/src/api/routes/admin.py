@@ -1201,3 +1201,144 @@ async def admin_revoke_agent_access(
     except Exception as e:
         logger.error(f"Failed to revoke agent access: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/access-matrix")
+async def get_access_matrix(current_user: User = Depends(require_admin)):
+    """Get access matrix data showing agent assignments and corpus access for all chatbot users.
+    
+    Returns:
+        - users: List of active chatbot users with their details
+        - agents: List of available agents
+        - corpora: List of active corpora
+        - agent_assignments: Map of user_id -> agent_id
+        - corpus_access: Map of user_id -> list of corpus_ids
+    """
+    try:
+        from database.connection import get_db_connection
+        from services.agent_service import AgentService
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get all active chatbot users with their assigned groups and agents
+            cursor.execute("""
+                SELECT 
+                    cu.id as chatbot_user_id,
+                    cu.email,
+                    cu.full_name,
+                    cg.name as chatbot_group_name,
+                    cg.id as chatbot_group_id,
+                    a.id as agent_id,
+                    a.name as agent_key,
+                    a.display_name as agent_name
+                FROM chatbot_users cu
+                LEFT JOIN chatbot_user_groups cug ON cu.id = cug.chatbot_user_id
+                LEFT JOIN chatbot_groups cg ON cug.chatbot_group_id = cg.id
+                LEFT JOIN chatbot_group_agents cga ON cg.id = cga.group_id
+                LEFT JOIN agents a ON cga.agent_id = a.id
+                WHERE cu.is_active = TRUE
+                ORDER BY cu.email
+            """)
+            user_agent_rows = cursor.fetchall()
+            
+            # Get all available agents
+            cursor.execute("""
+                SELECT id, name, display_name, description, is_active
+                FROM agents
+                WHERE is_active = TRUE
+                ORDER BY display_name
+            """)
+            agent_rows = cursor.fetchall()
+            
+            # Get all active corpora
+            cursor.execute("""
+                SELECT id, name, display_name, description, is_active
+                FROM corpora
+                WHERE is_active = TRUE
+                ORDER BY display_name
+            """)
+            corpus_rows = cursor.fetchall()
+            
+            # Get corpus access for all chatbot users
+            cursor.execute("""
+                SELECT 
+                    cu.id as chatbot_user_id,
+                    cca.corpus_id,
+                    c.name as corpus_name,
+                    c.display_name as corpus_display_name
+                FROM chatbot_users cu
+                LEFT JOIN chatbot_user_groups cug ON cu.id = cug.chatbot_user_id
+                LEFT JOIN chatbot_corpus_access cca ON cug.chatbot_group_id = cca.chatbot_group_id
+                LEFT JOIN corpora c ON cca.corpus_id = c.id
+                WHERE cu.is_active = TRUE AND c.is_active = TRUE
+                ORDER BY cu.id, c.display_name
+            """)
+            corpus_access_rows = cursor.fetchall()
+        
+        # Build user list (deduplicated)
+        users_map = {}
+        for row in user_agent_rows:
+            chatbot_user_id = row['chatbot_user_id']
+            if chatbot_user_id not in users_map:
+                users_map[chatbot_user_id] = {
+                    'chatbot_user_id': chatbot_user_id,
+                    'email': row['email'],
+                    'full_name': row['full_name'],
+                    'chatbot_group_name': row['chatbot_group_name'],
+                    'chatbot_group_id': row['chatbot_group_id']
+                }
+        
+        users = list(users_map.values())
+        
+        # Build agents list
+        agents = [
+            {
+                'id': row['id'],
+                'name': row['name'],
+                'display_name': row['display_name'],
+                'description': row['description']
+            }
+            for row in agent_rows
+        ]
+        
+        # Build corpora list
+        corpora = [
+            {
+                'id': row['id'],
+                'name': row['name'],
+                'display_name': row['display_name'],
+                'description': row['description']
+            }
+            for row in corpus_rows
+        ]
+        
+        # Build agent assignments map (chatbot_user_id -> agent_id)
+        agent_assignments = {}
+        for row in user_agent_rows:
+            chatbot_user_id = row['chatbot_user_id']
+            agent_id = row['agent_id']
+            if agent_id:  # Only include if agent is assigned
+                agent_assignments[chatbot_user_id] = agent_id
+        
+        # Build corpus access map (chatbot_user_id -> [corpus_ids])
+        corpus_access = {}
+        for row in corpus_access_rows:
+            chatbot_user_id = row['chatbot_user_id']
+            corpus_id = row['corpus_id']
+            if corpus_id:  # Only include if corpus exists
+                if chatbot_user_id not in corpus_access:
+                    corpus_access[chatbot_user_id] = []
+                corpus_access[chatbot_user_id].append(corpus_id)
+        
+        return {
+            'users': users,
+            'agents': agents,
+            'corpora': corpora,
+            'agent_assignments': agent_assignments,
+            'corpus_access': corpus_access
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get access matrix: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
