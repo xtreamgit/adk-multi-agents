@@ -23,7 +23,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const user = apiClient.getCurrentUser();
       if (user) {
         const groups = await apiClient.getMyGroups();
-        const hasAdminAccess = groups.some((g: { name: string }) => g.name === 'admin-users');
+        // Check for admin access via Google Groups Bridge
+        // Admin groups: rag-admins, rag-content-managers
+        const hasAdminAccess = groups.some((g: { name: string }) => 
+          g.name === 'rag-admins' || 
+          g.name === 'rag-content-managers' ||
+          g.name === 'admin-users' // Legacy fallback
+        );
         setIsAdmin(hasAdminAccess);
       }
     } catch (error) {
