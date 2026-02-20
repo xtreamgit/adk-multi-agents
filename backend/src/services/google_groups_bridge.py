@@ -262,6 +262,11 @@ class GoogleGroupsBridge:
         """
         Sync corpus access based on Google Group → corpus mappings.
 
+        Two sources of mappings:
+        1. Explicit: google_group_corpus_mappings table entries
+        2. Auto-mapped: Google Groups named "corpus-{name}@domain" are automatically
+           matched to the corpus with that name in the DB (default permission: 'read')
+
         For each corpus, takes the highest permission level across all matching groups.
         Updates chatbot_corpus_access for the user's chatbot groups.
 
@@ -270,25 +275,6 @@ class GoogleGroupsBridge:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-
-                # Find all active corpus mappings that match the user's Google Groups
-                placeholders = ",".join(["%s"] * len(google_groups))
-                cursor.execute(
-                    f"""
-                    SELECT ggcm.corpus_id, ggcm.permission, ggcm.google_group_email
-                    FROM google_group_corpus_mappings ggcm
-                    JOIN corpora c ON ggcm.corpus_id = c.id
-                    WHERE ggcm.google_group_email IN ({placeholders})
-                      AND ggcm.is_active = TRUE
-                      AND c.is_active = TRUE
-                    """,
-                    google_groups,
-                )
-                corpus_mappings = cursor.fetchall()
-
-                if not corpus_mappings:
-                    logger.debug(f"No corpus mappings found for chatbot user {chatbot_user_id}")
-                    return 0
 
                 # Resolve highest permission per corpus
                 # Permission hierarchy: admin > delete > upload > read > query
@@ -301,12 +287,74 @@ class GoogleGroupsBridge:
                 }
 
                 corpus_permissions: Dict[int, str] = {}
-                for mapping in corpus_mappings:
+
+                # Source 1: Explicit mappings from google_group_corpus_mappings table
+                placeholders = ",".join(["%s"] * len(google_groups))
+                cursor.execute(
+                    f"""
+                    SELECT ggcm.corpus_id, ggcm.permission, ggcm.google_group_email
+                    FROM google_group_corpus_mappings ggcm
+                    JOIN corpora c ON ggcm.corpus_id = c.id
+                    WHERE ggcm.google_group_email IN ({placeholders})
+                      AND ggcm.is_active = TRUE
+                      AND c.is_active = TRUE
+                    """,
+                    google_groups,
+                )
+                explicit_mappings = cursor.fetchall()
+
+                for mapping in explicit_mappings:
                     corpus_id = mapping["corpus_id"]
                     perm = mapping["permission"]
                     current = corpus_permissions.get(corpus_id)
                     if current is None or permission_rank.get(perm, 0) > permission_rank.get(current, 0):
                         corpus_permissions[corpus_id] = perm
+
+                # Source 2: Auto-map Google Groups named "corpus-{name}@domain"
+                # Convention: group "corpus-recipes@develom.com" → corpus with name "recipes"
+                corpus_prefix_groups = [
+                    g for g in google_groups
+                    if g.split("@")[0].startswith("corpus-")
+                ]
+                if corpus_prefix_groups:
+                    # Extract corpus names from group emails
+                    auto_corpus_names = []
+                    for group_email in corpus_prefix_groups:
+                        local_part = group_email.split("@")[0]  # e.g. "corpus-recipes"
+                        corpus_name = local_part[len("corpus-"):]  # e.g. "recipes"
+                        if corpus_name:
+                            auto_corpus_names.append(corpus_name)
+
+                    if auto_corpus_names:
+                        name_placeholders = ",".join(["%s"] * len(auto_corpus_names))
+                        cursor.execute(
+                            f"""
+                            SELECT id, name FROM corpora
+                            WHERE name IN ({name_placeholders})
+                              AND is_active = TRUE
+                            """,
+                            auto_corpus_names,
+                        )
+                        auto_corpora = cursor.fetchall()
+
+                        for row in auto_corpora:
+                            corpus_id = row["id"]
+                            # Auto-mapped groups get 'read' permission by default
+                            auto_perm = "read"
+                            current = corpus_permissions.get(corpus_id)
+                            if current is None or permission_rank.get(auto_perm, 0) > permission_rank.get(current, 0):
+                                corpus_permissions[corpus_id] = auto_perm
+
+                        if auto_corpora:
+                            auto_names = [r["name"] for r in auto_corpora]
+                            logger.debug(
+                                f"Auto-mapped {len(auto_corpora)} corpora for chatbot user "
+                                f"{chatbot_user_id} from corpus-* groups: {auto_names}"
+                            )
+
+                if not corpus_permissions:
+                    logger.debug(f"No corpus mappings found for chatbot user {chatbot_user_id}")
+                    return 0
 
                 # Get the user's chatbot group IDs (bridge-managed)
                 cursor.execute(
