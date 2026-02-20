@@ -59,14 +59,25 @@ class UserRepository:
         """
         created_at = datetime.now(timezone.utc).isoformat()
         updated_at = created_at
+        # Generate username from email prefix
+        username = email.split('@')[0] if email else 'user'
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            # Check for username uniqueness and add suffix if needed
+            base_username = username
+            counter = 1
+            cursor.execute("SELECT 1 FROM users WHERE username = %s LIMIT 1", (username,))
+            while cursor.fetchone():
+                username = f"{base_username}{counter}"
+                counter += 1
+                cursor.execute("SELECT 1 FROM users WHERE username = %s LIMIT 1", (username,))
+            
             cursor.execute("""
-                INSERT INTO users (email, full_name, google_id, is_active, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO users (username, email, full_name, google_id, is_active, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (email, full_name, google_id, True, created_at, updated_at))
+            """, (username, email, full_name, google_id, True, created_at, updated_at))
             result = cursor.fetchone()
             user_id = result['id'] if isinstance(result, dict) else result[0]
             conn.commit()
