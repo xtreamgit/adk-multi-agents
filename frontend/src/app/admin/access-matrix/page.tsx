@@ -37,6 +37,7 @@ export default function AccessMatrixPage() {
   const [data, setData] = useState<AccessMatrixData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
 
   const loadData = async () => {
     try {
@@ -114,26 +115,104 @@ export default function AccessMatrixPage() {
                 View agent assignments and corpus access for all chatbot users
               </p>
             </div>
-            <button
-              onClick={loadData}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowInfoDialog(true)}
+                className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200"
+                title="Information"
+              >
+                <Info className="w-5 h-5" />
+              </button>
+              <button
+                onClick={loadData}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </button>
+            </div>
           </div>
           
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-            <div className="flex">
-              <Info className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-700">
-                <p className="font-medium mb-1">Read-Only View</p>
-                <p>
-                  Access is managed through Google Workspace Groups and synced via the Google Groups Bridge.
-                  To modify access, update group memberships in Google Workspace Admin Console.
-                </p>
+        </div>
+
+        {/* Info Dialog */}
+        {showInfoDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowInfoDialog(false)}>
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 rounded-full p-2">
+                      <Info className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">Access Matrix Information</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowInfoDialog(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="space-y-4 text-gray-700">
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                    <p className="font-medium text-blue-900 mb-2">Read-Only View</p>
+                    <p className="text-blue-800">
+                      Access is managed through Google Workspace Groups and synced via the Google Groups Bridge.
+                      To modify access, update group memberships in Google Workspace Admin Console.
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-2">How It Works</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      <li>Users are automatically synced when they log in via IAP</li>
+                      <li>Group memberships are queried from Google Cloud Identity API</li>
+                      <li>Agent assignments are based on chatbot group mappings</li>
+                      <li>Corpus access is granted through group-to-corpus mappings</li>
+                      <li>Changes sync within 5 minutes or on next login</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-2">Matrix Layout</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      <li><strong>Agent Assignments:</strong> Shows which agent each user is assigned to</li>
+                      <li><strong>Corpus Access:</strong> Shows which corpora each user can access</li>
+                      <li>Checkmarks (✓) indicate active assignments/access</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => setShowInfoDialog(false)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    Got it
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Summary Stats */}
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-2xl font-bold text-gray-900">{data.users.length}</div>
+            <div className="text-gray-600">Active Chatbot Users</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-2xl font-bold text-gray-900">{data.agents.length}</div>
+            <div className="text-gray-600">Available Agents</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-2xl font-bold text-gray-900">{data.corpora.length}</div>
+            <div className="text-gray-600">Active Corpora</div>
           </div>
         </div>
 
@@ -149,29 +228,29 @@ export default function AccessMatrixPage() {
               <thead>
                 <tr>
                   <th className="border border-gray-300 bg-gray-100 p-3 text-left font-semibold text-gray-900 sticky left-0 z-10">
-                    Agent
+                    User
                   </th>
-                  {data.users.map((user) => (
+                  {data.agents.map((agent) => (
                     <th
-                      key={user.chatbot_user_id}
+                      key={agent.id}
                       className="border border-gray-300 bg-gray-100 p-3 text-center font-medium text-gray-900 min-w-[120px]"
                     >
-                      <div className="text-sm">{user.full_name || user.email}</div>
-                      <div className="text-xs text-gray-500 mt-1">{user.chatbot_group_name}</div>
+                      <div className="text-sm">{agent.display_name}</div>
+                      <div className="text-xs text-gray-500 mt-1">{agent.name}</div>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {data.agents.map((agent) => (
-                  <tr key={agent.id}>
+                {data.users.map((user) => (
+                  <tr key={user.chatbot_user_id}>
                     <td className="border border-gray-300 p-3 font-medium text-gray-900 bg-gray-50 sticky left-0 z-10">
-                      <div>{agent.display_name}</div>
-                      <div className="text-xs text-gray-500 mt-1">{agent.name}</div>
+                      <div>{user.full_name || user.email}</div>
+                      <div className="text-xs text-gray-500 mt-1">{user.chatbot_group_name}</div>
                     </td>
-                    {data.users.map((user) => (
+                    {data.agents.map((agent) => (
                       <td
-                        key={user.chatbot_user_id}
+                        key={agent.id}
                         className="border border-gray-300 p-3 text-center"
                       >
                         {hasAgentAccess(user.chatbot_user_id, agent.id) && (
@@ -202,29 +281,29 @@ export default function AccessMatrixPage() {
               <thead>
                 <tr>
                   <th className="border border-gray-300 bg-gray-100 p-3 text-left font-semibold text-gray-900 sticky left-0 z-10">
-                    Corpus
+                    User
                   </th>
-                  {data.users.map((user) => (
+                  {data.corpora.map((corpus) => (
                     <th
-                      key={user.chatbot_user_id}
+                      key={corpus.id}
                       className="border border-gray-300 bg-gray-100 p-3 text-center font-medium text-gray-900 min-w-[120px]"
                     >
-                      <div className="text-sm">{user.full_name || user.email}</div>
-                      <div className="text-xs text-gray-500 mt-1">{user.chatbot_group_name}</div>
+                      <div className="text-sm">{corpus.display_name}</div>
+                      <div className="text-xs text-gray-500 mt-1">{corpus.name}</div>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {data.corpora.map((corpus) => (
-                  <tr key={corpus.id}>
+                {data.users.map((user) => (
+                  <tr key={user.chatbot_user_id}>
                     <td className="border border-gray-300 p-3 font-medium text-gray-900 bg-gray-50 sticky left-0 z-10">
-                      <div>{corpus.display_name}</div>
-                      <div className="text-xs text-gray-500 mt-1">{corpus.name}</div>
+                      <div>{user.full_name || user.email}</div>
+                      <div className="text-xs text-gray-500 mt-1">{user.chatbot_group_name}</div>
                     </td>
-                    {data.users.map((user) => (
+                    {data.corpora.map((corpus) => (
                       <td
-                        key={user.chatbot_user_id}
+                        key={corpus.id}
                         className="border border-gray-300 p-3 text-center"
                       >
                         {hasCorpusAccess(user.chatbot_user_id, corpus.id) && (
@@ -241,22 +320,6 @@ export default function AccessMatrixPage() {
           {data.corpora.length === 0 && (
             <p className="text-gray-500 text-center py-8">No corpora available</p>
           )}
-        </div>
-
-        {/* Summary Stats */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-gray-900">{data.users.length}</div>
-            <div className="text-gray-600">Active Chatbot Users</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-gray-900">{data.agents.length}</div>
-            <div className="text-gray-600">Available Agents</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-gray-900">{data.corpora.length}</div>
-            <div className="text-gray-600">Active Corpora</div>
-          </div>
         </div>
       </div>
     </div>
