@@ -280,19 +280,8 @@ class UserService:
         if UserRepository.get_by_email(email):
             raise ValueError(f"Email '{email}' already exists")
         
-        # Generate username from email
-        username = email.split('@')[0]
-        
-        # Ensure username is unique by adding suffix if needed
-        base_username = username
-        counter = 1
-        while UserRepository.get_by_username(username):
-            username = f"{base_username}{counter}"
-            counter += 1
-        
         # Create user without password (IAP handles authentication)
         user_dict = UserRepository.create_iap_user(
-            username=username,
             email=email,
             full_name=full_name,
             google_id=google_id
