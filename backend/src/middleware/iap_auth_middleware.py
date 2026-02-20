@@ -28,9 +28,17 @@ IAP_ID_HEADER = "X-Goog-Authenticated-User-ID"
 IAP_DEV_MODE = os.getenv("IAP_DEV_MODE", "false").lower() == "true"
 IAP_DEV_USER_EMAIL = os.getenv("IAP_DEV_USER_EMAIL", "dev@develom.com")
 
+# Allow direct API access mode: for when backend is accessed directly (not through IAP)
+# but frontend is IAP-protected. Backend will accept requests without IAP headers.
+ALLOW_DIRECT_API_ACCESS = os.getenv("ALLOW_DIRECT_API_ACCESS", "false").lower() == "true"
+
 if IAP_DEV_MODE:
     logger.warning("⚠️  IAP_DEV_MODE is ON — IAP JWT verification is BYPASSED")
     logger.warning(f"   Dev user email: {IAP_DEV_USER_EMAIL}")
+
+if ALLOW_DIRECT_API_ACCESS:
+    logger.warning("⚠️  ALLOW_DIRECT_API_ACCESS is ON — Backend accepts direct API calls without IAP headers")
+    logger.warning("   This mode is for when frontend is IAP-protected but backend is accessed directly")
 
 
 async def _get_or_create_dev_user() -> User:
@@ -85,6 +93,19 @@ async def get_current_user_iap(request: Request) -> User:
     iap_jwt = request.headers.get(IAP_JWT_HEADER)
     
     if not iap_jwt:
+        # If ALLOW_DIRECT_API_ACCESS is enabled, fall back to dev user mode
+        if ALLOW_DIRECT_API_ACCESS:
+            logger.info("No IAP JWT header, using ALLOW_DIRECT_API_ACCESS mode")
+            user = await _get_or_create_dev_user()
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User account is inactive."
+                )
+            # Google Groups Bridge sync (non-fatal)
+            await _run_bridge_sync(user)
+            return user
+        
         logger.warning("Missing IAP JWT header - request not from IAP?")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
