@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Check, Info, RefreshCw } from 'lucide-react';
+import { getAuthHeadersOnly } from '../../../lib/auth-headers';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
 interface User {
   chatbot_user_id: number;
@@ -43,7 +46,8 @@ export default function AccessMatrixPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('http://localhost:8000/api/admin/access-matrix', {
+      const response = await fetch(`${BACKEND_URL}/api/admin/access-matrix`, {
+        headers: getAuthHeadersOnly(),
         credentials: 'include',
       });
       
@@ -104,7 +108,7 @@ export default function AccessMatrixPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-200 p-8">
       <div className="max-w-[1600px] mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -227,13 +231,13 @@ export default function AccessMatrixPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="border border-gray-300 bg-gray-100 p-3 text-left font-semibold text-gray-900 sticky left-0 z-10">
+                  <th className="border border-gray-300 p-3 text-left font-semibold text-gray-900 sticky left-0 z-10" style={{ backgroundColor: '#cce0d8' }}>
                     User
                   </th>
                   {data.agents.map((agent) => (
                     <th
                       key={agent.id}
-                      className="border border-gray-300 bg-gray-100 p-3 text-center font-medium text-gray-900 min-w-[120px]"
+                      className="border border-gray-300 p-3 text-center font-medium text-gray-900 min-w-[120px]" style={{ backgroundColor: '#cce0d8' }}
                     >
                       <div className="text-sm">{agent.display_name}</div>
                       <div className="text-xs text-gray-500 mt-1">{agent.name}</div>
@@ -242,9 +246,9 @@ export default function AccessMatrixPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.users.map((user) => (
-                  <tr key={user.chatbot_user_id}>
-                    <td className="border border-gray-300 p-3 font-medium text-gray-900 bg-gray-50 sticky left-0 z-10">
+                {data.users.map((user, idx) => (
+                  <tr key={user.chatbot_user_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="border border-gray-300 p-3 font-medium text-gray-900 sticky left-0 z-10" style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#e7e8ea' }}>
                       <div>{user.full_name || user.email}</div>
                       <div className="text-xs text-gray-500 mt-1">{user.chatbot_group_name}</div>
                     </td>
@@ -280,13 +284,13 @@ export default function AccessMatrixPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="border border-gray-300 bg-gray-100 p-3 text-left font-semibold text-gray-900 sticky left-0 z-10">
+                  <th className="border border-gray-300 p-3 text-left font-semibold text-gray-900 sticky left-0 z-10" style={{ backgroundColor: '#cce0d8' }}>
                     User
                   </th>
                   {data.corpora.map((corpus) => (
                     <th
                       key={corpus.id}
-                      className="border border-gray-300 bg-gray-100 p-3 text-center font-medium text-gray-900 min-w-[120px]"
+                      className="border border-gray-300 p-3 text-center font-medium text-gray-900 min-w-[120px]" style={{ backgroundColor: '#cce0d8' }}
                     >
                       <div className="text-sm">{corpus.display_name}</div>
                       <div className="text-xs text-gray-500 mt-1">{corpus.name}</div>
@@ -295,9 +299,9 @@ export default function AccessMatrixPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.users.map((user) => (
-                  <tr key={user.chatbot_user_id}>
-                    <td className="border border-gray-300 p-3 font-medium text-gray-900 bg-gray-50 sticky left-0 z-10">
+                {data.users.map((user, idx) => (
+                  <tr key={user.chatbot_user_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="border border-gray-300 p-3 font-medium text-gray-900 sticky left-0 z-10" style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#e7e8ea' }}>
                       <div>{user.full_name || user.email}</div>
                       <div className="text-xs text-gray-500 mt-1">{user.chatbot_group_name}</div>
                     </td>
