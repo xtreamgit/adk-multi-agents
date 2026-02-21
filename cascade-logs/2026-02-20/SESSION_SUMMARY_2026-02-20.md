@@ -52,7 +52,7 @@ curl http://localhost:8000/api/health
 **Date:** February 20, 2026  
 **Start Time:** 09:01 AM  
 **Duration:** TBD  
-**Focus Areas:** Cloud deployment health, deployment infrastructure audit, access-matrix data investigation, local dev environment debugging, database cleanup
+**Focus Areas:** Cloud deployment health, deployment infrastructure audit, access-matrix data investigation, local dev environment debugging, database cleanup, database consolidation
 
 ---
 
@@ -63,6 +63,11 @@ curl http://localhost:8000/api/health
 - [x] Investigate access-matrix data sources (users, groups, corpora)
 - [x] Debug local dev environment (CORS / DB connection)
 - [x] Clean up stale test user (`alice@test.com`) from local DB
+- [x] Audit `users` vs `chatbot_users` tables for necessity and data pollution
+- [x] Drop unused legacy tables (`groups`, `user_groups`, `roles`, `group_roles`, `group_corpora`)
+- [x] Add `user_id` FK to `chatbot_users` linking to `users` table
+- [x] Fix FK cascades (10 constraints changed from RESTRICT to ON DELETE SET NULL)
+- [x] Update all code to use `user_id` FK instead of email-matching
 - [ ] Continue fixing corpora list accuracy in access-matrix (from previous session)
 
 ---
@@ -160,6 +165,45 @@ update or delete on table "users" violates foreign key constraint "chatbot_users
 
 ---
 
+### Task #6: Database Consolidation — Drop Legacy Tables
+
+**Problem:** 5 legacy RBAC tables (`groups`, `user_groups`, `roles`, `group_roles`, `group_corpora`) were unused — fully superseded by `chatbot_*` tables. Dead `GroupRepository` references in code would crash at runtime.
+
+**Fix:** Ran migration `013_remove_legacy_auth_tables.sql` to drop all 5 tables. Cleaned up 12 code files:
+- Removed legacy table definitions from `schema_init.py`
+- Removed `get_groups`/`add_to_group`/`remove_from_group` from `user_repository.py`
+- Rewrote `get_user_groups` in `user_service.py` to query `chatbot_user_groups`
+- Added `_get_chatbot_group_by_id()` helper in `admin.py`, replaced all 6 `GroupRepository` calls
+- Rewrote `seed_default_users.py` to use `chatbot_groups`/`chatbot_user_groups`
+- Cleaned up dead code in `corpus_sync_service.py`, `admin_corpus_service.py`, `users.py`
+
+**Commit:** `ab44056` → `0d448a3`
+
+---
+
+### Task #7: Database Consolidation — Add `user_id` FK & Fix Cascades
+
+**Problem:** `chatbot_users` had no direct FK to `users` — linked only by email at runtime (fragile). Also, 10 FK constraints used RESTRICT, making user deletion error-prone.
+
+**Fix:** Created migration `015_add_user_id_to_chatbot_users.sql`:
+1. Added `chatbot_users.user_id` column with FK to `users(id) ON DELETE CASCADE`
+2. Backfilled `user_id` from email matching (1/1 rows)
+3. Changed 10 FK constraints from RESTRICT to `ON DELETE SET NULL`
+
+**Code updates (6 files):**
+
+| File | Change |
+|------|--------|
+| `google_groups_bridge.py` | Look up by `user_id` first, backfill on email fallback, set `user_id` on INSERT |
+| `user_service.py` | Join via `cu.user_id` instead of `cu.email = u.email` |
+| `corpus_repository.py` | Replace email-join with `user_id` FK in `get_user_corpora`, `check_user_access` |
+| `chatbot_admin.py` | Use `user_id` FK instead of email lookup for `/me/available-agents` |
+| `tool_permission_middleware.py` | Use `user_id` FK instead of username matching |
+
+**Commit:** `0d448a3`
+
+---
+
 ## 🐛 **Bugs Fixed**
 
 ### Bug: CORS error on `/api/users/me` in local dev
@@ -176,24 +220,39 @@ update or delete on table "users" violates foreign key constraint "chatbot_users
 
 ## 📊 **Technical Details**
 
-### Backend Changes
-- No code changes today — investigation and debugging only
+### Backend Changes (12 files)
+- `schema_init.py` — Removed legacy table CREATE statements, indexes, default data seeding
+- `user_repository.py` — Removed `get_groups`, `add_to_group`, `remove_from_group`
+- `user_service.py` — Rewrote `get_user_groups` to use `chatbot_user_groups` via `user_id` FK; removed deprecated `get_user_roles`
+- `admin.py` — Added `_get_chatbot_group_by_id()` helper; replaced all 6 `GroupRepository` calls
+- `chatbot_admin.py` — Use `user_id` FK instead of email lookup
+- `corpus_repository.py` — Replace email-join with `user_id` FK in 2 methods
+- `tool_permission_middleware.py` — Use `user_id` FK instead of username matching
+- `google_groups_bridge.py` — Look up by `user_id` first, backfill on email fallback
+- `seed_default_users.py` — Rewrite to use `chatbot_groups`/`chatbot_user_groups`
+- `corpus_sync_service.py` — Remove dead `GroupRepository` call
+- `admin_corpus_service.py` — Remove stale comment
+- `users.py` — Deprecate `/me/roles` endpoint
 
 ### Frontend Changes
 - No code changes today
 
 ### Database Changes
 ```sql
--- Cleaned up FK references and deleted stale test user
-BEGIN;
-UPDATE chatbot_users SET created_by = NULL WHERE created_by = 16;
-UPDATE corpus_metadata SET last_synced_by = NULL WHERE last_synced_by = 16;
-DELETE FROM document_access_log WHERE user_id = 16;
-DELETE FROM user_agent_access WHERE user_id = 16;
-DELETE FROM user_profiles WHERE user_id = 16;
-DELETE FROM user_sessions WHERE user_id = 16;
-DELETE FROM users WHERE id = 16;
-COMMIT;
+-- Migration 013: Drop legacy tables
+DROP TABLE IF EXISTS group_corpus_access CASCADE;
+DROP TABLE IF EXISTS group_corpora CASCADE;
+DROP TABLE IF EXISTS group_roles CASCADE;
+DROP TABLE IF EXISTS user_groups CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS groups CASCADE;
+
+-- Migration 015: Add user_id FK + fix cascades
+ALTER TABLE chatbot_users ADD COLUMN user_id INTEGER;
+UPDATE chatbot_users cu SET user_id = u.id FROM users u WHERE cu.email = u.email;
+ALTER TABLE chatbot_users ADD CONSTRAINT chatbot_users_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+-- Changed 10 FK constraints from RESTRICT to ON DELETE SET NULL
 ```
 
 ### Configuration Changes
@@ -210,28 +269,40 @@ COMMIT;
 - [x] Local backend + frontend started and running
 - [x] Access-matrix API endpoint returning correct data
 - [x] `alice@test.com` successfully deleted from local DB
+- [x] Backend hot-reloaded cleanly after all code changes (no errors)
+- [x] `/api/users/me` — returns correct user data
+- [x] `/api/users/me/groups` — returns `[21]` (admin-group via `user_id` FK)
+- [x] `/api/users/me/roles` — returns `[]` (deprecated, expected)
+- [x] `/api/admin/access-matrix` — returns correct user/group/corpus data
+- [x] `/api/corpora/` — returns corpora with correct permissions via `user_id` FK
+- [x] `/api/admin/chatbot/me/available-agents` — returns agents via `user_id` FK
 
 ### Issues Found
 - Docker Desktop must be running before starting local dev (PostgreSQL dependency)
-- `users` table has 19 FK references — deleting users requires careful cleanup
 
 ### Issues Fixed
 - Local dev CORS error (Docker/DB not running)
 - Stale `alice@test.com` user removed from local DB
+- 5 legacy tables dropped (unused, caused confusion)
+- 10 FK constraints fixed (RESTRICT → ON DELETE SET NULL)
+- Fragile email-matching replaced with proper `user_id` FK
 
 ---
 
 ## 📝 **Code Quality**
 
 ### Refactoring Done
-- No refactoring today
+- Replaced all `GroupRepository` references with `_get_chatbot_group_by_id()` helper
+- Replaced all email-matching joins with `user_id` FK joins (5 locations)
+- Rewrote `seed_default_users.py` to use chatbot system instead of legacy tables
 
 ### Tech Debt
-- **Noted:** The `chatbot_users.created_by` FK to `users` does not have `ON DELETE SET NULL`, making user deletion error-prone. Consider adding cascade/set-null behavior.
-- **Noted:** Several FK constraints on `users` lack `ON DELETE CASCADE` or `ON DELETE SET NULL` (e.g., `chatbot_corpus_access.granted_by`, `chatbot_group_agents.granted_by`)
+- **Resolved:** All `created_by`/`granted_by` FKs now use `ON DELETE SET NULL`
+- **Resolved:** `chatbot_users` now has proper `user_id` FK to `users`
+- **Remaining:** Consider merging `users` and `chatbot_users` into a single table long-term
 
 ### Performance
-- No performance changes today
+- Queries using `user_id` FK are more efficient than email-matching joins (one fewer JOIN)
 
 ---
 
@@ -239,60 +310,77 @@ COMMIT;
 
 ### What I Learned
 - Access-matrix data flows: `chatbot_users` → `chatbot_user_groups` → `chatbot_groups` → `chatbot_corpus_access` → `corpora`
-- CORS errors with status 500 are usually backend errors, not CORS config issues — the 500 prevents CORS headers from being sent
-- The `users` table has 19 FK references across the schema — always audit before deleting
+- CORS errors with status 500 are usually backend errors, not CORS config issues
+- The `users` table had 19+ FK references — always audit before deleting
+- `GroupRepository` class was deleted in a previous session but references remained as dead code
+- Replacing email-matching with FK joins simplifies queries and improves reliability
 
 ### Challenges Faced
 - CORS error was misleading — actual root cause was Docker not running
 - FK constraint cascade required auditing all 19 referencing tables
+- Dead `GroupRepository` references were scattered across 5 files
 
 ### Best Practices Applied
 - Used single transaction for multi-table cleanup to ensure atomicity
-- Audited all FK references before attempting delete
+- Created proper migration file for all schema changes
+- Smoke-tested all affected endpoints after code changes
+- Used `ON CONFLICT` clauses for idempotent operations
 
 ---
 
 ## 📦 **Files Modified**
 
-### Backend (0 files)
-- No code changes
+### Backend (12 files)
+- `backend/src/database/schema_init.py`
+- `backend/src/database/repositories/user_repository.py`
+- `backend/src/database/repositories/corpus_repository.py`
+- `backend/src/database/seed_default_users.py`
+- `backend/src/api/routes/admin.py`
+- `backend/src/api/routes/chatbot_admin.py`
+- `backend/src/api/routes/users.py`
+- `backend/src/middleware/tool_permission_middleware.py`
+- `backend/src/services/user_service.py`
+- `backend/src/services/google_groups_bridge.py`
+- `backend/src/services/corpus_sync_service.py`
+- `backend/src/services/admin_corpus_service.py`
 
 ### Frontend (0 files)
 - No code changes
 
-### Database (1 change)
-- Local DB: Deleted `alice@test.com` (id=16) and cleaned up 33 FK references
+### Database (2 migrations)
+- `015_add_user_id_to_chatbot_users.sql` — New migration file
+- Local DB: Ran migrations 013 + 015
 
 ### Documentation (1 file)
 - `cascade-logs/2026-02-20/SESSION_SUMMARY_2026-02-20.md` - This file
 
-**Total Lines Changed:** ~0 code changes, 1 DB cleanup transaction
+**Total Lines Changed:** ~230 insertions, ~203 deletions across 13 files
 
 ---
 
 ## 🚀 **Commits Summary**
 
-No commits yet today — investigation and DB cleanup session.
+1. `ab44056` - feat: add Google Groups Bridge auto-mapping for corpus-* groups + session notes
+2. `0d448a3` - refactor: consolidate database — drop legacy tables, add user_id FK, fix cascades
 
-**Total:** 0 commits
+**Total:** 2 commits
 
 ---
 
 ## 🔮 **Next Steps**
 
 ### Immediate Tasks (Today/Tomorrow)
-- [ ] Continue fixing corpora list accuracy in access-matrix (auto-mapping corpus-* Google Groups)
-- [ ] Deploy updated backend with Google Groups Bridge changes
-- [ ] Verify access-matrix on cloud deployment
+- [x] Deploy updated backend to cloud (includes all DB consolidation + Bridge auto-mapping)
+- [x] Run migration 013 + 015 on Cloud SQL production database
+- [ ] Verify access-matrix on cloud deployment (via IAP-authenticated browser)
 
 ### Short-term (This Week)
-- [ ] Add `ON DELETE SET NULL` to FK constraints on `users` table where appropriate
-- [ ] Test Google Groups Bridge auto-mapping end-to-end
+- [ ] Test Google Groups Bridge auto-mapping end-to-end on cloud
 - [ ] Address access-matrix discrepancy (contact user having access to management corpus)
 
 ### Future Enhancements
-- Automated DB cleanup script for removing users with FK references
-- Add cascade rules to schema to simplify user deletion
+- Consider merging `users` and `chatbot_users` into a single table
+- Automated DB cleanup script for removing users
 
 ---
 
@@ -318,20 +406,22 @@ No commits yet today — investigation and DB cleanup session.
 
 ## ✅ **Session Complete**
 
-**End Time:** TBD  
-**Total Duration:** TBD  
-**Goals Achieved:** 5/6  
-**Commits Made:** 0  
-**Files Changed:** 0 (code), 1 (DB cleanup)  
+**End Time:** 6:45 PM PST  
+**Total Duration:** ~9.75 hours  
+**Goals Achieved:** 10/11  
+**Commits Made:** 2  
+**Files Changed:** 13 (code) + 2 (DB migrations)  
 
 **Summary:**
-Verified cloud deployment health (both services healthy, no errors). Audited deployment infrastructure — comprehensive modular scripts exist. Investigated access-matrix data sources and traced full user→group→corpus data lineage. Debugged local dev CORS issue (root cause: Docker/PostgreSQL not running). Cleaned up stale `alice@test.com` test user from local DB by auditing and resolving all 19 FK references.
+Verified cloud deployment health (both services healthy). Audited deployment infrastructure. Investigated access-matrix data sources and traced full data lineage. Debugged local dev CORS issue (Docker/PostgreSQL not running). Cleaned up stale `alice@test.com` test user. **Major database consolidation:** dropped 5 unused legacy tables, added proper `user_id` FK linking `chatbot_users` to `users`, fixed 10 FK constraints from RESTRICT to ON DELETE SET NULL, updated 12 code files to use `user_id` FK instead of fragile email-matching. All endpoints smoke-tested and passing. **Cloud deployment:** ran migrations 013+015 on Cloud SQL (5 chatbot_users backfilled with user_id, 19 FK constraints verified), built and deployed backend image `0d448a3` to Cloud Run revision `backend-00143-frm` — zero errors on startup.
 
 ---
 
 ## 📌 **Remember for Next Session**
 
-- **Pending from previous session:** Google Groups Bridge auto-mapping for `corpus-{name}@domain` groups (code written, needs deploy + verification)
-- **Access-matrix discrepancy:** Investigate why `contact` user has access to `management` corpus on cloud deployment
+- **Cloud deploy done:** Backend revision `backend-00143-frm` (image `0d448a3`) serving 100% traffic
+- **Cloud SQL migrations done:** 013 (legacy tables already gone) + 015 (user_id FK + cascades) applied
+- **Google Groups Bridge auto-mapping:** Code deployed, needs end-to-end verification via IAP browser
+- **Access-matrix discrepancy:** Investigate why `contact` user has access to `management` corpus on cloud
 - **Start Docker Desktop** before starting local dev servers
-- **Left off at:** DB cleanup complete, ready to continue with corpus access fixes
+- **Left off at:** Cloud deployment complete, verify via IAP-authenticated browser session
