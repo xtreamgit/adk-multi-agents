@@ -9,11 +9,14 @@ Design:
 - Dimension 1 (Agent type): Google Group → chatbot_group (via google_group_agent_mappings)
 - Dimension 2 (Corpus access): Google Group → corpus + permission (via google_group_corpus_mappings)
 - A user in multiple groups gets the highest-priority chatbot group and the union of all corpus access.
+- Declarative cleanup: after sync, corpus access entries not backed by any member's
+  Google Groups are removed from bridge-managed groups. Google Groups is the single
+  source of truth for corpus access on bridge-managed groups.
 - Non-fatal: if sync fails, user retains their last-synced permissions.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from database.connection import get_db_connection
 from services.google_groups_service import GoogleGroupsService
@@ -404,6 +407,172 @@ class GoogleGroupsBridge:
         except Exception as e:
             logger.error(f"Failed to sync corpus access for chatbot user {chatbot_user_id}: {e}")
             return 0
+
+    @staticmethod
+    def cleanup_stale_corpus_access() -> Dict:
+        """
+        Remove corpus access entries on bridge-managed groups that are not
+        backed by any current member's Google Groups.
+
+        For each bridge-managed chatbot group, computes the union of all corpus
+        permissions that all members are entitled to (from their cached Google
+        Groups via explicit + auto-mapped corpus mappings), then deletes any
+        chatbot_corpus_access rows not in that union.
+
+        Returns dict with cleanup stats.
+        """
+        result = {"groups_checked": 0, "entries_removed": 0, "details": []}
+
+        if not GoogleGroupsBridge.is_enabled():
+            return result
+
+        permission_rank = {
+            "query": 1, "read": 2, "upload": 3, "delete": 4, "admin": 5,
+        }
+
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+
+                # Get all bridge-managed group IDs
+                cursor.execute(
+                    "SELECT DISTINCT chatbot_group_id FROM google_group_agent_mappings WHERE is_active = TRUE"
+                )
+                bridge_group_ids = [row["chatbot_group_id"] for row in cursor.fetchall()]
+
+                if not bridge_group_ids:
+                    return result
+
+                for group_id in bridge_group_ids:
+                    result["groups_checked"] += 1
+
+                    # Get all members of this group and their cached Google Groups
+                    cursor.execute(
+                        """
+                        SELECT uggs.google_groups
+                        FROM chatbot_user_groups cug
+                        JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id
+                        JOIN users u ON cu.user_id = u.id
+                        JOIN user_google_group_sync uggs ON u.id = uggs.user_id
+                        WHERE cug.chatbot_group_id = %s
+                          AND uggs.google_groups IS NOT NULL
+                        """,
+                        (group_id,),
+                    )
+                    member_rows = cursor.fetchall()
+
+                    # Collect all Google Groups across all members of this chatbot group
+                    all_member_google_groups: Set[str] = set()
+                    for row in member_rows:
+                        groups = row["google_groups"]
+                        if isinstance(groups, list):
+                            all_member_google_groups.update(groups)
+                        elif isinstance(groups, str):
+                            import json
+                            try:
+                                all_member_google_groups.update(json.loads(groups))
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+
+                    # Compute entitled corpus permissions for this group
+                    # (union of all members' Google Groups → corpus mappings)
+                    entitled_corpora: Dict[int, str] = {}
+
+                    if all_member_google_groups:
+                        group_list = list(all_member_google_groups)
+                        placeholders = ",".join(["%s"] * len(group_list))
+
+                        # Source 1: Explicit mappings
+                        cursor.execute(
+                            f"""
+                            SELECT ggcm.corpus_id, ggcm.permission
+                            FROM google_group_corpus_mappings ggcm
+                            JOIN corpora c ON ggcm.corpus_id = c.id
+                            WHERE ggcm.google_group_email IN ({placeholders})
+                              AND ggcm.is_active = TRUE
+                              AND c.is_active = TRUE
+                            """,
+                            group_list,
+                        )
+                        for mapping in cursor.fetchall():
+                            cid = mapping["corpus_id"]
+                            perm = mapping["permission"]
+                            cur = entitled_corpora.get(cid)
+                            if cur is None or permission_rank.get(perm, 0) > permission_rank.get(cur, 0):
+                                entitled_corpora[cid] = perm
+
+                        # Source 2: Auto-mapped corpus-{name}@ groups
+                        auto_corpus_names = []
+                        for g in group_list:
+                            local_part = g.split("@")[0]
+                            if local_part.startswith("corpus-"):
+                                name = local_part[len("corpus-"):]
+                                if name:
+                                    auto_corpus_names.append(name)
+
+                        if auto_corpus_names:
+                            name_ph = ",".join(["%s"] * len(auto_corpus_names))
+                            cursor.execute(
+                                f"SELECT id, name FROM corpora WHERE name IN ({name_ph}) AND is_active = TRUE",
+                                auto_corpus_names,
+                            )
+                            for row in cursor.fetchall():
+                                cid = row["id"]
+                                auto_perm = "read"
+                                cur = entitled_corpora.get(cid)
+                                if cur is None or permission_rank.get(auto_perm, 0) > permission_rank.get(cur, 0):
+                                    entitled_corpora[cid] = auto_perm
+
+                    # Get current corpus access for this group
+                    cursor.execute(
+                        """
+                        SELECT cca.id, cca.corpus_id, c.name as corpus_name, cca.permission
+                        FROM chatbot_corpus_access cca
+                        JOIN corpora c ON cca.corpus_id = c.id
+                        WHERE cca.chatbot_group_id = %s
+                        """,
+                        (group_id,),
+                    )
+                    current_entries = cursor.fetchall()
+
+                    # Delete entries not in the entitled set
+                    stale_ids = []
+                    for entry in current_entries:
+                        if entry["corpus_id"] not in entitled_corpora:
+                            stale_ids.append(entry["id"])
+                            result["details"].append({
+                                "group_id": group_id,
+                                "corpus": entry["corpus_name"],
+                                "permission": entry["permission"],
+                                "action": "removed",
+                            })
+
+                    if stale_ids:
+                        id_placeholders = ",".join(["%s"] * len(stale_ids))
+                        cursor.execute(
+                            f"DELETE FROM chatbot_corpus_access WHERE id IN ({id_placeholders})",
+                            stale_ids,
+                        )
+                        result["entries_removed"] += len(stale_ids)
+
+                conn.commit()
+
+                if result["entries_removed"] > 0:
+                    logger.info(
+                        f"Bridge cleanup: removed {result['entries_removed']} stale corpus access "
+                        f"entries across {result['groups_checked']} bridge-managed groups"
+                    )
+                else:
+                    logger.debug(
+                        f"Bridge cleanup: no stale entries found across "
+                        f"{result['groups_checked']} bridge-managed groups"
+                    )
+
+        except Exception as e:
+            logger.error(f"Bridge cleanup failed: {e}")
+            result["error"] = str(e)
+
+        return result
 
     @staticmethod
     async def force_sync_user(user_id: int, user_email: str) -> Dict:

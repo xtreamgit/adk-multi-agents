@@ -506,8 +506,27 @@ async def sync_all_users(current_user: User = Depends(get_current_user_iap)):
                     )
                 )
 
+        # After syncing all users, clean up stale corpus access entries
+        cleanup = GoogleGroupsBridge.cleanup_stale_corpus_access()
+        if cleanup.get("entries_removed", 0) > 0:
+            logger.info(f"Post-sync cleanup: {cleanup}")
+
         return results
 
     except Exception as e:
         logger.error(f"Failed to sync all users: {e}")
         raise HTTPException(status_code=500, detail="Failed to sync all users")
+
+
+@router.post("/cleanup-corpus-access")
+async def cleanup_corpus_access(current_user: User = Depends(get_current_user_iap)):
+    """
+    Remove stale corpus access entries not backed by any member's Google Groups.
+    This makes Google Groups the single source of truth for bridge-managed groups.
+    """
+    try:
+        result = GoogleGroupsBridge.cleanup_stale_corpus_access()
+        return result
+    except Exception as e:
+        logger.error(f"Failed to cleanup corpus access: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cleanup corpus access")
