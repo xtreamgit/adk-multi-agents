@@ -68,6 +68,9 @@ curl http://localhost:8000/api/health
 - [x] Add `user_id` FK to `chatbot_users` linking to `users` table
 - [x] Fix FK cascades (10 constraints changed from RESTRICT to ON DELETE SET NULL)
 - [x] Update all code to use `user_id` FK instead of email-matching
+- [x] Run migrations 013 + 015 on Cloud SQL production
+- [x] Deploy updated backend to Cloud Run (revision `backend-00143-frm`)
+- [x] Verify cloud deployment health (zero errors)
 - [ ] Continue fixing corpora list accuracy in access-matrix (from previous session)
 
 ---
@@ -276,6 +279,8 @@ ALTER TABLE chatbot_users ADD CONSTRAINT chatbot_users_user_id_fkey
 - [x] `/api/admin/access-matrix` — returns correct user/group/corpus data
 - [x] `/api/corpora/` — returns corpora with correct permissions via `user_id` FK
 - [x] `/api/admin/chatbot/me/available-agents` — returns agents via `user_id` FK
+- [x] Cloud SQL: migration 015 applied — 5 chatbot_users backfilled with `user_id`, 19 FK constraints verified
+- [x] Cloud Run: revision `backend-00143-frm` deployed, startup probe passed, zero errors/warnings
 
 ### Issues Found
 - Docker Desktop must be running before starting local dev (PostgreSQL dependency)
@@ -350,6 +355,7 @@ ALTER TABLE chatbot_users ADD CONSTRAINT chatbot_users_user_id_fkey
 ### Database (2 migrations)
 - `015_add_user_id_to_chatbot_users.sql` — New migration file
 - Local DB: Ran migrations 013 + 015
+- Cloud SQL: Ran migrations 013 (legacy tables already gone) + 015 (user_id FK + cascades)
 
 ### Documentation (1 file)
 - `cascade-logs/2026-02-20/SESSION_SUMMARY_2026-02-20.md` - This file
@@ -362,8 +368,9 @@ ALTER TABLE chatbot_users ADD CONSTRAINT chatbot_users_user_id_fkey
 
 1. `ab44056` - feat: add Google Groups Bridge auto-mapping for corpus-* groups + session notes
 2. `0d448a3` - refactor: consolidate database — drop legacy tables, add user_id FK, fix cascades
+3. `a36ba5b` - docs: update session summary with cloud deployment details
 
-**Total:** 2 commits
+**Total:** 3 commits
 
 ---
 
@@ -386,10 +393,15 @@ ALTER TABLE chatbot_users ADD CONSTRAINT chatbot_users_user_id_fkey
 
 ## ⚙️ **Environment Status**
 
-### Current Configuration
+### Local
 - **Backend:** Running on port 8000
 - **Frontend:** Running on port 3000
 - **Database:** PostgreSQL (Docker container: adk-postgres-dev, port 5433)
+
+### Cloud
+- **Backend:** Cloud Run revision `backend-00143-frm` (image `0d448a3`) — 100% traffic
+- **Frontend:** Cloud Run (unchanged)
+- **Database:** Cloud SQL — migrations 013 + 015 applied
 - **Google Cloud Project:** `adk-rag-ma`
 - **Vertex AI Region:** `us-west1`
 
@@ -406,10 +418,10 @@ ALTER TABLE chatbot_users ADD CONSTRAINT chatbot_users_user_id_fkey
 
 ## ✅ **Session Complete**
 
-**End Time:** 6:45 PM PST  
-**Total Duration:** ~9.75 hours  
-**Goals Achieved:** 10/11  
-**Commits Made:** 2  
+**End Time:** 8:27 PM PST  
+**Total Duration:** ~11.5 hours  
+**Goals Achieved:** 13/14  
+**Commits Made:** 3  
 **Files Changed:** 13 (code) + 2 (DB migrations)  
 
 **Summary:**
