@@ -93,22 +93,6 @@ logger.info("🔍 Initializing PostgreSQL database schema...")
 # Initialize PostgreSQL schema (idempotent - safe to run on every startup)
 initialize_schema()
 
-# Setup admin group and seed default users automatically
-def setup_admin_group():
-    """DEPRECATED: Admin groups are now managed via Google Groups Bridge.
-    
-    This function is disabled. User management is handled by:
-    - Google IAP for authentication
-    - Google Groups for authorization
-    - Google Groups Bridge for access control mapping
-    """
-    print("ℹ️  Admin group setup skipped - using Google Groups Bridge")
-    # Legacy admin group setup disabled
-    pass
-
-# Disabled - admin groups now managed via Google Groups Bridge
-# setup_admin_group()
-
 # Sync corpora from Vertex AI on startup
 def sync_corpora_on_startup():
     """Sync corpora from Vertex AI to database on application startup."""
