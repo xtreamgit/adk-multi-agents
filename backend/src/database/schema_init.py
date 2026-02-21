@@ -59,37 +59,6 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS groups (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS user_groups (
-    user_id INTEGER NOT NULL,
-    group_id INTEGER NOT NULL,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, group_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS roles (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS group_roles (
-    group_id INTEGER NOT NULL,
-    role_id INTEGER NOT NULL,
-    PRIMARY KEY (group_id, role_id),
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
-);
-
 CREATE TABLE IF NOT EXISTS agents (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
@@ -115,14 +84,6 @@ CREATE TABLE IF NOT EXISTS corpora (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS group_corpora (
-    group_id INTEGER NOT NULL,
-    corpus_id INTEGER NOT NULL,
-    PRIMARY KEY (group_id, corpus_id),
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-    FOREIGN KEY (corpus_id) REFERENCES corpora(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -154,8 +115,6 @@ CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
 CREATE INDEX IF NOT EXISTS idx_users_auth_provider ON users(auth_provider);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_groups_user_id ON user_groups(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_groups_group_id ON user_groups(group_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_agent_id ON chat_sessions(agent_id);
 CREATE INDEX IF NOT EXISTS idx_corpora_active ON corpora(is_active);
@@ -245,32 +204,6 @@ def initialize_schema():
                         logger.debug(f"Statement skipped (may already exist): {str(e)[:100]}")
             
             # Insert default data with rollback protection
-            try:
-                cursor.execute("INSERT INTO roles (name, description) VALUES ('user', 'Standard user role') ON CONFLICT (name) DO NOTHING")
-                conn.commit()
-            except Exception as e:
-                conn.rollback()
-                logger.debug(f"Default role insert skipped: {e}")
-            
-            try:
-                cursor.execute("INSERT INTO groups (name, description) VALUES ('users', 'Default user group') ON CONFLICT (name) DO NOTHING")
-                conn.commit()
-            except Exception as e:
-                conn.rollback()
-                logger.debug(f"Default group insert skipped: {e}")
-            
-            try:
-                cursor.execute("""
-                    INSERT INTO group_roles (group_id, role_id) 
-                    SELECT g.id, r.id FROM groups g, roles r 
-                    WHERE g.name = 'users' AND r.name = 'user'
-                    ON CONFLICT DO NOTHING
-                """)
-                conn.commit()
-            except Exception as e:
-                conn.rollback()
-                logger.debug(f"Default group_roles insert skipped: {e}")
-            
             logger.info("✅ Database schema initialized successfully")
             
     except Exception as e:

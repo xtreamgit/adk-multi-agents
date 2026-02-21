@@ -26,8 +26,21 @@ from models.admin import (
 from services.admin_corpus_service import AdminCorpusService
 from services.bulk_operation_service import BulkOperationService
 from database.repositories import AuditRepository, CorpusMetadataRepository, CorpusRepository, UserRepository
+from database.connection import get_db_connection
 
 logger = logging.getLogger(__name__)
+
+
+def _get_chatbot_group_by_id(group_id: int) -> Optional[dict]:
+    """Look up a chatbot group by ID. Replaces legacy GroupRepository.get_group_by_id."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, name, description, is_active FROM chatbot_groups WHERE id = %s",
+            (group_id,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -380,7 +393,7 @@ async def list_all_users(
             group_ids = UserService.get_user_groups(user.id)
             groups = []
             for gid in group_ids:
-                group = GroupRepository.get_group_by_id(gid)
+                group = _get_chatbot_group_by_id(gid)
                 if group:
                     groups.append({
                         'id': group['id'],
@@ -451,7 +464,7 @@ async def create_user(
         group_ids = UserService.get_user_groups(new_user.id)
         groups = []
         for gid in group_ids:
-            group = GroupRepository.get_group_by_id(gid)
+            group = _get_chatbot_group_by_id(gid)
             if group:
                 groups.append({
                     'id': group['id'],
@@ -540,7 +553,7 @@ async def update_user(
         group_ids = UserService.get_user_groups(updated_user.id)
         groups = []
         for gid in group_ids:
-            group = GroupRepository.get_group_by_id(gid)
+            group = _get_chatbot_group_by_id(gid)
             if group:
                 groups.append({
                     'id': group['id'],
@@ -585,7 +598,7 @@ async def assign_user_to_group(
             )
         
         # Verify group exists
-        group = GroupRepository.get_group_by_id(group_id)
+        group = _get_chatbot_group_by_id(group_id)
         if not group:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -642,7 +655,7 @@ async def remove_user_from_group(
             )
         
         # Verify group exists
-        group = GroupRepository.get_group_by_id(group_id)
+        group = _get_chatbot_group_by_id(group_id)
         if not group:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

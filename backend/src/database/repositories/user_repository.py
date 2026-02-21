@@ -186,41 +186,6 @@ class UserRepository:
         return UserRepository.get_profile(user_id)
     
     @staticmethod
-    def get_groups(user_id: int) -> List[int]:
-        """Get group IDs for a user."""
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT group_id FROM user_groups WHERE user_id = %s", (user_id,))
-            return [row['group_id'] for row in cursor.fetchall()]
-    
-    @staticmethod
-    def add_to_group(user_id: int, group_id: int) -> bool:
-        """Add user to a group. Idempotent - safe to call multiple times."""
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO user_groups (user_id, group_id)
-                    VALUES (%s, %s)
-                    ON CONFLICT (user_id, group_id) DO NOTHING
-                """, (user_id, group_id))
-                conn.commit()
-            return True
-        except Exception:
-            return False
-    
-    @staticmethod
-    def remove_from_group(user_id: int, group_id: int) -> bool:
-        """Remove user from a group."""
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                DELETE FROM user_groups WHERE user_id = %s AND group_id = %s
-            """, (user_id, group_id))
-            conn.commit()
-            return cursor.rowcount > 0
-    
-    @staticmethod
     def get_all(active_only: bool = True) -> List[Dict]:
         """Get all users, optionally filtering by active status."""
         with get_db_connection() as conn:

@@ -160,18 +160,21 @@ class UserService:
     
     @staticmethod
     def get_user_groups(user_id: int) -> List[int]:
-        """Get group IDs for a user."""
-        return UserRepository.get_groups(user_id)
-    
-    @staticmethod
-    def get_user_roles(user_id: int) -> List[Dict]:
-        """Get roles for a user (through their groups).
+        """Get chatbot group IDs for a user (via chatbot_user_groups).
         
-        Note: This method is deprecated. Role-based access is now handled
-        by Google Groups Bridge via chatbot_groups.
+        Note: Legacy groups/user_groups tables have been removed.
+        Group membership is now managed via Google Groups Bridge → chatbot_user_groups.
         """
-        logger.warning("get_user_roles is deprecated - use Google Groups Bridge instead")
-        return []
+        from database.connection import get_db_connection
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT chatbot_group_id FROM chatbot_user_groups cug "
+                "JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id "
+                "WHERE cu.user_id = %s",
+                (user_id,)
+            )
+            return [row['chatbot_group_id'] for row in cursor.fetchall()]
     
     @staticmethod
     def add_user_to_group(user_id: int, group_id: int) -> bool:

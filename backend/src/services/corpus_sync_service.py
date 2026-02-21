@@ -41,7 +41,6 @@ class CorpusSyncService:
             from vertexai import rag
             import google.auth
             from database.repositories.corpus_repository import CorpusRepository
-            # Note: GroupRepository removed - groups now managed via Google Groups Bridge
             
             # Initialize Vertex AI
             try:
@@ -149,18 +148,8 @@ class CorpusSyncService:
                         logger.info(f"Added corpus: {corpus_name} (ID: {corpus_dict['id']})")
                         result['added'] += 1
                         
-                        # Grant access to default group (if it exists)
-                        try:
-                            default_group = GroupRepository.get_group_by_name('default')
-                            if default_group:
-                                GroupRepository.grant_corpus_access(
-                                    group_id=default_group['id'],
-                                    corpus_id=corpus_dict['id'],
-                                    permission='read'
-                                )
-                                logger.debug(f"Granted 'read' access to 'default' group for {corpus_name}")
-                        except Exception as e:
-                            logger.warning(f"Could not grant default group access for {corpus_name}: {e}")
+                        # Note: Legacy GroupRepository removed. Default group access is now
+                        # managed via Google Groups Bridge (chatbot_groups / chatbot_corpus_access).
                             
                     except Exception as e:
                         error_msg = f"Failed to add corpus {corpus_name}: {e}"

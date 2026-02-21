@@ -117,31 +117,35 @@ class GoogleGroupsBridge:
     def _ensure_chatbot_user(user_id: int, user_email: str) -> Optional[int]:
         """
         Ensure the app user has a corresponding chatbot_users record.
-        The chatbot_users table is separate from the users table.
-        Matches by username (derived from email) or email.
+        Links chatbot_users to users via the user_id FK column.
         Returns chatbot_user_id or None.
         """
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
 
-                # Try to find existing chatbot user by email
+                # Try to find existing chatbot user by user_id FK (preferred)
+                cursor.execute(
+                    "SELECT id FROM chatbot_users WHERE user_id = %s",
+                    (user_id,),
+                )
+                row = cursor.fetchone()
+                if row:
+                    return row["id"]
+
+                # Fallback: find by email (for records created before user_id was added)
                 cursor.execute(
                     "SELECT id FROM chatbot_users WHERE email = %s",
                     (user_email,),
                 )
                 row = cursor.fetchone()
                 if row:
-                    return row["id"]
-
-                # Try by username (email prefix)
-                username = user_email.split("@")[0]
-                cursor.execute(
-                    "SELECT id FROM chatbot_users WHERE username = %s",
-                    (username,),
-                )
-                row = cursor.fetchone()
-                if row:
+                    # Backfill user_id on existing record
+                    cursor.execute(
+                        "UPDATE chatbot_users SET user_id = %s WHERE id = %s AND user_id IS NULL",
+                        (user_id, row["id"]),
+                    )
+                    conn.commit()
                     return row["id"]
 
                 # Create a new chatbot user linked to the app user
@@ -156,12 +160,12 @@ class GoogleGroupsBridge:
 
                 cursor.execute(
                     """
-                    INSERT INTO chatbot_users (username, email, full_name, is_active, created_by)
-                    VALUES (%s, %s, %s, TRUE, %s)
-                    ON CONFLICT (email) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+                    INSERT INTO chatbot_users (username, email, full_name, is_active, created_by, user_id)
+                    VALUES (%s, %s, %s, TRUE, %s, %s)
+                    ON CONFLICT (email) DO UPDATE SET updated_at = CURRENT_TIMESTAMP, user_id = EXCLUDED.user_id
                     RETURNING id
                     """,
-                    (app_user["username"], app_user["email"], app_user["full_name"], user_id),
+                    (app_user["username"], app_user["email"], app_user["full_name"], user_id, user_id),
                 )
                 new_row = cursor.fetchone()
                 conn.commit()

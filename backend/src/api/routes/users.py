@@ -161,5 +161,8 @@ async def get_my_groups(current_user: User = Depends(get_current_user)):
 async def get_my_roles(current_user: User = Depends(get_current_user)):
     """
     Get current user's roles (through group memberships).
+    
+    Deprecated: Legacy roles table has been removed.
+    Role-based access is now managed via Google Groups Bridge → chatbot_groups.
     """
-    return UserService.get_user_roles(current_user.id)
+    return []

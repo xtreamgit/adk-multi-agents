@@ -1,16 +1,59 @@
 """
 Seed default users for development/testing.
 This runs automatically on server startup if no users exist.
-Also syncs corpora from Vertex AI and grants admin-users group access.
+Also syncs corpora from Vertex AI.
+
+Note: Legacy groups/user_groups/roles tables have been removed.
+Group membership is now managed via Google Groups Bridge → chatbot_groups.
 """
 
 import logging
 from database.repositories.user_repository import UserRepository
-# Note: GroupRepository removed - groups now managed via Google Groups Bridge
 from database.repositories.corpus_repository import CorpusRepository
+from database.connection import get_db_connection
 from services.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_chatbot_admin_group() -> int:
+    """Ensure the admin-group exists in chatbot_groups. Returns its ID."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM chatbot_groups WHERE name = 'admin-group'"
+        )
+        row = cursor.fetchone()
+        if row:
+            return row['id']
+        cursor.execute(
+            "INSERT INTO chatbot_groups (name, description) "
+            "VALUES ('admin-group', 'Administrative group with full corpus and document control') "
+            "ON CONFLICT (name) DO UPDATE SET updated_at = CURRENT_TIMESTAMP "
+            "RETURNING id"
+        )
+        conn.commit()
+        return cursor.fetchone()['id']
+
+
+def _ensure_chatbot_user(user_dict: dict, admin_group_id: int):
+    """Ensure a chatbot_users record exists and is assigned to admin-group."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO chatbot_users (username, email, full_name, is_active) "
+            "VALUES (%s, %s, %s, TRUE) "
+            "ON CONFLICT (email) DO UPDATE SET updated_at = CURRENT_TIMESTAMP "
+            "RETURNING id",
+            (user_dict['email'].split('@')[0], user_dict['email'], user_dict['full_name']),
+        )
+        chatbot_user_id = cursor.fetchone()['id']
+        cursor.execute(
+            "INSERT INTO chatbot_user_groups (chatbot_user_id, chatbot_group_id) "
+            "VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            (chatbot_user_id, admin_group_id),
+        )
+        conn.commit()
 
 
 def seed_default_users():
@@ -24,14 +67,9 @@ def seed_default_users():
         
         logger.info("🌱 Seeding default users...")
         
-        # Get or create admin-users group
-        admin_group = GroupRepository.get_group_by_name('admin-users')
-        if not admin_group:
-            admin_group = GroupRepository.create_group(
-                name='admin-users',
-                description='Administrators with full system access'
-            )
-            logger.info(f"✅ Created admin-users group (ID: {admin_group['id']})")
+        # Ensure admin chatbot group exists
+        admin_group_id = _ensure_chatbot_admin_group()
+        logger.info(f"✅ Admin chatbot group ready (ID: {admin_group_id})")
         
         # Create default users
         default_users = [
@@ -41,25 +79,13 @@ def seed_default_users():
                 'password': 'hector123',
                 'full_name': 'Hector DeJesus'
             },
-            {
-                'username': 'alice',
-                'email': 'alice@example.com',
-                'password': 'alice123',
-                'full_name': 'Alice Admin'
-            },
-            {
-                'username': 'bob',
-                'email': 'bob@example.com',
-                'password': 'bob123',
-                'full_name': 'Bob User'
-            }
         ]
         
         for user_data in default_users:
             # Hash password
             hashed_password = AuthService.hash_password(user_data['password'])
             
-            # Create user
+            # Create user in users table
             user = UserRepository.create(
                 username=user_data['username'],
                 email=user_data['email'],
@@ -69,16 +95,15 @@ def seed_default_users():
             
             logger.info(f"✅ Created user: {user_data['username']} (ID: {user['id']})")
             
-            # Add to admin-users group
-            if admin_group:
-                UserRepository.add_to_group(user['id'], admin_group['id'])
-                logger.info(f"   Added {user_data['username']} to admin-users group")
+            # Also create chatbot_users record and assign to admin group
+            _ensure_chatbot_user(user, admin_group_id)
+            logger.info(f"   Added {user_data['username']} to admin-group (chatbot)")
         
         logger.info("✅ Default users seeded successfully")
         
-        # Sync corpora from Vertex AI and grant admin-users group access
+        # Sync corpora from Vertex AI
         try:
-            sync_corpora_and_grant_access(admin_group['id'])
+            sync_corpora_from_vertex_ai()
         except Exception as e:
             logger.warning(f"⚠️  Failed to sync corpora (non-critical): {e}")
         
@@ -87,13 +112,12 @@ def seed_default_users():
         raise
 
 
-def sync_corpora_and_grant_access(admin_group_id: int):
-    """Sync corpora from Vertex AI and grant admin-users group access."""
+def sync_corpora_from_vertex_ai():
+    """Sync corpora from Vertex AI into the local database."""
     try:
         import vertexai
         from vertexai import rag
         from rag_agent.config import PROJECT_ID, LOCATION
-        from datetime import datetime
         
         logger.info("🔄 Syncing corpora from Vertex AI...")
         
@@ -117,7 +141,7 @@ def sync_corpora_and_grant_access(admin_group_id: int):
             
             if corpus_name not in db_corpus_names:
                 # Create corpus in database
-                corpus_dict = CorpusRepository.create(
+                CorpusRepository.create(
                     name=corpus_name,
                     display_name=corpus_name,
                     gcs_bucket=f"gs://adk-rag-ma-{corpus_name}",
@@ -125,19 +149,7 @@ def sync_corpora_and_grant_access(admin_group_id: int):
                     vertex_corpus_id=vertex_corpus.name
                 )
                 logger.info(f"   ✅ Added corpus: {corpus_name}")
-                
-                # Grant admin-users group access
-                CorpusRepository.grant_group_access(admin_group_id, corpus_dict['id'])
                 added_count += 1
-            else:
-                # Grant access if not already granted
-                corpus_id = db_corpus_names[corpus_name]['id']
-                existing_groups = CorpusRepository.get_groups_for_corpus(corpus_id)
-                existing_group_ids = [g.get('id') or g.get('group_id') for g in existing_groups]
-                
-                if admin_group_id not in existing_group_ids:
-                    CorpusRepository.grant_group_access(admin_group_id, corpus_id)
-                    logger.info(f"   ✅ Granted access: {corpus_name}")
         
         logger.info(f"✅ Corpus sync complete: {added_count} new corpora added")
         

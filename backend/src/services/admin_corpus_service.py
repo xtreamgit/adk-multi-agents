@@ -9,7 +9,6 @@ from database.repositories import (
     AuditRepository,
     CorpusMetadataRepository
 )
-# Note: GroupRepository removed - groups now managed via Google Groups Bridge
 
 logger = logging.getLogger(__name__)
 
