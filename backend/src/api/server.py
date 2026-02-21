@@ -112,6 +112,36 @@ def sync_corpora_on_startup():
 
 sync_corpora_on_startup()
 
+# Clean up expired/inactive sessions on startup and periodically
+def cleanup_sessions_on_startup():
+    """Expire stale sessions on application startup."""
+    try:
+        from services.session_service import SessionService
+        count = SessionService.cleanup_expired_sessions()
+        if count > 0:
+            logger.info(f"🧹 Startup: cleaned up {count} expired/inactive sessions")
+        else:
+            logger.info("🧹 Startup: no expired sessions to clean up")
+    except Exception as e:
+        logger.error(f"⚠️  Session cleanup on startup failed (non-critical): {e}")
+
+cleanup_sessions_on_startup()
+
+
+async def _periodic_session_cleanup():
+    """Background task: expire stale sessions every hour."""
+    import asyncio
+    from services.session_service import SessionService
+    while True:
+        await asyncio.sleep(3600)  # 1 hour
+        try:
+            count = SessionService.cleanup_expired_sessions()
+            if count > 0:
+                logger.info(f"🧹 Periodic: cleaned up {count} expired/inactive sessions")
+        except Exception as e:
+            logger.error(f"⚠️  Periodic session cleanup failed: {e}")
+
+
 # Pydantic models for API requests/responses
 class UserProfile(BaseModel):
     name: str
@@ -239,6 +269,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def start_periodic_tasks():
+    import asyncio
+    asyncio.create_task(_periodic_session_cleanup())
 
 # ============================================================================
 # Register New Modular API Routes
