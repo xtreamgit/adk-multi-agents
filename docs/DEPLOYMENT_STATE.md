@@ -1,7 +1,7 @@
 # DEPLOYMENT STATE - READ THIS FIRST
 
 **Current Environment**: ☁️ PRODUCTION (Google Cloud Run)  
-**Last Updated**: January 28, 2026  
+**Last Updated**: February 21, 2026  
 **Status**: ✅ PRODUCTION READY
 
 ## ⚠️ CRITICAL: PostgreSQL-Only Architecture
@@ -26,13 +26,14 @@
 ### Backend
 - **Service**: Cloud Run (backend)
 - **URL**: `https://backend-351592762922.us-west1.run.app`
-- **Active Revision**: `backend-00021-r58`
+- **Active Revision**: `backend-00145-nmg` (image tag: `5c47210`)
 - **Region**: `us-west1`
 - **Project**: `adk-rag-ma`
 
 ### Frontend
 - **Service**: Cloud Run (frontend)
 - **URL**: `https://34.49.46.115.nip.io` (IAP-protected)
+- **Active Revision**: `frontend-00039-5kp` (image tag: `5c47210`)
 - **Region**: `us-west1`
 
 ### Authentication
@@ -115,7 +116,8 @@ DB_HOST=/cloudsql/adk-rag-ma:us-west1:adk-multi-agents-db
 - ✅ Verify Cloud SQL connection
 - ✅ Use `gcloud` commands for debugging
 - ✅ Check environment variables in Cloud Run
-- ✅ Reference backend revision: `backend-00021-r58`
+- ✅ Reference backend revision: `backend-00145-nmg`
+- ✅ Reference frontend revision: `frontend-00039-5kp`
 
 ---
 
@@ -138,7 +140,7 @@ gcloud sql connect adk-multi-agents-db \
 
 ### View Recent Logs
 ```bash
-gcloud logging read "resource.labels.revision_name=backend-00021-r58" \
+gcloud logging read "resource.labels.revision_name=backend-00145-nmg" \
   --project=adk-rag-ma --limit=20
 ```
 
