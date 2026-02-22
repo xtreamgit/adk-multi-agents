@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api-enhanced';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -14,14 +13,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const checkAdminAccess = async () => {
     try {
-      if (!apiClient.isAuthenticated()) {
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
-      // Check admin access by hitting the admin corpora endpoint directly.
-      // The backend enforces admin via require_admin dependency — a 200 means access granted.
+      // Probe the backend admin endpoint directly — a 200 means admin access granted.
+      // The backend handles auth via IAP (prod) or IAP_DEV_MODE (local).
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL || ''}/api/admin/corpora`,
         { credentials: 'include', headers: { 'Content-Type': 'application/json' } }
