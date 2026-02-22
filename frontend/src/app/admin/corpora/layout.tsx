@@ -20,18 +20,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      const user = apiClient.getCurrentUser();
-      if (user) {
-        const groups = await apiClient.getMyGroups();
-        // Check for admin access via Google Groups Bridge
-        // Admin groups: rag-admins, rag-content-managers
-        const hasAdminAccess = groups.some((g: { name: string }) => 
-          g.name === 'rag-admins' || 
-          g.name === 'rag-content-managers' ||
-          g.name === 'admin-users' // Legacy fallback
-        );
-        setIsAdmin(hasAdminAccess);
-      }
+      // Check admin access by hitting the admin corpora endpoint directly.
+      // The backend enforces admin via require_admin dependency — a 200 means access granted.
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || ''}/api/admin/corpora`,
+        { credentials: 'include', headers: { 'Content-Type': 'application/json' } }
+      );
+      setIsAdmin(response.ok);
     } catch (error) {
       console.error('Failed to check admin access:', error);
       setIsAdmin(false);
