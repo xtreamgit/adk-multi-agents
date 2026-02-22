@@ -51,8 +51,8 @@ curl http://localhost:8000/api/health
 
 **Date:** February 21, 2026  
 **Start Time:** 09:39 AM PST  
-**Duration:** ~1.5 hours  
-**Focus Areas:** Cloud/local database sync, stale data cleanup, IAP verification
+**Duration:** ~9 hours (morning data sync + afternoon features/fixes/deploy)  
+**Focus Areas:** Cloud/local database sync, Google Groups Bridge cleanup, YAML-driven deployment defaults, session auto-expiry, admin/corpora access fix, manual cloud deployment workflow
 
 ---
 
@@ -63,6 +63,14 @@ curl http://localhost:8000/api/health
 - [x] Clean up stale test users from cloud DB
 - [x] Delete inactive demo chatbot_users from cloud DB
 - [x] Full sync: make both databases match exactly
+- [x] Add declarative cleanup to Google Groups Bridge
+- [x] Create YAML-driven deployment defaults bootstrap (C-1)
+- [x] Fix backend startup crash (`@app.on_event` before `app` defined)
+- [x] Add session auto-expiry (startup cleanup + hourly background task)
+- [x] Fix admin/corpora "Access Denied" error (frontend)
+- [x] Define and execute local→cloud deployment workflow
+- [x] Deploy fixes to Cloud Run (backend + frontend)
+- [x] Document reusable deploy-to-cloud workflow
 
 ---
 
@@ -124,19 +132,120 @@ All sequences reset to max(id) after sync.
 
 ---
 
+### Task #5: Declarative Cleanup for Google Groups Bridge
+
+**Commit:** `bb62740`
+
+**Problem:** When a user was removed from a Google Group, their corpus access lingered in the database. The Bridge only added access — it never revoked it.
+
+**Fix:** Added declarative cleanup logic to `google_groups_bridge.py`. After syncing corpus access from Google Groups, the Bridge now removes any `chatbot_corpus_access` entries on bridge-managed groups that are not backed by a current Google Group membership. Google Groups is now the single source of truth for corpus access on bridge-managed groups.
+
+**Files changed:** `backend/src/services/google_groups_bridge.py` (+171 lines refactored)
+
+---
+
+### Task #6: YAML-Driven Deployment Defaults Bootstrap (C-1)
+
+**Commit:** `7d5b381`
+
+**Problem:** Setting up a new deployment environment required manually running multiple SQL scripts and seed commands. No single source of truth for default groups, agents, mappings, and seed users.
+
+**Fix:** Created `backend/seed_data.py` — a YAML-driven bootstrap script that reads from `environments/<env>.yaml` and idempotently seeds all default data: chatbot groups, agent types, group-agent mappings, Google Group agent/corpus mappings, and seed chatbot users. Also created `environments/client-template.yaml` as a reference template.
+
+**Files changed:**
+- `backend/seed_data.py` (new, 656 lines)
+- `environments/client-template.yaml` (restructured)
+- `environments/develom.yaml` (restructured)
+- Archived 6 legacy seed scripts to `backend/scripts/archive/`
+
+---
+
+### Task #7: Fix Backend Startup Crash
+
+**Commit:** `1cf8f7f`
+
+**Problem:** `@app.on_event("startup")` decorator was placed before `app = FastAPI(...)` in `server.py`, causing `NameError: name 'app' is not defined`.
+
+**Fix:** Moved the startup event handler after the `app` instantiation. Also added session cleanup on startup and a periodic background task that runs `SessionService.cleanup_expired_sessions()` every hour.
+
+**Files changed:** `backend/src/api/server.py` (+52 lines), `backend/src/services/session_service.py` (+16 lines)
+
+---
+
+### Task #8: Fix Admin/Corpora "Access Denied" Error
+
+**Commits:** `0399e01`, `5c47210`
+
+**Problem:** The `/admin/corpora` page showed "Access Denied" for all users. Two root causes:
+1. The `corpora/layout.tsx` was calling `apiClient.getMyGroups()` which hit `/api/groups/me` — a legacy endpoint that returns 404 (dropped tables).
+2. After fixing #1, the layout called `apiClient.isAuthenticated()` before making the backend probe. This flag is only set to `true` when `checkIapAuth()` runs on the main page — direct navigation to `/admin/corpora` bypassed that, so the flag was always `false`.
+
+**Fix:** Replaced the entire access check with a direct `fetch()` to `/api/admin/corpora`. The backend handles auth via IAP (prod) or `IAP_DEV_MODE` (local). A 200 response means admin access granted. Removed the `apiClient` import entirely.
+
+**Files changed:** `frontend/src/app/admin/corpora/layout.tsx` (rewritten access check, -9/+2 lines net)
+
+---
+
+### Task #9: Define Local→Cloud Deployment Workflow
+
+**Problem:** No documented process for deploying local fixes to Cloud Run. Two paths existed (CI/CD via GitHub Actions, and manual via `gcloud builds submit`) but neither was documented as a repeatable workflow.
+
+**Solution:** Analyzed the full infrastructure: GitHub Actions CI/CD pipeline (`.github/workflows/ci-cd.yml`), Cloud Build configs (`backend/cloudbuild.yaml`, `frontend/cloudbuild.yaml`), deployment config, and Cloud Run services. Documented both paths with clear steps.
+
+---
+
+### Task #10: Manual Deploy to Cloud Run
+
+**Commits deployed:** `1cf8f7f` through `5c47210` (tag `5c47210`)
+
+**Backend:**
+- Built via Cloud Build (1m52s) → `us-west1-docker.pkg.dev/adk-rag-ma/cloud-run-repo1/backend:5c47210`
+- Deployed to Cloud Run → revision `backend-00145-nmg` (100% traffic)
+
+**Frontend:**
+- Built via Cloud Build (5m8s) → `us-west1-docker.pkg.dev/adk-rag-ma/cloud-run-repo1/frontend:5c47210`
+- Deployed to Cloud Run → revision `frontend-00039-5kp` (100% traffic)
+
+**Smoke test:** `curl https://34.49.46.115.nip.io/api/health` → 302 (IAP redirect, services live)
+
+---
+
+### Task #11: Document Reusable Deploy Workflow
+
+**Commit:** `44dea5d`
+
+Created `.windsurf/workflows/deploy-to-cloud.md` — a reusable Windsurf workflow for manual hotfix deploys. Invokable via `/deploy-to-cloud` slash command. Includes all steps: build backend, deploy backend, build frontend, deploy frontend, smoke test, rollback instructions.
+
+Updated `docs/DEPLOYMENT_STATE.md` with new revision numbers (`backend-00145-nmg`, `frontend-00039-5kp`).
+
+---
+
 ## 🐛 **Bugs Fixed**
 
-No code bugs — data cleanup only.
+1. **Backend startup crash** — `@app.on_event("startup")` before `app` definition → moved after `app = FastAPI(...)` (`1cf8f7f`)
+2. **Admin/corpora "Access Denied"** — legacy `getMyGroups()` calling deleted endpoint → replaced with direct backend probe (`0399e01`)
+3. **Admin/corpora still denied on direct navigation** — `isAuthenticated()` guard returning false before `checkIapAuth()` runs → removed guard entirely (`5c47210`)
 
 ---
 
 ## 📊 **Technical Details**
 
 ### Backend Changes
-- No code changes today
+- `backend/src/services/google_groups_bridge.py` — Declarative cleanup: revoke corpus access not backed by Google Groups
+- `backend/seed_data.py` — New YAML-driven bootstrap script (656 lines)
+- `backend/src/api/server.py` — Fixed startup crash, added session auto-expiry background task
+- `backend/src/services/session_service.py` — Added `cleanup_expired_sessions()` method
+- `backend/src/api/routes/google_groups_admin.py` — Minor additions
+- Archived 6 legacy seed scripts to `backend/scripts/archive/`
 
 ### Frontend Changes
-- No code changes today
+- `frontend/src/app/admin/corpora/layout.tsx` — Replaced broken legacy access check with direct backend probe
+
+### Environment/Config Changes
+- `environments/client-template.yaml` — Restructured with new chatbot system seed_data format
+- `environments/develom.yaml` — Restructured to match new template
+- `.windsurf/workflows/deploy-to-cloud.md` — New reusable deploy workflow
+- `docs/DEPLOYMENT_STATE.md` — Updated with new Cloud Run revisions
 
 ### Database Changes
 
@@ -222,45 +331,66 @@ DELETE FROM chatbot_users WHERE id IN (8,9,12,15,17,19,20,21);
 
 ## 📦 **Files Modified**
 
-### Backend (0 files)
-- No code changes
+### Backend (8 files)
+- `backend/src/services/google_groups_bridge.py` — Declarative cleanup (+171 lines)
+- `backend/seed_data.py` — New YAML-driven bootstrap (656 lines)
+- `backend/src/api/server.py` — Startup fix + session expiry (+52 lines)
+- `backend/src/services/session_service.py` — Cleanup method (+16 lines)
+- `backend/src/api/routes/google_groups_admin.py` — Admin endpoints (+19 lines)
+- 6 legacy seed scripts archived to `backend/scripts/archive/`
 
-### Frontend (0 files)
-- No code changes
+### Frontend (1 file)
+- `frontend/src/app/admin/corpora/layout.tsx` — Access check rewrite (-9/+2 lines)
+
+### Config/Environments (2 files)
+- `environments/client-template.yaml` — Restructured
+- `environments/develom.yaml` — Restructured
+
+### Documentation/Workflows (2 files)
+- `.windsurf/workflows/deploy-to-cloud.md` — New reusable deploy workflow (106 lines)
+- `docs/DEPLOYMENT_STATE.md` — Updated revisions
 
 ### Database (data changes only)
 - Cloud SQL: Deleted 7 stale users + 8 demo chatbot_users
 - Local PostgreSQL: Synced 6 users, 4 chatbot_users, 3 chatbot_user_groups, 15 chatbot_corpus_access, 4 user_profiles
 
-### Documentation (1 file)
-- `cascade-logs/2026-02-21/SESSION_SUMMARY_2026-02-21.md` — This file
-
-**Total Lines Changed:** 0 code changes, database data sync only
+**Total: 17 files changed, +998 / -559 lines**
 
 ---
 
 ## 🚀 **Commits Summary**
 
-No code commits today — database data cleanup and sync session.
+| Commit | Description |
+|--------|-------------|
+| `2a3953e` | docs: session summary — cloud/local DB sync, stale data cleanup |
+| `bb62740` | feat: add declarative cleanup to Google Groups Bridge |
+| `7d5b381` | feat(C-1): YAML-driven deployment defaults bootstrap |
+| `3e1006b` | chore: update client-template.yaml with new chatbot system seed_data structure |
+| `1cf8f7f` | fix: add session auto-expiry (startup + hourly background task) |
+| `0399e01` | fix: replace broken legacy groups check in admin/corpora layout |
+| `5c47210` | fix: remove premature isAuthenticated() guard in corpora admin layout |
+| `44dea5d` | docs: add deploy-to-cloud workflow + update DEPLOYMENT_STATE with new revisions |
 
-**Total:** 0 code commits
+**Total:** 8 commits (2 features, 3 fixes, 1 chore, 2 docs)
 
 ---
 
 ## 🔮 **Next Steps**
 
-### Immediate Tasks (Today/Tomorrow)
-- [ ] Test Google Groups Bridge auto-mapping end-to-end on cloud
+### Immediate Tasks (Tomorrow)
+- [ ] Test admin/corpora fix on cloud (`https://34.49.46.115.nip.io/admin/corpora`)
+- [ ] Test Google Groups Bridge declarative cleanup end-to-end on cloud
+- [ ] Verify session auto-expiry is running on cloud (check logs for cleanup messages)
 - [ ] Address access-matrix discrepancy (contact user having access to management corpus)
-- [ ] Start working on Dev Plan items from Feb 14
 
 ### Short-term (This Week)
+- [ ] Test `seed_data.py` against a fresh environment
+- [ ] Start working on Dev Plan items from Feb 14
 - [ ] Consider merging `users` and `chatbot_users` into a single table
-- [ ] Create automated DB sync script for local ↔ cloud
 
 ### Future Enhancements
-- Automated DB sync tooling
-- Seed script that works for both local and cloud environments
+- Automated DB sync tooling (local ↔ cloud)
+- CI/CD pipeline: configure `GCP_SA_KEY` secret in GitHub to enable auto-deploy on merge to `main`
 
 ---
 
@@ -272,8 +402,8 @@ No code commits today — database data cleanup and sync session.
 - **Database:** PostgreSQL (Docker container: adk-postgres-dev, port 5433)
 
 ### Cloud
-- **Backend:** Cloud Run revision `backend-00143-frm` (image `0d448a3`) — 100% traffic
-- **Frontend:** Cloud Run (unchanged)
+- **Backend:** Cloud Run revision `backend-00145-nmg` (image `5c47210`) — 100% traffic
+- **Frontend:** Cloud Run revision `frontend-00039-5kp` (image `5c47210`) — 100% traffic
 - **Database:** Cloud SQL — cleaned, 7 users + 5 chatbot_users
 - **Google Cloud Project:** `adk-rag-ma`
 - **Vertex AI Region:** `us-west1`
@@ -291,22 +421,27 @@ No code commits today — database data cleanup and sync session.
 
 ## ✅ **Session Complete**
 
-**End Time:** 11:00 AM PST  
-**Total Duration:** ~1.5 hours  
-**Goals Achieved:** 5/5  
-**Commits Made:** 0 (data-only session)  
-**Files Changed:** 0 code, 5 DB tables synced  
+**End Time:** 6:25 PM PST  
+**Total Duration:** ~9 hours  
+**Goals Achieved:** 13/13  
+**Commits Made:** 8 (2 features, 3 fixes, 1 chore, 2 docs)  
+**Files Changed:** 17 files, +998 / -559 lines  
+**Cloud Deploy:** backend-00145-nmg + frontend-00039-5kp (tag `5c47210`)
 
 **Summary:**
-Verified cloud access-matrix via IAP browser session. Cleaned 7 stale test users and 8 inactive demo chatbot_users from Cloud SQL production. Performed full bidirectional database sync — local now matches cloud exactly across all 11 key tables (users, chatbot_users, chatbot_groups, chatbot_user_groups, chatbot_corpus_access, chatbot_group_agents, chatbot_agent_types, chatbot_agent_access, chatbot_tool_access, corpora, user_profiles).
+Full-day session spanning data cleanup, feature development, bug fixes, and cloud deployment. Morning: verified cloud access-matrix via IAP, cleaned 15 stale/demo records from Cloud SQL, synced local DB to match cloud across all 11 key tables. Afternoon: added declarative cleanup to Google Groups Bridge (revoke stale corpus access), created YAML-driven deployment bootstrap (`seed_data.py`), fixed backend startup crash, added session auto-expiry background task, diagnosed and fixed admin/corpora "Access Denied" (two-layer bug: legacy endpoint + premature auth guard), defined and executed manual deploy workflow to Cloud Run, and documented it as a reusable `/deploy-to-cloud` Windsurf workflow.
 
 ---
 
 ## 📌 **Remember for Next Session**
 
 - **Both DBs in sync:** 7 users, 5 chatbot_users, 4 groups, 15 corpus access entries
-- **Cloud revision:** `backend-00143-frm` (image `0d448a3`) — deployed yesterday with DB consolidation code
-- **Google Groups Bridge auto-mapping:** Deployed but needs end-to-end cloud verification
-- **Access-matrix discrepancy:** contact user → management corpus (investigate)
+- **Cloud revisions:** `backend-00145-nmg` + `frontend-00039-5kp` (image tag `5c47210`)
+- **Deploy workflow:** Use `/deploy-to-cloud` slash command for manual hotfix deploys
+- **Google Groups Bridge:** Declarative cleanup deployed — needs end-to-end cloud verification
+- **Session auto-expiry:** Running on cloud — check logs for hourly cleanup messages
+- **Admin/corpora fix:** Deployed to cloud — verify at `https://34.49.46.115.nip.io/admin/corpora`
+- **Access-matrix discrepancy:** contact user → management corpus (still needs investigation)
+- **seed_data.py:** Created but not yet tested against a fresh environment
 - **Start Docker Desktop** before starting local dev servers
-- **Left off at:** Database sync complete, ready for feature work
+- **Left off at:** All fixes deployed to cloud, ready for verification and feature work
