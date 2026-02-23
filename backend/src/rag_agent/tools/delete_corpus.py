@@ -10,7 +10,7 @@ from vertexai import rag
 
 logger = logging.getLogger(__name__)
 
-from .utils import check_corpus_exists, get_corpus_resource_name
+from .utils import check_corpus_exists, get_corpus_resource_name, check_user_corpus_access
 
 
 def delete_corpus(
@@ -37,6 +37,18 @@ def delete_corpus(
     logger.warning(f"[{account_env}] DELETION REQUEST for corpus '{corpus_name}' (confirm={confirm})", 
                    extra={"agent": account_env, "corpus": corpus_name, "action": "delete_corpus", "confirm": confirm})
     
+    # Check if the user has access to this corpus
+    if not check_user_corpus_access(corpus_name, tool_context):
+        logger.warning(
+            f"[{account_env}] Corpus access denied for deletion of '{corpus_name}'",
+            extra={"agent": account_env, "corpus": corpus_name, "action": "delete_corpus"}
+        )
+        return {
+            "status": "error",
+            "message": f"Access denied: you do not have permission to delete corpus '{corpus_name}'.",
+            "corpus_name": corpus_name,
+        }
+
     # Check if corpus exists
     if not check_corpus_exists(corpus_name, tool_context):
         return {

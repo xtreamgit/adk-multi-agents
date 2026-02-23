@@ -78,27 +78,16 @@ export async function generatePdfThumbnail(
     // Determine if this is a proxy URL that requires authentication
     const isProxyUrl = url.includes('/api/documents/proxy/');
     
-    // Get headers - use provided headers or get token from localStorage for proxy URLs
-    let headers = options.headers;
-    if (!headers && isProxyUrl) {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        headers = { 'Authorization': `Bearer ${token}` };
-        console.log('[PDF Thumbnail] Using token from localStorage for proxy URL');
-      }
-    }
-    
-    // For authenticated requests (proxy URLs), fetch the PDF first
+    // For proxy URLs, fetch the PDF first with IAP auth (credentials: 'include')
     // then pass it to PDF.js as binary data to avoid CORS/auth issues
     let pdfData: string | ArrayBuffer | Uint8Array = url;
     
-    if (headers) {
+    if (isProxyUrl || options.headers) {
       console.log('[PDF Thumbnail] Fetching PDF with authentication...');
       console.log('[PDF Thumbnail] URL:', url);
-      console.log('[PDF Thumbnail] Headers:', JSON.stringify(headers));
       
       const response = await fetch(url, {
-        headers: headers,
+        headers: options.headers,
         credentials: 'include',
       });
       

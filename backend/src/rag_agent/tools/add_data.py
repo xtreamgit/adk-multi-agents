@@ -17,7 +17,7 @@ from ..config import (
     DEFAULT_CHUNK_SIZE,
     DEFAULT_EMBEDDING_REQUESTS_PER_MIN,
 )
-from .utils import check_corpus_exists, get_corpus_resource_name
+from .utils import check_corpus_exists, get_corpus_resource_name, check_user_corpus_access
 
 
 def add_data(
@@ -47,6 +47,19 @@ def add_data(
     logger.info(f"[{account_env}] Adding {len(paths)} path(s) to corpus '{corpus_name}'", 
                 extra={"agent": account_env, "corpus": corpus_name, "path_count": len(paths), "action": "add_data"})
     
+    # Check if the user has access to this corpus
+    if not check_user_corpus_access(corpus_name, tool_context):
+        logger.warning(
+            f"[{account_env}] Corpus access denied for add_data to '{corpus_name}'",
+            extra={"agent": account_env, "corpus": corpus_name, "action": "add_data"}
+        )
+        return {
+            "status": "error",
+            "message": f"Access denied: you do not have permission to add data to corpus '{corpus_name}'.",
+            "corpus_name": corpus_name,
+            "paths": paths,
+        }
+
     # Check if the corpus exists
     if not check_corpus_exists(corpus_name, tool_context):
         return {

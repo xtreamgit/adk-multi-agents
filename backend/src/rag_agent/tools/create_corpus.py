@@ -47,8 +47,9 @@ def create_corpus(
     # Get agent context for logging
     account_env = os.environ.get("ACCOUNT_ENV", "unknown")
     
-    logger.info(f"[{account_env}] Attempting to create corpus '{corpus_name}'", 
-                extra={"agent": account_env, "corpus": corpus_name, "action": "create_corpus"})
+    user_email = tool_context.state.get("user_email", "unknown")
+    logger.info(f"[{account_env}] User '{user_email}' attempting to create corpus '{corpus_name}'", 
+                extra={"agent": account_env, "corpus": corpus_name, "action": "create_corpus", "user_email": user_email})
     
     # Check if corpus already exists
     if check_corpus_exists(corpus_name, tool_context):

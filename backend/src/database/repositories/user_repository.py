@@ -21,17 +21,8 @@ class UserRepository:
             row = cursor.fetchone()
             return dict(row) if row else None
     
-    @staticmethod
-    def get_by_username(username: str, active_only: bool = True) -> Optional[Dict]:
-        """Get user by username. By default, only returns active users."""
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            if active_only:
-                cursor.execute("SELECT * FROM users WHERE username = %s AND is_active = TRUE", (username,))
-            else:
-                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-            row = cursor.fetchone()
-            return dict(row) if row else None
+    # Note: get_by_username removed - username column no longer exists
+    # Use get_by_email instead (email is now the primary identifier)
     
     @staticmethod
     def get_by_email(email: str, active_only: bool = True) -> Optional[Dict]:
@@ -55,19 +46,38 @@ class UserRepository:
             return dict(row) if row else None
     
     @staticmethod
-    def create(username: str, email: str, full_name: str, hashed_password: str) -> Dict:
-        """Create a new user."""
+    def create(email: str, full_name: str, google_id: Optional[str] = None) -> Dict:
+        """Create a new user (IAP authentication only).
+        
+        Args:
+            email: User's email address (primary identifier)
+            full_name: User's full name
+            google_id: Google ID from IAP (optional)
+        
+        Returns:
+            Created user dictionary
+        """
         created_at = datetime.now(timezone.utc).isoformat()
         updated_at = created_at
+        # Generate username from email prefix
+        username = email.split('@')[0] if email else 'user'
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            # Check for username uniqueness and add suffix if needed
+            base_username = username
+            counter = 1
+            cursor.execute("SELECT 1 FROM users WHERE username = %s LIMIT 1", (username,))
+            while cursor.fetchone():
+                username = f"{base_username}{counter}"
+                counter += 1
+                cursor.execute("SELECT 1 FROM users WHERE username = %s LIMIT 1", (username,))
+            
             cursor.execute("""
-                INSERT INTO users (username, email, full_name, hashed_password, 
-                                   is_active, created_at, updated_at)
+                INSERT INTO users (username, email, full_name, google_id, is_active, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (username, email, full_name, hashed_password, True, created_at, updated_at))
+            """, (username, email, full_name, google_id, True, created_at, updated_at))
             result = cursor.fetchone()
             user_id = result['id'] if isinstance(result, dict) else result[0]
             conn.commit()
@@ -75,24 +85,12 @@ class UserRepository:
         return UserRepository.get_by_id(user_id)
     
     @staticmethod
-    def create_iap_user(username: str, email: str, full_name: str, google_id: str) -> Dict:
-        """Create a new user from IAP authentication (no password required)."""
-        created_at = datetime.now(timezone.utc).isoformat()
-        updated_at = created_at
+    def create_iap_user(email: str, full_name: str, google_id: str) -> Dict:
+        """Create a new user from IAP authentication.
         
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO users (username, email, full_name, google_id, auth_provider,
-                                   is_active, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (username, email, full_name, google_id, 'iap', True, created_at, updated_at))
-            result = cursor.fetchone()
-            user_id = result['id'] if isinstance(result, dict) else result[0]
-            conn.commit()
-        
-        return UserRepository.get_by_id(user_id)
+        Note: This is now the same as create() - kept for backward compatibility.
+        """
+        return UserRepository.create(email=email, full_name=full_name, google_id=google_id)
     
     @staticmethod
     def update(user_id: int, **kwargs) -> Optional[Dict]:
@@ -186,41 +184,6 @@ class UserRepository:
             conn.commit()
         
         return UserRepository.get_profile(user_id)
-    
-    @staticmethod
-    def get_groups(user_id: int) -> List[int]:
-        """Get group IDs for a user."""
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT group_id FROM user_groups WHERE user_id = %s", (user_id,))
-            return [row['group_id'] for row in cursor.fetchall()]
-    
-    @staticmethod
-    def add_to_group(user_id: int, group_id: int) -> bool:
-        """Add user to a group. Idempotent - safe to call multiple times."""
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO user_groups (user_id, group_id)
-                    VALUES (%s, %s)
-                    ON CONFLICT (user_id, group_id) DO NOTHING
-                """, (user_id, group_id))
-                conn.commit()
-            return True
-        except Exception:
-            return False
-    
-    @staticmethod
-    def remove_from_group(user_id: int, group_id: int) -> bool:
-        """Remove user from a group."""
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                DELETE FROM user_groups WHERE user_id = %s AND group_id = %s
-            """, (user_id, group_id))
-            conn.commit()
-            return cursor.rowcount > 0
     
     @staticmethod
     def get_all(active_only: bool = True) -> List[Dict]:

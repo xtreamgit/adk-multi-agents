@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from services.user_service import UserService
 from services.agent_service import AgentService
 from models.user import User, UserUpdate, UserProfile, UserProfileUpdate, UserWithProfile
-from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ async def update_my_profile(
                 detail="User not found"
             )
         
-        logger.info(f"User profile updated: {current_user.username}")
+        logger.info(f"User profile updated: {current_user.email}")
         return updated_user
         
     except Exception as e:
@@ -97,7 +97,7 @@ async def update_my_preferences(
                 detail="Profile not found"
             )
         
-        logger.info(f"User preferences updated: {current_user.username}")
+        logger.info(f"User preferences updated: {current_user.email}")
         return updated_profile
         
     except Exception as e:
@@ -144,7 +144,7 @@ async def set_default_agent(
         )
     
     updated_user = UserService.get_user_by_id(current_user.id)
-    logger.info(f"User {current_user.username} set default agent to {agent.name}")
+    logger.info(f"User {current_user.email} set default agent to {agent.name}")
     
     return updated_user
 
@@ -161,5 +161,8 @@ async def get_my_groups(current_user: User = Depends(get_current_user)):
 async def get_my_roles(current_user: User = Depends(get_current_user)):
     """
     Get current user's roles (through group memberships).
+    
+    Deprecated: Legacy roles table has been removed.
+    Role-based access is now managed via Google Groups Bridge → chatbot_groups.
     """
-    return UserService.get_user_roles(current_user.id)
+    return []

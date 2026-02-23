@@ -6,7 +6,6 @@ import logging
 from typing import List, Dict, Any, Optional
 from database.repositories import (
     CorpusRepository,
-    GroupRepository,
     AuditRepository,
     CorpusMetadataRepository
 )
@@ -43,16 +42,9 @@ class AdminCorpusService:
                 metadata = CorpusMetadataRepository.get_by_corpus_id(corpus_id)
             
             # Get groups with access
-            groups = CorpusRepository.get_groups_for_corpus(corpus_id)
+            # Note: Legacy group access disabled - now using Google Groups Bridge
             groups_with_access = []
-            for group_access in groups:
-                group = GroupRepository.get_group_by_id(group_access['group_id'])
-                if group:
-                    groups_with_access.append({
-                        'group_id': group['id'],
-                        'group_name': group['name'],
-                        'permission': group_access['permission']
-                    })
+            # TODO: Implement Google Groups Bridge access listing
             
             # Get recent activity
             recent_activity = AuditRepository.get_recent_for_corpus(corpus_id, limit=5)
@@ -88,16 +80,9 @@ class AdminCorpusService:
             metadata = CorpusMetadataRepository.get_by_corpus_id(corpus_id)
         
         # Get groups with access
-        groups = CorpusRepository.get_groups_for_corpus(corpus_id)
+        # Note: Legacy group access disabled - now using Google Groups Bridge
         groups_with_access = []
-        for group_access in groups:
-            group = GroupRepository.get_group_by_id(group_access['group_id'])
-            if group:
-                groups_with_access.append({
-                    'group_id': group['id'],
-                    'group_name': group['name'],
-                    'permission': group_access['permission']
-                })
+        # TODO: Implement Google Groups Bridge access listing
         
         # Get recent activity
         recent_activity = AuditRepository.get_recent_for_corpus(corpus_id, limit=10)

@@ -16,7 +16,7 @@ import os
 from google.api_core import exceptions as google_exceptions
 
 from rag_agent.config import PROJECT_ID, LOCATION, DEFAULT_DISTANCE_THRESHOLD, DEFAULT_TOP_K
-from .utils import check_corpus_exists, get_corpus_resource_name
+from .utils import check_corpus_exists, get_corpus_resource_name, check_user_corpus_access
 
 try:
     import google.auth
@@ -191,10 +191,37 @@ def rag_multi_query(
                 "results_count": 0,
             }
         
+        # Filter out corpora the user doesn't have access to
+        authorized_corpora = []
+        unauthorized_corpora_list = []
+        for corpus_name in corpus_names:
+            if check_user_corpus_access(corpus_name, tool_context):
+                authorized_corpora.append(corpus_name)
+            else:
+                unauthorized_corpora_list.append(corpus_name)
+        
+        if unauthorized_corpora_list:
+            logging.warning(
+                f"[{account_env}] Corpus access denied for: {unauthorized_corpora_list}",
+                extra={"agent": account_env, "unauthorized": unauthorized_corpora_list, "action": "rag_multi_query"}
+            )
+        
+        if not authorized_corpora:
+            return {
+                "status": "error",
+                "message": f"Access denied: you do not have permission to query any of the specified corpora. "
+                           f"Your accessible corpora: {tool_context.state.get('accessible_corpus_names', [])}",
+                "query": query,
+                "corpora_queried": [],
+                "unauthorized_corpora": unauthorized_corpora_list,
+                "results": [],
+                "results_count": 0,
+            }
+        
         validated_corpora = []
         missing_corpora = []
         
-        for corpus_name in corpus_names:
+        for corpus_name in authorized_corpora:
             if check_corpus_exists(corpus_name, tool_context):
                 validated_corpora.append(corpus_name)
             else:

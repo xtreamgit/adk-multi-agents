@@ -5,7 +5,7 @@ Tool for deleting a specific document from a Vertex AI RAG corpus.
 from google.adk.tools.tool_context import ToolContext
 from vertexai import rag
 
-from .utils import check_corpus_exists, get_corpus_resource_name
+from .utils import check_corpus_exists, get_corpus_resource_name, check_user_corpus_access
 
 
 def delete_document(
@@ -26,6 +26,15 @@ def delete_document(
     Returns:
         dict: Status information about the deletion operation
     """
+    # Check if the user has access to this corpus
+    if not check_user_corpus_access(corpus_name, tool_context):
+        return {
+            "status": "error",
+            "message": f"Access denied: you do not have permission to modify corpus '{corpus_name}'.",
+            "corpus_name": corpus_name,
+            "document_id": document_id,
+        }
+
     # Check if corpus exists
     if not check_corpus_exists(corpus_name, tool_context):
         return {

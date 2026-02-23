@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Agent, apiClient } from '../lib/api-enhanced';
-import LoginForm from '../components/LoginForm';
 import ChatInterface from '../components/ChatInterface';
 import UserProfilePanel from '../components/UserProfilePanel';
 import WelcomeModal from '../components/WelcomeModal';
@@ -31,7 +30,6 @@ export default function Home() {
   const [isReturningFromProfile, setIsReturningFromProfile] = useState(false);
   const [shouldAutoSubmit, setShouldAutoSubmit] = useState(false);
   const [isLoadingExistingSession, setIsLoadingExistingSession] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
   const [savedChatState, setSavedChatState] = useState<{
     showChatInterface: boolean;
     chatInputValue: string;
@@ -65,8 +63,9 @@ export default function Home() {
         const myAgents = await apiClient.getMyAgents();
         setAvailableAgents(myAgents);
         if (myAgents.length > 0) {
-          setCurrentAgent(myAgents[0]);
-          console.log('✅ Loaded default agent:', myAgents[0].display_name);
+          const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
+          setCurrentAgent(defaultAgent);
+          console.log('✅ Loaded default agent:', defaultAgent.display_name);
         }
       } catch (err) {
         console.error('Failed to load user agents:', err);
@@ -96,14 +95,7 @@ export default function Home() {
 
     const checkAuth = async () => {
       try {
-        // First: check existing Bearer token
-        if (apiClient.isAuthenticated()) {
-          const userData = await apiClient.verifyToken();
-          await loadUserData(userData);
-          return;
-        }
-        
-        // Second: try IAP authentication (behind load balancer)
+        // IAP authentication (behind load balancer or dev mode)
         const iapUser = await apiClient.checkIapAuth();
         if (iapUser) {
           console.log('✅ IAP authenticated:', iapUser.email);
@@ -111,11 +103,10 @@ export default function Home() {
           return;
         }
         
-        // Neither auth method worked: redirect to landing page
+        // Not authenticated: redirect to landing page
         router.push('/landing');
       } catch (error) {
         console.error('Auth verification failed:', error);
-        apiClient.clearToken();
         router.push('/landing');
       }
     };
@@ -124,53 +115,8 @@ export default function Home() {
   }, [router]);
 
 
-  const handleLoginSuccess = async (loggedInUser: User) => {
-    setUser(loggedInUser);
-    setShowLogin(false);
-    
-    // Load user's agents to get the current agent
-    try {
-      setIsLoadingAgents(true);
-      const myAgents = await apiClient.getMyAgents();
-      setAvailableAgents(myAgents);
-      // Set the first available agent as default
-      if (myAgents.length > 0) {
-        setCurrentAgent(myAgents[0]);
-        console.log('✅ Loaded agent after login:', myAgents[0].display_name);
-      }
-    } catch (err) {
-      console.error('Failed to load user agents after login:', err);
-    } finally {
-      setIsLoadingAgents(false);
-    }
-    
-    // Load saved corpus preferences
-    try {
-      const profile = await apiClient.getMyProfile();
-      if (profile.profile?.preferences?.selected_corpora && Array.isArray(profile.profile.preferences.selected_corpora)) {
-        setSelectedCorpora(profile.profile.preferences.selected_corpora as string[]);
-        console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
-      }
-    } catch (err) {
-      console.error('Failed to load corpus preferences:', err);
-    }
-    
-    // Create session immediately after login
-    try {
-      const session = await apiClient.createSession();
-      setSessionId(session.session_id);
-      console.log('Session created after login:', session.session_id);
-      
-      // Session is ready - user can now start chatting
-      // Don't auto-show chat interface, let user start when ready
-    } catch (error) {
-      console.error('Failed to create session after login:', error);
-    }
-  };
-
   const handleLogout = () => {
     apiClient.logout();
-    // Redirect to landing page after logout
     router.push('/landing');
   };
 
@@ -310,23 +256,6 @@ export default function Home() {
     );
   }
 
-  // Show login form
-  if (showLogin) {
-    return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <LoginForm onLoginSuccess={handleLoginSuccess} />
-          <button
-            onClick={() => setShowLogin(false)}
-            className="mt-4 w-full text-center text-sm text-gray-600 hover:text-gray-800"
-          >
-            Continue as Guest
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Show profile setup if user wants to edit profile
   if (showProfileSetup) {
     return (
@@ -450,20 +379,6 @@ export default function Home() {
 
           {/* Profile Section */}
           <div className="p-4 border-t border-gray-200 text-white" style={{ backgroundColor: '#005440' }}>
-            {user && user.username === 'guest' ? (
-              <button 
-                onClick={() => setShowLogin(true)}
-                className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors"
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-                <span className="font-medium">Login</span>
-              </button>
-            ) : (
-              <>
                 <button 
                   onClick={handleUpdateProfile}
                   className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors mb-2"
@@ -486,8 +401,6 @@ export default function Home() {
                   </svg>
                   <span className="font-medium">Logout</span>
                 </button>
-              </>
-            )}
           </div>
         </div>
         
@@ -605,20 +518,6 @@ export default function Home() {
 
         {/* Profile Section */}
         <div className="p-4 border-t border-gray-200 text-white" style={{ backgroundColor: '#005440' }}>
-          {user && user.username === 'guest' ? (
-            <button 
-              onClick={() => setShowLogin(true)}
-              className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors"
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#004030'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-              </svg>
-              <span className="font-medium">Login</span>
-            </button>
-          ) : (
-            <>
               <button 
                 onClick={handleUpdateProfile}
                 className="w-full flex items-center space-x-3 p-3 text-left rounded-lg transition-colors mb-2"
@@ -641,8 +540,6 @@ export default function Home() {
                 </svg>
                 <span className="font-medium">Logout</span>
               </button>
-            </>
-          )}
         </div>
       </div>
       

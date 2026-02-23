@@ -6,7 +6,6 @@ import logging
 from typing import Optional, List, Dict
 
 from database.repositories.user_repository import UserRepository
-from database.repositories.group_repository import GroupRepository
 from models.user import User, UserCreate, UserUpdate, UserProfile, UserProfileUpdate, UserInDB
 from services.auth_service import AuthService
 
@@ -37,51 +36,35 @@ class UserService:
     @staticmethod
     def create_user(user_create: UserCreate) -> User:
         """
-        Create a new user.
+        Create a new user (IAP authentication only).
         
         Args:
-            user_create: UserCreate model with user data
+            user_create: UserCreate model with user data (email, full_name)
             
         Returns:
             Created User object
             
         Raises:
-            ValueError: If username or email already exists
+            ValueError: If email already exists
         """
-        # Check if username exists
-        if UserRepository.get_by_username(user_create.username):
-            raise ValueError(f"Username '{user_create.username}' already exists")
-        
         # Check if email exists
         if UserRepository.get_by_email(user_create.email):
             raise ValueError(f"Email '{user_create.email}' already exists")
         
-        # Hash password
-        hashed_password = AuthService.hash_password(user_create.password)
-        
-        # Create user
+        # Create user (no password - IAP handles authentication)
         user_dict = UserRepository.create(
-            username=user_create.username,
             email=user_create.email,
             full_name=user_create.full_name,
-            hashed_password=hashed_password
+            google_id=None  # Will be set on first IAP login
         )
         
         # Create default profile
         UserRepository.create_profile(user_dict['id'])
         
-        # If this is the first user, add them to admin-users group
-        try:
-            all_users = UserRepository.get_all()
-            if len(all_users) == 1:  # This is the first user
-                admin_group = GroupRepository.get_group_by_name('admin-users')
-                if admin_group:
-                    UserService.add_user_to_group(user_dict['id'], admin_group['id'])
-                    logger.info(f"First user {user_create.username} added to admin-users group")
-        except Exception as e:
-            logger.warning(f"Failed to add first user to admin group: {e}")
+        # Note: User group assignment is now handled by Google Groups Bridge
+        # No need to manually add users to groups
         
-        logger.info(f"User created: {user_create.username} (ID: {user_dict['id']})")
+        logger.info(f"User created: {user_create.email} (ID: {user_dict['id']})")
         return User(**UserService._convert_user_dict(user_dict))
     
     @staticmethod
@@ -90,11 +73,8 @@ class UserService:
         user_dict = UserRepository.get_by_id(user_id)
         return User(**UserService._convert_user_dict(user_dict)) if user_dict else None
     
-    @staticmethod
-    def get_user_by_username(username: str) -> Optional[User]:
-        """Get user by username."""
-        user_dict = UserRepository.get_by_username(username)
-        return User(**UserService._convert_user_dict(user_dict)) if user_dict else None
+    # Note: get_user_by_username removed - username column no longer exists
+    # Use get_user_by_email instead
     
     @staticmethod
     def get_user_by_email(email: str) -> Optional[User]:
@@ -180,13 +160,21 @@ class UserService:
     
     @staticmethod
     def get_user_groups(user_id: int) -> List[int]:
-        """Get group IDs for a user."""
-        return UserRepository.get_groups(user_id)
-    
-    @staticmethod
-    def get_user_roles(user_id: int) -> List[Dict]:
-        """Get roles for a user (through their groups)."""
-        return GroupRepository.get_user_roles(user_id)
+        """Get chatbot group IDs for a user (via chatbot_user_groups).
+        
+        Note: Legacy groups/user_groups tables have been removed.
+        Group membership is now managed via Google Groups Bridge → chatbot_user_groups.
+        """
+        from database.connection import get_db_connection
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT chatbot_group_id FROM chatbot_user_groups cug "
+                "JOIN chatbot_users cu ON cug.chatbot_user_id = cu.id "
+                "WHERE cu.user_id = %s",
+                (user_id,)
+            )
+            return [row['chatbot_group_id'] for row in cursor.fetchall()]
     
     @staticmethod
     def add_user_to_group(user_id: int, group_id: int) -> bool:
@@ -295,19 +283,8 @@ class UserService:
         if UserRepository.get_by_email(email):
             raise ValueError(f"Email '{email}' already exists")
         
-        # Generate username from email
-        username = email.split('@')[0]
-        
-        # Ensure username is unique by adding suffix if needed
-        base_username = username
-        counter = 1
-        while UserRepository.get_by_username(username):
-            username = f"{base_username}{counter}"
-            counter += 1
-        
         # Create user without password (IAP handles authentication)
         user_dict = UserRepository.create_iap_user(
-            username=username,
             email=email,
             full_name=full_name,
             google_id=google_id

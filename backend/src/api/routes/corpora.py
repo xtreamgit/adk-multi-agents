@@ -9,11 +9,9 @@ from pydantic import BaseModel
 
 from services.corpus_service import CorpusService
 from services.session_service import SessionService
-from services.group_service import GroupService
 from models.corpus import Corpus, CorpusCreate, CorpusUpdate, CorpusWithAccess
 from models.user import User
-from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
-from middleware.authorization_middleware import require_permission
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
 from database.repositories import AuditRepository
 
 logger = logging.getLogger(__name__)
@@ -57,7 +55,7 @@ async def list_all_corpora_with_access(current_user: User = Depends(get_current_
 
 @router.get("/all", response_model=List[Corpus])
 async def list_all_corpora(
-    current_user: User = Depends(require_permission("manage:corpora"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     List all corpora in the system (admin only).
@@ -98,7 +96,7 @@ async def get_corpus(
 @router.post("/", response_model=Corpus, status_code=status.HTTP_201_CREATED)
 async def create_corpus(
     corpus_create: CorpusCreate,
-    current_user: User = Depends(require_permission("create:corpus"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Create a new corpus (admin only).
@@ -107,7 +105,7 @@ async def create_corpus(
     """
     try:
         corpus = CorpusService.create_corpus(corpus_create)
-        logger.info(f"Corpus created by {current_user.username}: {corpus.name}")
+        logger.info(f"Corpus created by {current_user.email}: {corpus.name}")
         
         # Create audit log entry
         AuditRepository.create({
@@ -119,7 +117,7 @@ async def create_corpus(
                 'display_name': corpus.display_name,
                 'gcs_bucket': corpus.gcs_bucket
             },
-            'metadata': {'source': 'user_api', 'username': current_user.username}
+            'metadata': {'source': 'user_api', 'user_email': current_user.email}
         })
         
         return corpus
@@ -134,7 +132,7 @@ async def create_corpus(
 async def update_corpus(
     corpus_id: int,
     corpus_update: CorpusUpdate,
-    current_user: User = Depends(require_permission("update:corpus"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Update corpus (admin only).
@@ -149,7 +147,7 @@ async def update_corpus(
             detail="Corpus not found"
         )
     
-    logger.info(f"Corpus updated by {current_user.username}: {updated_corpus.name}")
+    logger.info(f"Corpus updated by {current_user.email}: {updated_corpus.name}")
     
     # Create audit log entry
     AuditRepository.create({
@@ -169,7 +167,7 @@ async def update_corpus(
 async def grant_corpus_access(
     corpus_id: int,
     access_request: CorpusAccessRequest,
-    current_user: User = Depends(require_permission("manage:corpus_access"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Grant group access to a corpus (admin only).
@@ -187,13 +185,12 @@ async def grant_corpus_access(
             detail="Corpus not found"
         )
     
-    # Verify group exists
-    group = GroupService.get_group_by_id(access_request.group_id)
-    if not group:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Group not found"
-        )
+    # Note: Legacy group access endpoint - deprecated
+    # Group access is now managed via Google Groups Bridge
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Legacy group access endpoint deprecated. Use Google Groups Bridge instead."
+    )
     
     # Validate permission level
     if access_request.permission not in ["read", "write", "admin"]:
@@ -216,7 +213,7 @@ async def grant_corpus_access(
     
     logger.info(
         f"Group {group.name} granted {access_request.permission} access "
-        f"to corpus {corpus.name} by {current_user.username}"
+        f"to corpus {corpus.name} by {current_user.email}"
     )
     
     # Create audit log entry
@@ -239,7 +236,7 @@ async def grant_corpus_access(
 async def revoke_corpus_access(
     corpus_id: int,
     group_id: int,
-    current_user: User = Depends(require_permission("manage:corpus_access"))
+    current_user: User = Depends(get_current_user)  # TODO: Add Google Groups admin check
 ):
     """
     Revoke group access to a corpus (admin only).
@@ -254,7 +251,7 @@ async def revoke_corpus_access(
             detail="Access not found or already revoked"
         )
     
-    logger.info(f"Group {group_id} access revoked for corpus {corpus_id} by {current_user.username}")
+    logger.info(f"Group {group_id} access revoked for corpus {corpus_id} by {current_user.email}")
     
     # Create audit log entry
     AuditRepository.create({
@@ -348,7 +345,7 @@ async def update_active_corpora(
         CorpusService.update_session_selection(current_user.id, corpus_id)
     
     logger.info(
-        f"User {current_user.username} updated session {session_id} "
+        f"User {current_user.email} updated session {session_id} "
         f"active corpora to {active_corpora.corpus_ids}"
     )
     

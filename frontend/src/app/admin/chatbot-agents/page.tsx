@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAuthHeadersOnly } from '../../../lib/auth-headers';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
@@ -46,13 +47,12 @@ export default function ChatbotAgentsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
+      const headers = getAuthHeadersOnly();
 
       // Fetch agents and groups
       const [agentsData, groupsData] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/admin/chatbot/agents`, { headers }).then(r => r.json()),
-        fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, { headers }).then(r => r.json()),
+        fetch(`${BACKEND_URL}/api/admin/chatbot/agents`, { headers, credentials: 'include' }).then(r => r.json()),
+        fetch(`${BACKEND_URL}/api/admin/chatbot/groups`, { headers, credentials: 'include' }).then(r => r.json()),
       ]);
 
       setAgents(agentsData);
@@ -64,7 +64,7 @@ export default function ChatbotAgentsPage() {
         groupsData.map(async (group: ChatbotGroup) => {
           const groupAgentsData = await fetch(
             `${BACKEND_URL}/api/admin/chatbot/groups/${group.id}/agents`,
-            { headers }
+            { headers, credentials: 'include' }
           ).then(r => r.json());
           groupAgentsMap.set(group.id, groupAgentsData);
         })
@@ -85,10 +85,10 @@ export default function ChatbotAgentsPage() {
     }
 
     try {
-      const token = localStorage.getItem('auth_token');
       await fetch(`${BACKEND_URL}/api/admin/chatbot/groups/${selectedGroupId}/agents/${selectedAgent.id}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: getAuthHeadersOnly(),
+        credentials: 'include',
       });
 
       setShowGrantDialog(false);
@@ -103,10 +103,10 @@ export default function ChatbotAgentsPage() {
     if (!confirm('Remove this agent from the group?')) return;
 
     try {
-      const token = localStorage.getItem('auth_token');
       await fetch(`${BACKEND_URL}/api/admin/chatbot/groups/${groupId}/agents/${agentId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: getAuthHeadersOnly(),
+        credentials: 'include',
       });
       await loadData();
     } catch (err) {

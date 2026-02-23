@@ -224,7 +224,7 @@ class CorpusService:
             )
             
             corpus = CorpusWithAccess(
-                **{k: v for k, v in corpus_data.items() if k != 'permission'},
+                **{k: v for k, v in corpus_data.items() if k not in ('permission', 'document_count')},
                 has_access=True,
                 permission=corpus_data.get('permission'),
                 is_active_in_session=(corpus_data['id'] in active_set),

@@ -27,6 +27,7 @@ AGENT_TYPE_TOOLS: Dict[AgentType, List[str]] = {
         "list_corpora",
         "get_corpus_info",
         "browse_documents",
+        "set_current_corpus",
     ],
     AgentType.CONTRIBUTOR: [
         "add_data",
@@ -37,6 +38,8 @@ AGENT_TYPE_TOOLS: Dict[AgentType, List[str]] = {
     AgentType.ADMIN: [
         "create_corpus",
         "delete_corpus",
+        "rag_multi_query",
+        "retrieve_document",
     ],
 }
 

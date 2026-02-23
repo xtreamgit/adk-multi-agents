@@ -6,9 +6,11 @@ import os
 import logging
 from typing import Dict, List, Union
 
+from google.adk.tools.tool_context import ToolContext
 import vertexai
 from vertexai import rag
 from ..config import PROJECT_ID, LOCATION
+from .utils import check_user_corpus_access
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ except Exception as e:
     print(f"DEBUG: Traceback: {traceback.format_exc()}")
 
 
-def list_corpora() -> dict:
+def list_corpora(tool_context: ToolContext) -> dict:
     """
     List all available Vertex AI RAG corpora.
 
@@ -59,7 +61,22 @@ def list_corpora() -> dict:
 
             corpus_info.append(corpus_data)
 
-        logger.info(f"[{account_env}] Found {len(corpus_info)} corpora", extra={"agent": account_env, "count": len(corpus_info)})
+        # Filter corpora by user access
+        accessible = tool_context.state.get("accessible_corpus_names")
+        if accessible is not None:
+            filtered_info = [
+                c for c in corpus_info
+                if c["display_name"] in accessible
+            ]
+            filtered_count = len(corpus_info) - len(filtered_info)
+            if filtered_count > 0:
+                logger.info(
+                    f"[{account_env}] Filtered {filtered_count} corpora the user cannot access",
+                    extra={"agent": account_env, "filtered": filtered_count}
+                )
+            corpus_info = filtered_info
+
+        logger.info(f"[{account_env}] Found {len(corpus_info)} accessible corpora", extra={"agent": account_env, "count": len(corpus_info)})
         return {
             "status": "success",
             "message": f"Found {len(corpus_info)} available corpora",
