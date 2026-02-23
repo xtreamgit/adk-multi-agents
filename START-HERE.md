@@ -86,6 +86,18 @@ Before configuring anything, collect all client-specific values. **Every value b
 | **Database user** | `adk_app_user` | `__________` |
 | **Billing account ID** | `ABCDEF-123456-GHIJKL` | `__________` |
 
+**Google Groups for authorization** (used by Google Groups Bridge):
+
+| Google Group Email | Maps To | Purpose |
+|-------------------|---------|--------|
+| `rag-admins@<domain>` | admin-group | Full corpus lifecycle management |
+| `rag-content-managers@<domain>` | content-manager-group | Document management |
+| `rag-contributors@<domain>` | contributor-group | Add documents |
+| `rag-viewers@<domain>` | viewer-group | Read-only access |
+| `corpus-<name>@<domain>` | Auto-mapped | Grants read access to corpus `<name>` |
+
+> **Note:** Google Groups must be created in Google Workspace Admin before deployment. The Bridge auto-syncs memberships on user login.
+
 **Per-corpus information** (repeat for each corpus):
 
 | Corpus Name | GCS Bucket Name | Description |
@@ -93,11 +105,11 @@ Before configuring anything, collect all client-specific values. **Every value b
 | e.g., `forest-policies` | `client-forest-policies` | Forest policy documents |
 | e.g., `fire-management` | `client-fire-management-docs` | Fire management reports |
 
-**Users to create** (at minimum, one admin):
+**Bootstrap admin user** (at minimum, one admin — additional users are created automatically via IAP login):
 
-| Username | Email | Full Name | Group |
-|----------|-------|-----------|-------|
-| e.g., `admin` | `admin@client.com` | Admin User | admin-users |
+| Email | Full Name | Admin? |
+|-------|-----------|--------|
+| e.g., `admin@client.com` | Admin User | Yes |
 
 > **Important Region Note:** Vertex AI RAG Engine is only available in certain regions.
 > - `us-west1` — Available without restrictions
@@ -207,43 +219,68 @@ service_accounts:
 
 ### 3.9 Seed Data
 
-Define the users, groups, memberships, and corpus access permissions for the new environment:
+> **Authentication is IAP-only.** Users are created automatically when they log in via Google IAP. No passwords are needed.
+> **Authorization uses Google Groups Bridge.** Google Group memberships determine which chatbot group (and therefore which agent) a user gets, plus which corpora they can access.
+> **Corpora are NOT seeded here.** They are synced from Vertex AI on startup.
+
+Define the chatbot groups, agents, Google Group mappings, and bootstrap admin user(s):
 
 ```yaml
 seed_data:
+  # Access tiers — each group gets a different agent with different tools
+  chatbot_groups:
+    - name: "viewer-group"
+      description: "Read-only access group with Viewer Agent capabilities"
+    - name: "contributor-group"
+      description: "Content contributor group with ability to add documents"
+    - name: "content-manager-group"
+      description: "Content management group with document lifecycle control"
+    - name: "admin-group"
+      description: "Administrative group with full corpus and document control"
+
+  # One agent per access tier with cumulative tool sets
+  chatbot_agents:
+    - name: "viewer-agent"
+      display_name: "Viewer Agent"
+      agent_type: "viewer"
+      description: "Read-only access. Can query and browse but not modify."
+      tools: ["rag_query", "list_corpora", "get_corpus_info", "browse_documents"]
+    - name: "admin-agent"
+      display_name: "Admin Agent"
+      agent_type: "admin"
+      description: "Full corpus lifecycle management."
+      tools: ["rag_query", "list_corpora", "get_corpus_info", "browse_documents",
+              "add_data", "create_corpus", "delete_document", "delete_corpus"]
+    # ... (see client-template.yaml for contributor-agent and content-manager-agent)
+
+  # 1:1 group → agent assignment
+  chatbot_group_agents:
+    viewer-group: "viewer-agent"
+    contributor-group: "contributor-agent"
+    content-manager-group: "content-manager-agent"
+    admin-group: "admin-agent"
+
+  # Google Group → chatbot group (determines agent type)
+  google_group_agent_mappings:
+    - google_group_email: "rag-admins@acme.com"
+      chatbot_group: "admin-group"
+      priority: 1
+    - google_group_email: "rag-viewers@acme.com"
+      chatbot_group: "viewer-group"
+      priority: 0
+
+  # Google Group → corpus access (explicit overrides; auto-mapping also works
+  # for groups named "corpus-{name}@domain")
+  google_group_corpus_mappings: []
+
+  # Bootstrap admin user (additional users created automatically via IAP login)
   users:
-    - username: "admin"
-      email: "admin@acme.com"
+    - email: "admin@acme.com"
       full_name: "Admin User"
-      password: "CHANGE_ME_STRONG_PASSWORD"
-      auth_provider: "local"
-
-  groups:
-    - name: "admin-users"
-      description: "Administrators with full system access"
-    - name: "users"
-      description: "Default user group"
-    - name: "viewers"
-      description: "Users with read-only access"
-
-  memberships:
-    admin:
-      - "admin-users"
-      - "users"
-
-  group_corpus_access:
-    admin-users:
-      - corpus: "forest-policies"
-        permission: "admin"
-      - corpus: "fire-management"
-        permission: "admin"
-    users:
-      - corpus: "forest-policies"
-        permission: "read"
-    viewers:
-      - corpus: "forest-policies"
-        permission: "read"
+      is_admin: true
 ```
+
+> **Full reference:** See `environments/client-template.yaml` for the complete seed_data schema with all four agent tiers and detailed comments.
 
 ---
 
@@ -719,20 +756,35 @@ BACKEND_URL=$(gcloud run services describe backend --region=<your-region> --form
 curl $BACKEND_URL/api/health
 ```
 
-### 15.3 Test Authentication
+### 15.3 Test Authentication (IAP)
+
+Authentication is handled by Identity-Aware Proxy (IAP). There is no `/api/auth/login` endpoint.
+
+To test, open the IAP-protected URL in your browser:
+
+```
+https://<your-load-balancer-ip>.nip.io
+```
+
+You should be redirected to Google OAuth, then to the application. To verify the IAP user endpoint programmatically (requires an IAP-authenticated session):
 
 ```bash
-curl -s -X POST $BACKEND_URL/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"<admin-username>","password":"<admin-password>"}' | python3 -m json.tool
+# From within an authenticated context (e.g., Cloud Run service-to-service)
+curl -s $BACKEND_URL/api/iap/user | python3 -m json.tool
 ```
 
 ### 15.4 Test Corpora Listing
 
+The admin corpora endpoint uses IAP authentication (no Bearer token). Test via the IAP-protected Load Balancer URL in your browser:
+
+```
+https://<your-load-balancer-ip>.nip.io/admin/corpora
+```
+
+Or via the health endpoint (no auth required):
+
 ```bash
-TOKEN="<token-from-login-response>"
-curl -s $BACKEND_URL/api/admin/corpora \
-  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+curl -s $BACKEND_URL/api/health | python3 -m json.tool
 ```
 
 ### 15.5 Check Logs
@@ -837,7 +889,8 @@ Open http://localhost:3000 in your browser.
 | `backend/init_postgresql_schema.sql` | Database schema |
 | `backend/src/database/migrations/*.sql` | Schema migrations |
 | `backend/sync_corpora_from_vertex.py` | Syncs corpora from Vertex AI |
-| `backend/seed_data.py` | Seeds users/groups from YAML |
+| `backend/seed_data.py` | Seeds chatbot groups, agents, Google Group mappings, users from YAML |
+| `.windsurf/workflows/deploy-to-cloud.md` | Manual hotfix deploy workflow (use `/deploy-to-cloud`) |
 | `infrastructure/deploy-init.sh` | GCP project initialization |
 | `infrastructure/deploy-all.sh` | Master deployment orchestrator |
 | `infrastructure/lib/*.sh` | Deployment modules (except `infrastructure.sh` bucket names) |
@@ -859,7 +912,10 @@ Open http://localhost:3000 in your browser.
 | 500 on admin corpora page | Pydantic model issue | Check `tags` type is `Optional[Any]` in models |
 | Docker build fails | Old cache | Add `--no-cache` to `gcloud builds submit` |
 | IAP returns 403 | User not authorized | Add user email to IAP access list in GCP Console |
-| CORS error on login | Backend missing CORS origin | Add IAP domain to `FRONTEND_URL` env var on backend Cloud Run service |
+| CORS error from IAP domain | Backend missing CORS origin | Add IAP domain to `FRONTEND_URL` env var on backend Cloud Run service |
+| "Access Denied" on admin/corpora | Frontend can't reach backend | Verify `NEXT_PUBLIC_BACKEND_URL` is set correctly (empty for IAP deployments) |
+| User has wrong agent/permissions | Google Groups not synced | Check Google Group memberships in Workspace Admin; Bridge syncs on next login |
+| Local dev: 401 on all endpoints | IAP_DEV_MODE not set | Set `IAP_DEV_MODE=true` and `IAP_DEV_USER_EMAIL=you@domain.com` in `backend/.env.local` |
 
 ---
 
