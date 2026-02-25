@@ -15,13 +15,6 @@ export default function CorpusSelector({ selectedCorpora, onCorporaChange }: Cor
 
   useEffect(() => {
     const loadCorpora = async () => {
-      // Don't try to load if not authenticated
-      if (!apiClient.isAuthenticated()) {
-        setLoading(false);
-        setError('Please log in to view corpora');
-        return;
-      }
-
       try {
         setLoading(true);
         const response = await apiClient.getAllCorporaWithAccess();

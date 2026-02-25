@@ -14,13 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const checkAdminAccess = async () => {
     try {
-      if (!apiClient.isAuthenticated()) {
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
-      const user = apiClient.getCurrentUser();
+      const user = await apiClient.checkIapAuth();
       if (user) {
         const groups = await apiClient.getMyGroups();
         const hasAdminAccess = groups.some((g: { name: string }) => g.name === 'admin-users');
