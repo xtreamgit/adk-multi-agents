@@ -52,18 +52,55 @@ Completed frontend authentication cleanup by removing all legacy Bearer token co
 - **Frontend:** Needs redeployment to apply IAP-only auth changes
 - **Backend:** backend-agent3 failed during last deployment (PORT timeout issue)
 
+## Additional Tasks Completed (Session Continuation)
+
+### 3. API Cleanup Verification
+**Status:** ✅ Already Complete
+- Verified `api-enhanced.ts` was already cleaned in previous session
+- No legacy Bearer token methods remain (`login`, `register`, `verifyToken`, `refreshToken`)
+- No legacy types remain (`LoginData`, `RegisterData`, `AuthToken`)
+- `getAuthHeaders()` and `clearToken()` retained for IAP auth use
+- Build verification: ✅ Passed
+
+### 4. Frontend Redeployment
+**Status:** ✅ Complete
+- Deployed frontend with IAP-only authentication
+- **Revision:** `frontend-00003-qx9`
+- **Direct URL:** https://frontend-351592762922.us-west1.run.app
+- **Load Balancer URL:** https://34.49.46.115.nip.io
+- Deployment time: ~4 minutes
+- Status: Serving 100% traffic
+
+### 5. Backend-agent3 Investigation & Fix
+**Status:** ✅ Complete
+
+**Root Cause:**
+- Container built from old commit with `DB_TYPE` import error
+- `add_missing_columns.py` tried to import non-existent `DB_TYPE` from `database.connection`
+- Service account `adk-rag-agent3-sa` lacked Secret Manager permissions
+- VPC connector misconfiguration from previous deployment
+
+**Resolution Steps:**
+1. Identified import error in startup logs
+2. Granted Secret Manager access: `roles/secretmanager.secretAccessor` to `adk-rag-agent3-sa`
+3. Cleared VPC connector setting with `--clear-vpc-connector`
+4. Redeployed with current code and correct configuration
+
+**Deployed:**
+- **Revision:** `backend-agent3-00006-c6l`
+- **URL:** https://backend-agent3-351592762922.us-west1.run.app
+- **Status:** Serving 100% traffic
+- **Configuration:**
+  - Cloud SQL connection: `adk-rag-ma:us-west1:adk-multi-agents-db`
+  - Secrets: `db-password:latest`
+  - Service account: `adk-rag-agent3-sa@adk-rag-ma.iam.gserviceaccount.com`
+  - Memory: 1Gi, CPU: 1, Timeout: 300s
+
 ## Pending Tasks
 
 ### High Priority
-1. **Redeploy Frontend** - Apply IAP-only auth changes to production
-2. **Clean up `api-enhanced.ts`** - Remove remaining legacy auth methods:
-   - `login()`, `register()`, `verifyToken()`, `refreshToken()`
-   - `getAuthHeaders()`, `setToken()`, `clearToken()`
-   - Types: `LoginData`, `RegisterData`, `AuthToken`
-
-### Medium Priority
-3. **Investigate backend-agent3 failure** - Container not listening on PORT 8080 within timeout
-4. **Test IAP authentication flow** - Verify landing page → main page flow works correctly
+1. **Test IAP authentication flow** - Verify landing page → main page flow works correctly via load balancer
+2. **Verify all backend services** - Ensure backend, backend-agent1, backend-agent2, backend-agent3 are all healthy
 
 ## Files Modified This Session
 - `/deployment.config` - Resolved merge conflict (kept DB config)
