@@ -36,19 +36,8 @@ export default function DocumentViewer({ document, onClose }: DocumentViewerProp
           proxyUrl += `?source_uri=${encodeURIComponent(sourceUri)}`;
         }
         
-        // Get auth token (stored as 'auth_token' by api client)
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-          setError('Not authenticated');
-          setIsLoading(false);
-          return;
-        }
-        
-        // Fetch PDF via proxy with authentication
+        // Fetch PDF via proxy with IAP authentication (credentials: 'include')
         const response = await fetch(proxyUrl, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
           credentials: 'include',
         });
         

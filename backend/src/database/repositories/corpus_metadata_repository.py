@@ -60,8 +60,8 @@ class CorpusMetadataRepository:
         query = """
             SELECT 
                 cm.*,
-                u1.username as created_by_name,
-                u2.username as last_synced_by_name
+                u1.email as created_by_name,
+                u2.email as last_synced_by_name
             FROM corpus_metadata cm
             LEFT JOIN users u1 ON cm.created_by = u1.id
             LEFT JOIN users u2 ON cm.last_synced_by = u2.id
@@ -216,8 +216,8 @@ class CorpusMetadataRepository:
                     cm.*,
                     c.name as corpus_name,
                     c.display_name as corpus_display_name,
-                    u1.username as created_by_name,
-                    u2.username as last_synced_by_name
+                    u1.email as created_by_name,
+                    u2.email as last_synced_by_name
                 FROM corpus_metadata cm
                 LEFT JOIN corpora c ON cm.corpus_id = c.id
                 LEFT JOIN users u1 ON cm.created_by = u1.id
@@ -232,8 +232,8 @@ class CorpusMetadataRepository:
                     cm.*,
                     c.name as corpus_name,
                     c.display_name as corpus_display_name,
-                    u1.username as created_by_name,
-                    u2.username as last_synced_by_name
+                    u1.email as created_by_name,
+                    u2.email as last_synced_by_name
                 FROM corpus_metadata cm
                 LEFT JOIN corpora c ON cm.corpus_id = c.id
                 LEFT JOIN users u1 ON cm.created_by = u1.id

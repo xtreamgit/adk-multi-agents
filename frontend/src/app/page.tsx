@@ -63,8 +63,9 @@ export default function Home() {
         const myAgents = await apiClient.getMyAgents();
         setAvailableAgents(myAgents);
         if (myAgents.length > 0) {
-          setCurrentAgent(myAgents[0]);
-          console.log('✅ Loaded default agent:', myAgents[0].display_name);
+          const defaultAgent = myAgents.find(a => a.is_default) || myAgents[0];
+          setCurrentAgent(defaultAgent);
+          console.log('✅ Loaded default agent:', defaultAgent.display_name);
         }
       } catch (err) {
         console.error('Failed to load user agents:', err);
@@ -115,7 +116,6 @@ export default function Home() {
 
   const handleLogout = () => {
     apiClient.logout();
-    // Redirect to landing page after logout
     router.push('/landing');
   };
 

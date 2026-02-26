@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends
 from typing import Optional
 import logging
 
-from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
 from database.connection import get_db_connection
 from services.agent_hierarchy import (
     can_agent_type_use_tool,
@@ -28,8 +28,7 @@ async def get_user_agent_type(current_user: dict = Depends(get_current_user)) ->
     If a user belongs to multiple groups with different agent types,
     returns the highest level (most permissive) agent type.
     
-    Note: This looks up the user by username in the chatbot_users table.
-    Regular app users (from the users table) may not have chatbot user records.
+    Links users to chatbot_users via the user_id FK column.
     
     Args:
         current_user: Current authenticated user
@@ -40,8 +39,7 @@ async def get_user_agent_type(current_user: dict = Depends(get_current_user)) ->
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # Get all agent types assigned to user's groups
-            # Note: chatbot_users is separate from users table
-            # We match by username since that's the common identifier
+            # chatbot_users is linked to users via user_id FK
             cur.execute("""
                 SELECT cat.name as agent_type,
                     CASE cat.name
@@ -55,10 +53,10 @@ async def get_user_agent_type(current_user: dict = Depends(get_current_user)) ->
                 JOIN chatbot_user_groups cug ON cu.id = cug.chatbot_user_id
                 JOIN chatbot_group_agent_types cgat ON cug.chatbot_group_id = cgat.chatbot_group_id
                 JOIN chatbot_agent_types cat ON cgat.chatbot_agent_type_id = cat.id
-                WHERE cu.username = %s
+                WHERE cu.user_id = %s
                 ORDER BY priority DESC
                 LIMIT 1
-            """, (current_user.username,))
+            """, (current_user.id,))
             
             result = cur.fetchone()
             return result['agent_type'] if result else None

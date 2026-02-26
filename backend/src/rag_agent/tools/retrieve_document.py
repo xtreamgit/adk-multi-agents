@@ -8,7 +8,7 @@ import logging
 
 from google.adk.tools.tool_context import ToolContext
 
-from .utils import check_corpus_exists, get_corpus_resource_name, get_document_resource_name
+from .utils import check_corpus_exists, get_corpus_resource_name, get_document_resource_name, check_user_corpus_access
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,20 @@ def retrieve_document(
     )
     
     try:
+        # Step 0: Verify user has access to this corpus
+        if not check_user_corpus_access(corpus_name, tool_context):
+            logger.warning(
+                f"[{account_env}] Corpus access denied for '{corpus_name}'",
+                extra={"agent": account_env, "corpus": corpus_name, "action": "retrieve_document"}
+            )
+            return {
+                "status": "error",
+                "message": f"Access denied: you do not have permission to access corpus '{corpus_name}'.",
+                "corpus_name": corpus_name,
+                "document_name": document_name,
+                "error_type": "access_denied"
+            }
+
         # Step 1: Verify corpus exists
         if not check_corpus_exists(corpus_name, tool_context):
             logger.warning(

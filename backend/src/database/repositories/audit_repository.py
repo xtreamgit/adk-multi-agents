@@ -70,7 +70,7 @@ class AuditRepository:
                 cal.*,
                 c.name as corpus_name,
                 c.display_name as corpus_display_name,
-                u.username as user_name
+                u.email as user_name
             FROM corpus_audit_log cal
             LEFT JOIN corpora c ON cal.corpus_id = c.id
             LEFT JOIN users u ON cal.user_id = u.id
@@ -98,7 +98,7 @@ class AuditRepository:
                 cal.*,
                 c.name as corpus_name,
                 c.display_name as corpus_display_name,
-                u.username as user_name
+                u.email as user_name
             FROM corpus_audit_log cal
             LEFT JOIN corpora c ON cal.corpus_id = c.id
             LEFT JOIN users u ON cal.user_id = u.id
@@ -154,7 +154,7 @@ class AuditRepository:
                 cal.*,
                 c.name as corpus_name,
                 c.display_name as corpus_display_name,
-                u.username as user_name
+                u.email as user_name
             FROM corpus_audit_log cal
             LEFT JOIN corpora c ON cal.corpus_id = c.id
             LEFT JOIN users u ON cal.user_id = u.id

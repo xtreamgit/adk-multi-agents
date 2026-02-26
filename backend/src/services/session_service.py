@@ -211,22 +211,28 @@ class SessionService:
         """
         Clean up expired sessions.
         
+        Marks sessions as inactive if:
+          - expires_at has passed, OR
+          - last_activity is older than SESSION_EXPIRE_HOURS (default 24h)
+        
         Returns:
             Number of sessions cleaned up
         """
-        now = datetime.now(timezone.utc).isoformat()
-        
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE user_sessions 
                 SET is_active = FALSE 
-                WHERE expires_at < %s AND is_active = TRUE
-            """, (now,))
+                WHERE is_active = TRUE
+                  AND (
+                    expires_at < NOW()
+                    OR last_activity < NOW() - INTERVAL '%s hours'
+                  )
+            """ % SESSION_EXPIRE_HOURS)
             conn.commit()
             count = cursor.rowcount
         
         if count > 0:
-            logger.info(f"Cleaned up {count} expired sessions")
+            logger.info(f"Cleaned up {count} expired/inactive sessions")
         
         return count

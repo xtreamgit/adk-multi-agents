@@ -148,12 +148,28 @@ class AgentService:
         user_dict = UserRepository.get_by_id(user_id)
         default_agent_id = user_dict.get('default_agent_id') if user_dict else None
         
+        # Load tools from agent config files
+        from services.agent_loader import load_agent_config
+        
         agents = []
         for agent_data in agents_dict:
+            agent_type = None
+            tools = []
+            config_path = agent_data.get('config_path')
+            if config_path:
+                try:
+                    config = load_agent_config(config_path)
+                    tools = config.get('tools', [])
+                    agent_type = config.get('agent_name', config_path)
+                except Exception:
+                    logger.warning(f"Could not load config for agent {config_path}")
+            
             agent = AgentWithAccess(
                 **agent_data,
                 has_access=True,
-                is_default=(agent_data['id'] == default_agent_id)
+                is_default=(agent_data['id'] == default_agent_id),
+                agent_type=agent_type,
+                tools=tools
             )
             agents.append(agent)
         

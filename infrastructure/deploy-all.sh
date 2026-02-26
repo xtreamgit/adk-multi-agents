@@ -203,6 +203,17 @@ fi
 # Standardize Google Cloud location env for backend
 export GOOGLE_CLOUD_LOCATION="$REGION"
 
+# Cloud SQL Configuration
+# Get Cloud SQL instance connection name
+CLOUD_SQL_INSTANCE=$(gcloud sql instances list --project="$PROJECT_ID" --format="value(name)" --limit=1 2>/dev/null || echo "")
+if [[ -n "$CLOUD_SQL_INSTANCE" ]]; then
+    export CLOUD_SQL_CONNECTION="${PROJECT_ID}:${REGION}:${CLOUD_SQL_INSTANCE}"
+    export DB_NAME="${DB_NAME:-adk_agents_db}"
+    export DB_USER="${DB_USER:-adk_app_user}"
+else
+    log_warning "No Cloud SQL instance found. Backend will need database configuration."
+fi
+
 # Display configuration
 echo -e "${BLUE}📋 Deployment Configuration:${NC}"
 echo "  Project ID: $PROJECT_ID"

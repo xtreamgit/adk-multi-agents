@@ -9,19 +9,21 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserBase(BaseModel):
     """Base user model with common fields."""
-    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     full_name: str = Field(..., min_length=1, max_length=100)
 
 
 class UserCreate(UserBase):
-    """Model for creating a new user."""
-    password: str = Field(..., min_length=8)
+    """Model for creating a new user via IAP.
+    
+    Note: Users are auto-created on first IAP login.
+    No password needed - IAP handles authentication.
+    """
+    pass
 
 
 class UserUpdate(BaseModel):
     """Model for updating user information."""
-    username: Optional[str] = Field(None, min_length=3, max_length=50)
     email: Optional[EmailStr] = None
     full_name: Optional[str] = Field(None, min_length=1, max_length=100)
     is_active: Optional[bool] = None
@@ -34,7 +36,6 @@ class User(UserBase):
     is_active: bool = True
     default_agent_id: Optional[int] = None
     google_id: Optional[str] = None
-    auth_provider: str = "local"  # 'local', 'iap', 'google'
     created_at: datetime
     updated_at: datetime
     last_login: Optional[datetime] = None
@@ -44,8 +45,11 @@ class User(UserBase):
 
 
 class UserInDB(User):
-    """User model with password hash (internal use only)."""
-    hashed_password: str
+    """User model for internal database operations.
+    
+    Note: No password hash - IAP handles all authentication.
+    """
+    pass
 
 
 class UserProfile(BaseModel):

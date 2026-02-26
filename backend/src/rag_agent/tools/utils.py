@@ -17,6 +17,57 @@ from ..config import (
 logger = logging.getLogger(__name__)
 
 
+def get_accessible_corpus_names(tool_context: ToolContext) -> list:
+    """
+    Get the list of corpus names the current user is authorized to access.
+    
+    Returns the list from session state, or an empty list if not set.
+    An empty list means no corpus access restrictions are enforced
+    (e.g., admin users or when the bridge is not configured).
+    """
+    return tool_context.state.get("accessible_corpus_names", [])
+
+
+def check_user_corpus_access(corpus_name: str, tool_context: ToolContext) -> bool:
+    """
+    Check if the current user has access to a specific corpus.
+    
+    Reads the user's accessible corpus list from the ADK session state
+    (injected by server.py from the chatbot_corpus_access table).
+    
+    Args:
+        corpus_name: The display name of the corpus to check access for.
+        tool_context: The ADK tool context containing session state.
+        
+    Returns:
+        True if the user has access, False otherwise.
+        If no access list is set in state, returns True (permissive fallback).
+    """
+    accessible = tool_context.state.get("accessible_corpus_names")
+    
+    # If no access list is set, allow access (backward compatibility / admin fallback)
+    if accessible is None:
+        return True
+    
+    # Empty list means the user has no corpus access at all
+    if not accessible:
+        return False
+    
+    # Check if the corpus name matches any accessible corpus
+    # Handle both display names and resource names
+    for allowed_name in accessible:
+        if corpus_name == allowed_name:
+            return True
+        # Also match if the corpus_name is a resource name ending with the allowed name
+        if corpus_name.endswith(f"/{allowed_name}"):
+            return True
+        # Also match if the allowed_name appears as the display name in a resource path
+        if allowed_name.endswith(f"/{corpus_name}"):
+            return True
+    
+    return False
+
+
 def get_document_resource_name(corpus_name: str, document_name: str) -> str | None:
     """
     Finds the full resource name for a document within a corpus by its display name.
@@ -153,6 +204,13 @@ def set_current_corpus(corpus_name: str, tool_context: ToolContext) -> bool:
     Returns:
         bool: True if the corpus exists and was set as current, False otherwise
     """
+    # Check if the user has access to this corpus
+    if not check_user_corpus_access(corpus_name, tool_context):
+        logger.warning(
+            f"Corpus access denied for set_current_corpus: '{corpus_name}'",
+        )
+        return False
+
     # Check if corpus exists first
     if check_corpus_exists(corpus_name, tool_context):
         tool_context.state["current_corpus"] = corpus_name

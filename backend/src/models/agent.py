@@ -3,7 +3,7 @@ Agent data models.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
@@ -45,3 +45,5 @@ class AgentWithAccess(Agent):
     """Agent model with user access information."""
     has_access: bool = False
     is_default: bool = False
+    agent_type: Optional[str] = None
+    tools: List[str] = []

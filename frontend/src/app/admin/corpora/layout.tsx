@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api-enhanced';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -14,12 +13,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const checkAdminAccess = async () => {
     try {
-      const user = await apiClient.checkIapAuth();
-      if (user) {
-        const groups = await apiClient.getMyGroups();
-        const hasAdminAccess = groups.some((g: { name: string }) => g.name === 'admin-users');
-        setIsAdmin(hasAdminAccess);
-      }
+      // Probe the backend admin endpoint directly — a 200 means admin access granted.
+      // The backend handles auth via IAP (prod) or IAP_DEV_MODE (local).
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || ''}/api/admin/corpora`,
+        { credentials: 'include', headers: { 'Content-Type': 'application/json' } }
+      );
+      setIsAdmin(response.ok);
     } catch (error) {
       console.error('Failed to check admin access:', error);
       setIsAdmin(false);

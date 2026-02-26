@@ -12,7 +12,7 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 
-from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user
 from database.connection import get_db_connection
 from services.agent_hierarchy import (
     get_agent_type_hierarchy_list,
@@ -1283,10 +1283,10 @@ async def get_my_available_agents(current_user = Depends(get_current_user)):
     """Get all agents available to the current logged-in chatbot user"""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # First, get the chatbot_user_id from the app user
+            # First, get the chatbot_user_id from the app user (via user_id FK)
             cur.execute("""
-                SELECT id FROM chatbot_users WHERE username = %s
-            """, (current_user.username,))
+                SELECT id FROM chatbot_users WHERE user_id = %s
+            """, (current_user.id,))
             chatbot_user = cur.fetchone()
             
             if not chatbot_user:

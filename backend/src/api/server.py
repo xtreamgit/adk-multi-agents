@@ -23,10 +23,7 @@ else:
 
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from passlib.context import CryptContext
-from jose import JWTError, jwt
 
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -40,7 +37,8 @@ if backend_src not in sys.path:
     sys.path.insert(0, backend_src)
 
 # Now import after sys.path is set
-from middleware.hybrid_auth_middleware import get_current_user_hybrid as get_current_user_from_middleware
+from middleware.iap_auth_middleware import get_current_user_iap as get_current_user_from_middleware
+from models.user import User
 
 # Import agent manager for dynamic agent loading (after path setup)
 try:
@@ -58,15 +56,14 @@ from database.schema_init import initialize_schema
 
 try:
     from api.routes import (
-        auth_router,
         users_router,
-        groups_router,
         agents_router,
         corpora_router,
         admin_router,
         iap_auth_router,
         documents_router,
-        chatbot_admin_router
+        chatbot_admin_router,
+        google_groups_admin_router
     )
     NEW_ROUTES_AVAILABLE = True
     print("✅ New API routes loaded successfully")
@@ -88,67 +85,7 @@ if not os.getenv("SHOW_ADK_WARNINGS", "false").lower() == "true":
     warnings.filterwarnings("ignore", message=".*non-text parts in the response.*")
     logging.getLogger("google.genai.types").setLevel(logging.ERROR)
 
-# Security configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 30
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
-
 # Database configuration (now handled in connection.py)
-
-def get_user_from_db(username: str) -> Optional[Dict]:
-    """Get user from database by username."""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, username, email, full_name, hashed_password, 
-                   is_active, default_agent_id, google_id, auth_provider,
-                   created_at, updated_at, last_login 
-            FROM users WHERE username = %s
-        """, (username,))
-        row = cursor.fetchone()
-        if row:
-            return dict(row)
-    return None
-
-def create_user_in_db(username: str, full_name: str, email: str, hashed_password: str) -> Dict:
-    """Create a new user in the database."""
-    created_at = datetime.now(timezone.utc).isoformat()
-    
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO users (username, full_name, email, hashed_password, created_at, last_login)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (username, full_name, email, hashed_password, created_at, None))
-        conn.commit()
-    
-    return {
-        "username": username,
-        "full_name": full_name,
-        "email": email,
-        "created_at": created_at,
-        "last_login": None
-    }
-
-def update_last_login(username: str):
-    """Update the last login timestamp for a user."""
-    last_login = datetime.now(timezone.utc).isoformat()
-    
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("UPDATE users SET last_login = %s WHERE username = %s", (last_login, username))
-        conn.commit()
-
-def user_exists(username: str) -> bool:
-    """Check if a user exists in the database."""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM users WHERE username = %s LIMIT 1", (username,))
-        return cursor.fetchone() is not None
 
 # Initialize database on startup
 logger = logging.getLogger(__name__)
@@ -156,41 +93,54 @@ logger.info("🔍 Initializing PostgreSQL database schema...")
 # Initialize PostgreSQL schema (idempotent - safe to run on every startup)
 initialize_schema()
 
-# Setup admin group and seed default users automatically
-def setup_admin_group():
-    """Create admin-users group and seed default users if needed."""
+# Sync corpora from Vertex AI on startup
+def sync_corpora_on_startup():
+    """Sync corpora from Vertex AI to database on application startup."""
     try:
-        from database.repositories import GroupRepository, UserRepository
-        from services.user_service import UserService
-        from database.seed_default_users import seed_default_users
+        from services.corpus_sync_service import CorpusSyncService
+        from config.config_loader import load_config
         
-        # Create admin-users group if it doesn't exist
-        admin_group = GroupRepository.get_group_by_name('admin-users')
-        if not admin_group:
-            admin_group = GroupRepository.create_group(
-                name='admin-users',
-                description='Administrators with full system access'
-            )
-            admin_group_id = admin_group['id']
-            print(f"✅ Created admin-users group (ID: {admin_group_id})")
-        else:
-            admin_group_id = admin_group['id']
+        account = os.getenv('ACCOUNT_ENV', 'develom')
+        config = load_config(account)
+        project_id = config.PROJECT_ID
+        location = config.LOCATION
         
-        # Seed default users if none exist
-        seed_default_users()
-        
-        # Get all users and add first user to admin group if they're not already
-        all_users = UserRepository.get_all()
-        if all_users:
-            first_user_id = all_users[0]['id']
-            user_groups = UserService.get_user_groups(first_user_id)
-            if admin_group_id not in user_groups:
-                UserService.add_user_to_group(first_user_id, admin_group_id)
-                print(f"✅ Added user '{all_users[0]['username']}' to admin-users group")
+        CorpusSyncService.sync_on_startup(project_id, location)
     except Exception as e:
-        print(f"⚠️  Admin group setup error (non-critical): {e}")
+        logger.error(f"⚠️  Corpus sync on startup failed (non-critical): {e}")
+        logger.error("   Application will continue with existing database data")
 
-setup_admin_group()
+sync_corpora_on_startup()
+
+# Clean up expired/inactive sessions on startup and periodically
+def cleanup_sessions_on_startup():
+    """Expire stale sessions on application startup."""
+    try:
+        from services.session_service import SessionService
+        count = SessionService.cleanup_expired_sessions()
+        if count > 0:
+            logger.info(f"🧹 Startup: cleaned up {count} expired/inactive sessions")
+        else:
+            logger.info("🧹 Startup: no expired sessions to clean up")
+    except Exception as e:
+        logger.error(f"⚠️  Session cleanup on startup failed (non-critical): {e}")
+
+cleanup_sessions_on_startup()
+
+
+async def _periodic_session_cleanup():
+    """Background task: expire stale sessions every hour."""
+    import asyncio
+    from services.session_service import SessionService
+    while True:
+        await asyncio.sleep(3600)  # 1 hour
+        try:
+            count = SessionService.cleanup_expired_sessions()
+            if count > 0:
+                logger.info(f"🧹 Periodic: cleaned up {count} expired/inactive sessions")
+        except Exception as e:
+            logger.error(f"⚠️  Periodic session cleanup failed: {e}")
+
 
 # Pydantic models for API requests/responses
 class UserProfile(BaseModel):
@@ -213,94 +163,6 @@ class SessionInfo(BaseModel):
     username: Optional[str] = None
     created_at: datetime
     last_activity: datetime
-
-class User(BaseModel):
-    id: int
-    username: str
-    full_name: str
-    email: str
-    created_at: str
-    last_login: Optional[str] = None
-
-class UserCreate(BaseModel):
-    username: str
-    password: str
-    full_name: str
-    email: str
-
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    user: User
-
-# Authentication functions
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-def verify_token(token: str) -> Optional[str]:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            return None
-        return username
-    except JWTError:
-        return None
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
-    """Get current authenticated user from token."""
-    token = credentials.credentials
-    username = verify_token(token)
-    
-    if username is None:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-    
-    user_data = get_user_from_db(username)
-    if user_data is None:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    # Ensure updated_at has a value (use created_at if NULL)
-    updated_at = user_data.get("updated_at") or user_data.get("created_at")
-    
-    # Convert datetime objects to ISO strings for Pydantic
-    def to_iso(dt):
-        if dt is None:
-            return None
-        if isinstance(dt, str):
-            return dt
-        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
-    
-    return User(
-        id=user_data["id"],
-        username=user_data["username"],
-        full_name=user_data["full_name"],
-        email=user_data["email"],
-        is_active=bool(user_data.get("is_active", True)),
-        default_agent_id=user_data.get("default_agent_id"),
-        google_id=user_data.get("google_id"),
-        auth_provider=user_data.get("auth_provider", "local"),
-        created_at=to_iso(user_data["created_at"]),
-        updated_at=to_iso(updated_at),
-        last_login=to_iso(user_data.get("last_login")),
-    )
 
 # In-memory session storage (in production, use Redis or database)
 sessions: Dict[str, Dict] = {}
@@ -408,216 +270,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+async def start_periodic_tasks():
+    import asyncio
+    asyncio.create_task(_periodic_session_cleanup())
+
 # ============================================================================
 # Register New Modular API Routes
 # ============================================================================
 if NEW_ROUTES_AVAILABLE:
-    app.include_router(auth_router)
     app.include_router(users_router)
-    app.include_router(groups_router)
     app.include_router(agents_router)
     app.include_router(corpora_router)
     app.include_router(admin_router)
     app.include_router(iap_auth_router)
     app.include_router(documents_router)
     app.include_router(chatbot_admin_router)
-    print("🚀 New API Routes Registered:")
-    print("  ✅ /api/auth/*        - Authentication (register, login, refresh)")
+    app.include_router(google_groups_admin_router)
+    print("🚀 API Routes Registered (IAP-only auth):")
     print("  ✅ /api/users/*       - User Management (profile, preferences)")
-    print("  ✅ /api/groups/*      - Groups & Roles (admin)")
     print("  ✅ /api/agents/*      - Agent Management (switching, access)")
     print("  ✅ /api/corpora/*     - Corpus Management (access, selection)")
     print("  ✅ /api/admin/*       - Admin Panel (corpus management, audit)")
     print("  ✅ /api/iap/*         - IAP Authentication (Google Cloud IAP)")
     print("  ✅ /api/documents/*   - Document Retrieval (view, access)")
     print("  ✅ /api/admin/chatbot/* - Chatbot User Management (separate access control)")
+    print("  ✅ /api/admin/google-groups/* - Google Groups Bridge (mapping & sync)")
     print("="*70 + "\n")
-    
-    # Note: Old auth endpoints below are replaced by new routes
-    # The new routes provide enhanced functionality with RBAC
 else:
-    print("⚠️  Using legacy authentication endpoints")
-    print("   To enable new features, run: python src/database/migrations/run_migrations.py\n")
-
-# ============================================================================
-# Legacy Authentication Endpoints
-# NOTE: These endpoints are REPLACED by the new auth_router if available.
-# The new routes provide:
-#   - Enhanced user profiles with preferences
-#   - Role-based access control (RBAC)
-#   - Better error handling and validation
-# These are kept for backwards compatibility if new routes aren't loaded.
-# ============================================================================
-
-# Legacy endpoint - replaced by /api/auth/register in new routes
-@app.post("/api/auth/register-legacy", response_model=User, include_in_schema=not NEW_ROUTES_AVAILABLE)
-async def register_user(user_data: UserCreate):
-    """Register a new user."""
-    # Check if user already exists
-    if user_exists(user_data.username):
-        raise HTTPException(status_code=400, detail="Username already exists")
-    
-    # Create new user
-    hashed_password = get_password_hash(user_data.password)
-    created_user = create_user_in_db(user_data.username, user_data.full_name, user_data.email, hashed_password)
-    
-    # Return user without password
-    # Convert datetime objects to ISO strings for Pydantic
-    def to_iso(dt):
-        if dt is None:
-            return None
-        if isinstance(dt, str):
-            return dt
-        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
-    
-    return User(
-        id=created_user["id"],
-        username=created_user["username"],
-        full_name=created_user["full_name"],
-        email=created_user["email"],
-        is_active=bool(created_user.get("is_active", True)),
-        default_agent_id=created_user.get("default_agent_id"),
-        google_id=created_user.get("google_id"),
-        auth_provider=created_user.get("auth_provider", "local"),
-        created_at=to_iso(created_user["created_at"]),
-        updated_at=to_iso(created_user.get("updated_at") or created_user.get("created_at")),
-        last_login=to_iso(created_user.get("last_login")),
-    )
-
-# Legacy endpoint - replaced by /api/auth/login in new routes
-@app.post("/api/auth/login-legacy", response_model=Token, include_in_schema=not NEW_ROUTES_AVAILABLE)
-async def login_user(login_data: UserLogin):
-    """Authenticate user and return JWT token."""
-    # Check if user exists
-    user_data = get_user_from_db(login_data.username)
-    if not user_data:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    
-    # Verify password
-    if not verify_password(login_data.password, user_data["hashed_password"]):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    
-    # Update last login
-    update_last_login(login_data.username)
-    
-    # Create access token
-    access_token = create_access_token(data={"sub": user_data["username"]})
-    
-    # Return token with user info
-    # Ensure updated_at has a value (use created_at if NULL)
-    updated_at = user_data.get("updated_at") or user_data.get("created_at")
-    
-    # Convert datetime objects to ISO strings for Pydantic
-    def to_iso(dt):
-        if dt is None:
-            return None
-        if isinstance(dt, str):
-            return dt
-        return dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
-    
-    user_info = User(
-        id=user_data["id"],
-        username=user_data["username"],
-        full_name=user_data["full_name"],
-        email=user_data["email"],
-        is_active=bool(user_data.get("is_active", True)),
-        default_agent_id=user_data.get("default_agent_id"),
-        google_id=user_data.get("google_id"),
-        auth_provider=user_data.get("auth_provider", "local"),
-        created_at=to_iso(user_data["created_at"]),
-        updated_at=to_iso(updated_at),
-        last_login=to_iso(user_data.get("last_login")),
-    )
-    return Token(access_token=access_token, token_type="bearer", user=user_info)
-
-# Legacy endpoint - replaced by /api/auth/me in new routes
-@app.get("/api/auth/verify-legacy", response_model=User, include_in_schema=not NEW_ROUTES_AVAILABLE)
-async def verify_user_token(current_user: User = Depends(get_current_user)):
-    """Verify JWT token and return user info."""
-    return current_user
-
-@app.get("/api/auth/check-username/{username}")
-async def check_username_exists(username: str):
-    """Check if a username exists in the database."""
-    exists = user_exists(username)
-    return {"username": username, "exists": exists}
-
-@app.get("/api/admin/users")
-async def get_all_users(current_user: User = Depends(get_current_user)):
-    """Get all users from the database (admin endpoint)."""
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT username, full_name, email, created_at, last_login 
-                FROM users 
-                ORDER BY created_at DESC
-            """)
-            rows = cursor.fetchall()
-            
-            users = []
-            for row in rows:
-                users.append({
-                    "username": row["username"],
-                    "full_name": row["full_name"],
-                    "email": row["email"],
-                    "created_at": row["created_at"],
-                    "last_login": row["last_login"]
-                })
-            
-            return {"users": users, "total_count": len(users)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying users: {str(e)}")
-
-@app.get("/api/admin/user-stats")
-async def get_user_stats(current_user: User = Depends(get_current_user)):
-    """Get user statistics from the database."""
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Total users
-            cursor.execute("SELECT COUNT(*) as total FROM users")
-            total_users = cursor.fetchone()["total"]
-            
-            # Users created today
-            today = datetime.now(timezone.utc).date().isoformat()
-            cursor.execute("SELECT COUNT(*) as today FROM users WHERE DATE(created_at) = %s", (today,))
-            users_today = cursor.fetchone()["today"]
-            
-            # Users with recent login (last 7 days)
-            week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            cursor.execute("SELECT COUNT(*) as active FROM users WHERE last_login > %s", (week_ago,))
-            active_users = cursor.fetchone()["active"]
-            
-            return {
-                "total_users": total_users,
-                "users_created_today": users_today,
-                "active_users_last_week": active_users
-            }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting user stats: {str(e)}")
-
-@app.get("/api/admin/sessions")
-async def get_all_sessions(current_user: User = Depends(get_current_user)):
-    """Get all active sessions with user information."""
-    try:
-        session_list = []
-        for session_id, session_data in sessions.items():
-            session_list.append({
-                "session_id": session_id,
-                "username": session_data.get("username", "Unknown"),
-                "created_at": session_data.get("created_at"),
-                "last_activity": session_data.get("last_activity"),
-                "chat_messages": len(session_data.get("chat_history", []))
-            })
-        
-        # Sort by last activity (most recent first)
-        session_list.sort(key=lambda x: x["last_activity"] if x["last_activity"] else datetime.min, reverse=True)
-        
-        return {"sessions": session_list, "total_sessions": len(session_list)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting sessions: {str(e)}")
+    print("⚠️  API routes not available")
+    print("   To enable features, run: python src/database/migrations/run_migrations.py\n")
 
 @app.get("/")
 async def root():
@@ -713,7 +396,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": user_profile.model_dump() if user_profile else None,
-            "username": current_user.username,
+            "username": current_user.email,
             "user_id": current_user.id,
             "agent_id": agent_id,
             "agent_name": agent_name,
@@ -728,7 +411,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
             extra={
                 "session_id": session_id,
                 "account_env": account_env,
-                "username": current_user.username,
+                "username": current_user.email,
                 "agent_id": agent_id,
                 "agent_name": agent_name,
             },
@@ -737,7 +420,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
         return SessionInfo(
             session_id=session_id,
             user_profile=user_profile,
-            username=current_user.username,
+            username=current_user.email,
             created_at=now,
             last_activity=now,
         )
@@ -747,7 +430,7 @@ async def create_session(user_profile: Optional[UserProfile] = None, current_use
             extra={
                 "session_id": session_id,
                 "account_env": account_env,
-                "username": current_user.username,
+                "username": current_user.email,
             },
         )
         raise
@@ -766,7 +449,7 @@ async def get_session(session_id: str, current_user: User = Depends(get_current_
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": None,
-            "username": current_user.username,
+            "username": current_user.email,
             "created_at": now,
             "last_activity": now,
             "chat_history": []
@@ -795,7 +478,7 @@ async def update_user_profile(session_id: str, user_profile: UserProfile, curren
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": None,
-            "username": current_user.username,
+            "username": current_user.email,
             "created_at": now,
             "last_activity": now,
             "chat_history": []
@@ -836,7 +519,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         sessions[session_id] = {
             "session_id": session_id,
             "user_profile": None,
-            "username": current_user.username,
+            "username": current_user.email,
             "user_id": current_user.id,
             "agent_id": agent_id,
             "agent_name": agent_name,
@@ -903,7 +586,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     
     if unauthorized_corpora:
         logging.warning(
-            f"[CORPUS] User {current_user.username} (id={user_id}) attempted to access "
+            f"[CORPUS] User {current_user.email} (id={user_id}) attempted to access "
             f"unauthorized corpora: {unauthorized_corpora}. Allowed: {list(accessible_corpus_names)}"
         )
     
@@ -917,7 +600,7 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
     
     # Build corpus instruction for the LLM using only validated corpora
     corpus_list = ", ".join(validated_corpora)
-    logging.info(f"[CORPUS] User {current_user.username} querying {len(validated_corpora)} validated corpora: {corpus_list}")
+    logging.info(f"[CORPUS] User {current_user.email} querying {len(validated_corpora)} validated corpora: {corpus_list}")
     user_context += f"\n{'='*80}\n"
     user_context += f"CRITICAL INSTRUCTION - READ THIS CAREFULLY:\n"
     user_context += f"The user has selected {len(validated_corpora)} corpora: {corpus_list}\n"
@@ -952,18 +635,24 @@ async def chat_with_agent(session_id: str, chat_message: ChatMessage, current_us
         
         # Ensure ADK session exists - only create if it doesn't exist
         try:
-            session_service.get_session(
+            adk_session = session_service.get_session(
                 app_name="rag_agent_api", 
                 user_id="api_user", 
                 session_id=session_id
             )
         except:
             # Only create if session doesn't exist
-            session_service.create_session(
+            adk_session = session_service.create_session(
                 app_name="rag_agent_api", 
                 user_id="api_user", 
                 session_id=session_id
             )
+        
+        # Inject user identity and accessible corpora into ADK session state
+        # so that tools can enforce corpus-level access control
+        adk_session.state["user_id"] = current_user.id
+        adk_session.state["user_email"] = current_user.email
+        adk_session.state["accessible_corpus_names"] = sorted(accessible_corpus_names)
         
         # Create user content for ADK
         user_content = types.Content(
@@ -1063,83 +752,6 @@ async def delete_session(session_id: str, current_user: User = Depends(get_curre
     
     del sessions[session_id]
     return {"message": "Session deleted successfully"}
-
-# Legacy endpoint - replaced by /api/corpora/ in new routes (with enhanced access control)
-@app.get("/api/corpora-legacy", include_in_schema=not NEW_ROUTES_AVAILABLE)
-async def list_corpora(current_user: User = Depends(get_current_user)):
-    """List all available corpora using the RAG agent."""
-    try:
-        # Create a temporary session for this request
-        temp_session_id = str(uuid.uuid4())
-        session_service.create_session(
-            app_name="rag_agent_api", 
-            user_id="api_user", 
-            session_id=temp_session_id
-        )
-        
-        # Create user content for listing corpora
-        user_content = types.Content(
-            role='user', 
-            parts=[types.Part(text="list_corpora")]
-        )
-        
-        # Run the agent and collect response
-        response_text = ""
-        async for event in runner.run_async(
-            user_id="api_user", 
-            session_id=temp_session_id, 
-            new_message=user_content
-        ):
-            if event.is_final_response() and event.content and event.content.parts:
-                for part in event.content.parts:
-                    if hasattr(part, 'text') and part.text:
-                        response_text += part.text
-        
-        return {"corpora": response_text}
-        
-    except Exception as e:
-        import traceback
-        error_details = f"Error listing corpora: {str(e)}"
-        traceback_details = traceback.format_exc()
-        print(f"CORPORA ERROR: {error_details}")
-        print(f"CORPORA TRACEBACK: {traceback_details}")
-        raise HTTPException(status_code=500, detail=error_details)
-
-# Legacy endpoint - replaced by /api/corpora/ in new routes (with enhanced access control)
-@app.post("/api/corpora-legacy", include_in_schema=not NEW_ROUTES_AVAILABLE)
-async def create_corpus(corpus_name: str, current_user: User = Depends(get_current_user)):
-    """Create a new corpus using the RAG agent."""
-    try:
-        # Create a temporary session for this request
-        temp_session_id = str(uuid.uuid4())
-        session_service.create_session(
-            app_name="rag_agent_api", 
-            user_id="api_user", 
-            session_id=temp_session_id
-        )
-        
-        # Create user content for creating corpus
-        user_content = types.Content(
-            role='user', 
-            parts=[types.Part(text=f"create_corpus {corpus_name}")]
-        )
-        
-        # Run the agent and collect response
-        response_text = ""
-        async for event in runner.run_async(
-            user_id="api_user", 
-            session_id=temp_session_id, 
-            new_message=user_content
-        ):
-            if event.is_final_response() and event.content and event.content.parts:
-                for part in event.content.parts:
-                    if hasattr(part, 'text') and part.text:
-                        response_text += part.text
-        
-        return {"message": f"Corpus '{corpus_name}' creation initiated", "details": response_text}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating corpus: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -23,8 +23,8 @@ export default function OpenDocumentPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const iapUser = await apiClient.checkIapAuth();
-        if (iapUser) {
+        const user = await apiClient.checkIapAuth();
+        if (user) {
           setAuthChecked(true);
         } else {
           router.push('/landing');

@@ -5,9 +5,10 @@ This runs as part of startup to ensure the table has all required columns.
 """
 import sys
 import os
+import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from database.connection import get_db_connection, DB_TYPE
+from database.connection import get_db_connection
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
@@ -16,12 +17,30 @@ logger = logging.getLogger(__name__)
 def add_missing_columns():
     """Add missing columns to corpus_metadata if they don't exist."""
     
-    if DB_TYPE != 'postgresql':
-        logger.info("[ADD_COLUMNS] Skipping - not using PostgreSQL")
-        return True
-    
     logger.info("[ADD_COLUMNS] Checking corpus_metadata schema...")
     
+    # Retry logic for Cloud SQL connection (socket may not be ready immediately)
+    max_retries = 5
+    retry_delay = 2  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            return _add_columns_with_connection()
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"[ADD_COLUMNS] Connection attempt {attempt + 1}/{max_retries} failed: {e}")
+                logger.info(f"[ADD_COLUMNS] Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error(f"[ADD_COLUMNS] All {max_retries} connection attempts failed")
+                logger.error(f"[ADD_COLUMNS] Error: {e}", exc_info=True)
+                # Don't fail startup - just log the error
+                logger.warning("[ADD_COLUMNS] Skipping column additions - will retry on next startup")
+                return True  # Return True to not block startup
+
+def _add_columns_with_connection():
+    """Internal method that performs the actual column additions."""
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
