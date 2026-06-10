@@ -415,6 +415,8 @@ def seed_users(cur, users: list, group_map: dict,
         is_admin = user_def.get("is_admin", False)
 
         # 1. Ensure users table record
+        #    Note: migration 014 removed username/auth_provider columns from users table.
+        #    The simplified users table has: id, email, full_name, google_id, is_active, created_at, updated_at.
         cur.execute("SELECT id, email FROM users WHERE email = %s", (email,))
         existing_user = cur.fetchone()
 
@@ -438,10 +440,10 @@ def seed_users(cur, users: list, group_map: dict,
                 continue
             else:
                 cur.execute(
-                    """INSERT INTO users (username, email, full_name, auth_provider, is_active, created_at, updated_at)
-                       VALUES (%s, %s, %s, 'iap', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """INSERT INTO users (email, full_name, is_active, created_at, updated_at)
+                       VALUES (%s, %s, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                        RETURNING id""",
-                    (username, email, full_name),
+                    (email, full_name),
                 )
                 user_id = cur.fetchone()["id"]
                 created += 1
@@ -450,18 +452,42 @@ def seed_users(cur, users: list, group_map: dict,
         if dry_run:
             continue
 
-        # 2. Ensure chatbot_users record linked to users.id
-        cur.execute("SELECT id FROM chatbot_users WHERE user_id = %s", (user_id,))
+        # 2. Ensure chatbot_users record linked by email
+        #    Note: user_id column may not exist if migration 015 was not applied.
+        #    Use email for lookup (always present, unique).
+        cur.execute("SELECT id FROM chatbot_users WHERE email = %s", (email,))
         existing_cu = cur.fetchone()
         if not existing_cu:
+            # Check if user_id column exists before including it in INSERT
             cur.execute(
-                """INSERT INTO chatbot_users (username, email, full_name, user_id, is_active)
-                   VALUES (%s, %s, %s, %s, TRUE)
-                   ON CONFLICT (email) DO UPDATE SET user_id = EXCLUDED.user_id
-                   RETURNING id""",
-                (username, email, full_name, user_id),
+                """SELECT column_name FROM information_schema.columns
+                   WHERE table_name = 'chatbot_users' AND column_name = 'user_id'"""
             )
-            chatbot_user_id = cur.fetchone()["id"]
+            has_user_id = cur.fetchone() is not None
+
+            if has_user_id:
+                cur.execute(
+                    """INSERT INTO chatbot_users (username, email, full_name, user_id, is_active)
+                       VALUES (%s, %s, %s, %s, TRUE)
+                       ON CONFLICT (email) DO UPDATE SET user_id = EXCLUDED.user_id
+                       RETURNING id""",
+                    (username, email, full_name, user_id),
+                )
+            else:
+                cur.execute(
+                    """INSERT INTO chatbot_users (username, email, full_name, is_active)
+                       VALUES (%s, %s, %s, TRUE)
+                       ON CONFLICT (email) DO NOTHING
+                       RETURNING id""",
+                    (username, email, full_name),
+                )
+                # If ON CONFLICT DO NOTHING matched, fetch existing id
+                result = cur.fetchone()
+                if result is None:
+                    cur.execute("SELECT id FROM chatbot_users WHERE email = %s", (email,))
+                    result = cur.fetchone()
+
+            chatbot_user_id = cur.fetchone()["id"] if has_user_id else result["id"]
             log_success(f"  Created chatbot_user for {email} (id={chatbot_user_id})")
         else:
             chatbot_user_id = existing_cu["id"]

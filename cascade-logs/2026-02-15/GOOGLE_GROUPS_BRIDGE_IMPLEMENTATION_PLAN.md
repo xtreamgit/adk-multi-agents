@@ -28,7 +28,7 @@ google_groups_bridge.py
 
 ## Design Decision: Option B (Map Existing Org Groups Directly)
 
-We map the customer's **existing** Google Groups (e.g., `develom-developers@develom.com`) directly to agent types and corpora. No new Google Groups need to be created.
+We map the customer's **existing** Google Groups (e.g., `usda-developers@usda.gov`) directly to agent types and corpora. No new Google Groups need to be created.
 
 **Two-dimensional model:**
 - **Dimension 1 — Agent type:** Which Google Group → which agent type (viewer, contributor, content-manager, admin)
@@ -329,7 +329,7 @@ Add "Google Groups" menu item under "Chatbot Access" section in `frontend/src/ap
 ## Testing Strategy
 
 1. **Unit tests:** Mock Cloud Identity API responses, verify sync logic
-2. **Integration test:** Use a real Google Group in `develom.com`, verify end-to-end
+2. **Integration test:** Use a real Google Group in `usda.gov`, verify end-to-end
 3. **Fallback test:** Disable Cloud Identity API, verify user still logs in with cached permissions
 4. **Multi-group test:** User in multiple groups gets highest agent type + union of corpora
 

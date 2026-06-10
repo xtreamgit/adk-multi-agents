@@ -7,13 +7,39 @@ source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
 
 finalize_deployment() {
     log_section "SECTION 7: Finalization & CORS Configuration"
-    
+
+    backfill_backend_service_id
     configure_cors
     rebuild_frontend_with_lb
     validate_deployment
     show_deployment_summary
-    
+
     return 0
+}
+
+backfill_backend_service_id() {
+    log_info "Setting BACKEND_SERVICE_ID on Cloud Run backend services..."
+
+    # Discover the backend service ID from the Load Balancer (created in Section 5)
+    local bs_id
+    bs_id=$(gcloud compute backend-services describe backend-backend-service --global --format="value(id)" 2>/dev/null || echo "")
+
+    if [ -z "$bs_id" ]; then
+        log_warning "Could not discover backend-backend-service ID. IAP JWT verification may fail."
+        return 0
+    fi
+
+    log_info "Discovered BACKEND_SERVICE_ID=$bs_id"
+
+    # Update all backend Cloud Run services with the correct BACKEND_SERVICE_ID
+    for svc in backend backend-agent1 backend-agent2 backend-agent3; do
+        gcloud run services update "$svc" \
+            --region="$REGION" \
+            --update-env-vars="BACKEND_SERVICE_ID=$bs_id" \
+            --quiet 2>/dev/null && \
+            log_success "  $svc: BACKEND_SERVICE_ID set" || \
+            log_warning "  $svc: failed to set BACKEND_SERVICE_ID"
+    done
 }
 
 configure_cors() {

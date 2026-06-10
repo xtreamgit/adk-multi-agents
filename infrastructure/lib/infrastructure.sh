@@ -157,26 +157,20 @@ configure_iam_permissions() {
             --quiet 2>/dev/null || true
     done
 
-    # Bucket-level IAM for ai-books corpus (bucket: ipad-book-collection)
-    # Shared across: default agent (RAG_AGENT_SA) and agents 1–3.
-    for sa in "$RAG_AGENT_SA" "$RAG_AGENT1_SA" "$RAG_AGENT2_SA" "$RAG_AGENT3_SA"; do
-        echo "  Granting storage.objectViewer on gs://ipad-book-collection to $sa..."
-        gcloud storage buckets add-iam-policy-binding "gs://ipad-book-collection" \
-            --member="serviceAccount:${sa}" \
-            --role="roles/storage.objectViewer" \
-            --quiet 2>/dev/null || true
+    # Bucket-level IAM for corpus GCS buckets (from environments/*.yaml corpus_to_bucket_mapping)
+    # Buckets: usfs-forest-policies, usfs-environmental-reports, usfs-fire-management-docs
+    CORPUS_BUCKETS=("usfs-forest-policies" "usfs-environmental-reports" "usfs-fire-management-docs")
+    for bucket in "${CORPUS_BUCKETS[@]}"; do
+        for sa in "$RAG_AGENT_SA" "$RAG_AGENT1_SA" "$RAG_AGENT2_SA" "$RAG_AGENT3_SA"; do
+            echo "  Granting storage.objectViewer on gs://$bucket to $sa..."
+            gcloud storage buckets add-iam-policy-binding "gs://$bucket" \
+                --member="serviceAccount:${sa}" \
+                --role="roles/storage.objectViewer" \
+                --quiet 2>/dev/null || true
+        done
     done
 
-    # Bucket-level IAM for general-docs corpus (bucket: develom-documents)
-    # Shared across: default agent (RAG_AGENT_SA) and agents 1–3.
-    for sa in "$RAG_AGENT_SA" "$RAG_AGENT1_SA" "$RAG_AGENT2_SA" "$RAG_AGENT3_SA"; do
-        echo "  Granting storage.objectViewer on gs://develom-documents to $sa..."
-        gcloud storage buckets add-iam-policy-binding "gs://develom-documents" \
-            --member="serviceAccount:${sa}" \
-            --role="roles/storage.objectViewer" \
-            --quiet 2>/dev/null || true
-    done
-    
+
     # Basic permissions for Backend SA
     echo "  Granting basic permissions to Backend SA..."
     gcloud projects add-iam-policy-binding "$PROJECT_ID" \

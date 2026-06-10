@@ -173,13 +173,13 @@ CONFIG_IAP_ADMIN=""
 CONFIG_ACCOUNT_ENV=""
 
 if [[ -f "$CONFIG_FILE" ]]; then
-    # Read only uncommented export lines with simple string values
-    CONFIG_PROJECT_ID=$(grep -E '^\s*export\s+PROJECT_ID=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
-    CONFIG_REGION=$(grep -E '^\s*export\s+REGION=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | sed 's/#.*//' | xargs)
-    CONFIG_REPO=$(grep -E '^\s*export\s+REPO=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
-    CONFIG_ORG_DOMAIN=$(grep -E '^\s*export\s+ORGANIZATION_DOMAIN=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
-    CONFIG_IAP_ADMIN=$(grep -E '^\s*export\s+IAP_ADMIN_USER=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
-    CONFIG_ACCOUNT_ENV=$(grep -E '^\s*export\s+ACCOUNT_ENV=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    # Read uncommented lines with simple string values (with or without 'export')
+    CONFIG_PROJECT_ID=$(grep -E '^\s*(export\s+)?PROJECT_ID=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_REGION=$(grep -E '^\s*(export\s+)?REGION=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | sed 's/#.*//' | xargs)
+    CONFIG_REPO=$(grep -E '^\s*(export\s+)?REPO=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_ORG_DOMAIN=$(grep -E '^\s*(export\s+)?ORGANIZATION_DOMAIN=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_IAP_ADMIN=$(grep -E '^\s*(export\s+)?IAP_ADMIN_USER=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
+    CONFIG_ACCOUNT_ENV=$(grep -E '^\s*(export\s+)?ACCOUNT_ENV=' "$CONFIG_FILE" | grep -v '^\s*#' | tail -1 | sed 's/.*="\{0,1\}\([^"]*\)"\{0,1\}/\1/' | xargs)
     echo -e "${BOLD}Values from deployment.config:${NC}"
     echo -e "  PROJECT_ID : ${CONFIG_PROJECT_ID:-<not set>}"
     echo -e "  REGION     : ${CONFIG_REGION:-<not set>}"

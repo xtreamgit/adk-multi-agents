@@ -286,7 +286,7 @@ seed_data:
 
 ## 4. Generate Configuration Files
 
-The `deploy_env_config.py` script reads your environment YAML and generates **three files** automatically:
+The `./backend/deploy_env_config.py` script reads your environment YAML and generates **three files** automatically:
 
 | Generated File | Purpose |
 |----------------|---------|

@@ -10,12 +10,12 @@ account_env: "usfs"
 
 # Google Cloud Project
 project_id: "usfs-gcp-arch-testing"
-project_number: ""  # TODO: Fill in actual project number
+project_number: "41078795448"
 region: "us-east4"
 organization_domain: "usda.gov"
 
 # IAP / Admin
-iap_admin_user: ""  # TODO: Fill in USFS admin email
+iap_admin_user: "hector.dejesus@usda.gov"  # TODO: Fill in USFS admin email
 
 # Repository
 repo: "cloud-run-repo1"
@@ -28,7 +28,7 @@ database:
   name: "adk_agents_db"
   user: "adk_app_user"
   password: ""
-  password_secret_name: ""
+  password_secret_name: "AkdDB2024!SecurePass"
 
   local:
     host: "localhost"
@@ -78,3 +78,131 @@ service_accounts:
   backend_sa: ""
   frontend_sa: ""
   rag_agent_sa: ""
+
+# ---- Seed Data ----
+# Authentication: Google IAP (no passwords needed)
+# Authorization: Google Groups Bridge (maps Google Groups -> chatbot groups + corpus access)
+# Corpora: NOT seeded here — synced from Vertex AI on startup via CorpusSyncService.
+#
+# This section defines:
+#   1. chatbot_groups — access tiers that determine agent type + corpus permissions
+#   2. chatbot_agents — agent definitions with tool sets per access tier
+#   3. chatbot_group_agents — which agent each group uses
+#   4. google_group_agent_mappings — Google Group -> chatbot_group (agent type dimension)
+#   5. google_group_corpus_mappings — Google Group -> corpus + permission (corpus access dimension)
+#   6. users — initial admin user(s) created via IAP on first login
+#
+# Run: python seed_data.py --env ../environments/usfs.yaml [--target cloud|local]
+
+seed_data:
+
+  # ── Chatbot Groups ──────────────────────────────────────────────────────────
+  # Four access tiers, from least to most privileged.
+  chatbot_groups:
+    - name: "viewer-group"
+      description: "Read-only access group with Viewer Agent capabilities"
+
+    - name: "contributor-group"
+      description: "Content contributor group with ability to add documents"
+
+    - name: "content-manager-group"
+      description: "Content management group with document lifecycle control"
+
+    - name: "admin-group"
+      description: "Administrative group with full corpus and document control"
+
+  # ── Chatbot Agents ──────────────────────────────────────────────────────────
+  # One agent per access tier. Tools are cumulative up the hierarchy.
+  chatbot_agents:
+    - name: "viewer-agent"
+      display_name: "Viewer Agent"
+      agent_type: "viewer"
+      description: "Read-only access for general users. Can query documents and browse corpora but cannot modify any data."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+
+    - name: "contributor-agent"
+      display_name: "Contributor Agent"
+      agent_type: "contributor"
+      description: "Users who can add content. Has all viewer capabilities plus the ability to add documents to corpora."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+        - "add_data"
+
+    - name: "content-manager-agent"
+      display_name: "Content Manager Agent"
+      agent_type: "content-manager"
+      description: "Manage documents within existing corpora. Can add and delete documents but cannot create or delete corpora."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+        - "add_data"
+        - "delete_document"
+
+    - name: "admin-agent"
+      display_name: "Admin Agent"
+      agent_type: "admin"
+      description: "Full corpus lifecycle management. Complete control over corpora and documents. For administrators only."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+        - "add_data"
+        - "create_corpus"
+        - "delete_document"
+        - "delete_corpus"
+
+  # ── Group -> Agent Assignments ───────────────────────────────────────────────
+  # Each group gets exactly one agent (1:1 mapping).
+  chatbot_group_agents:
+    viewer-group: "viewer-agent"
+    contributor-group: "contributor-agent"
+    content-manager-group: "content-manager-agent"
+    admin-group: "admin-agent"
+
+  # ── Google Group -> Chatbot Group Mappings (Agent Type Dimension) ────────────
+  # Maps Google Groups to chatbot groups. Priority determines which group wins
+  # when a user belongs to multiple Google Groups (highest priority wins).
+  google_group_agent_mappings:
+    - google_group_email: "rag-viewers@usda.gov"
+      chatbot_group: "viewer-group"
+      priority: 0
+
+    - google_group_email: "rag-contributors@usda.gov"
+      chatbot_group: "contributor-group"
+      priority: 0
+
+    - google_group_email: "rag-content-managers@usda.gov"
+      chatbot_group: "content-manager-group"
+      priority: 0
+
+    - google_group_email: "rag-admins@usda.gov"
+      chatbot_group: "admin-group"
+      priority: 1
+
+  # ── Google Group -> Corpus Mappings (Corpus Access Dimension) ────────────────
+  # Explicit corpus permission overrides for specific Google Groups.
+  # Auto-mapping also applies: groups named "corpus-{name}@domain" automatically
+  # grant 'read' permission to the corpus with that name.
+  google_group_corpus_mappings: []
+  #  - google_group_email: "corpus-forest-policies@usda.gov"
+  #    corpus_name: "forest-policies"
+  #    permission: "admin"
+
+  # ── Initial Users ───────────────────────────────────────────────────────────
+  # Bootstrap admin user(s). Additional users are created automatically when
+  # they log in via IAP. The Google Groups Bridge assigns them to the correct
+  # chatbot group based on their Google Group memberships.
+  users:
+    - email: "admin@usda.gov"
+      full_name: "Admin User"
+      is_admin: true

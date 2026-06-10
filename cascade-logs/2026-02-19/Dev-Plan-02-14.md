@@ -33,7 +33,7 @@ These must be resolved first — other tasks depend on them or they affect data 
 | # | Task | Classification | Tags | Description |
 |---|------|---------------|------|-------------|
 | C-1 | Create deployment defaults | system | `#deployment` `#bootstrap` | Create default corpora, groups, users, agents, roles, IAM groups, and IAM roles during deployment so new environments start without errors. This is the foundation all other features assume exists. |
-### C1 - Status: 
+### C1 - Status: in-progress
 
 | C-2 | Implement IAM group management interface | IAM, frontend | `#iam` `#admin` `#groups` | In `/admin/groups`, replace the current Group Management page with an interface that integrates with Google Cloud IAM group definitions. Research the best approach to leverage IAM groups as the source of truth for app-level group membership. Before the sync will actually work, the operator also needs to verify:
 Cloud Identity API is enabled (already in prerequisites.sh)
@@ -42,10 +42,15 @@ The service account may need domain-wide delegation configured in Google Workspa
 
 
 | C-3 | Implement IAM role assignment and removal | IAM, backend | `#iam` `#roles` `#auth` | Roles currently cannot be removed once assigned. Design and implement a proper IAM role lifecycle — create, assign to groups, and revoke — so that access control changes propagate correctly. |
+
 | C-4 | Assign agent tools to groups and users | IAM, backend | `#iam` `#agents` `#access-control` | Agent tools (RAG query, document upload, etc.) should be grantable per-group and per-user. Without this, all users have access to all tools regardless of their role. |
+
 | C-5 | Prevent corpus creation against folders with subfolders | backend | `#corpus` `#data-integrity` `#validation` | Validate that users only create corpora against GCS "folders" (prefixes) with no nested subfolders. A subfolder corpus (e.g. `fiction/` inside `usfs-corpora/`) can be silently deleted when the parent is managed, breaking all queries against it. |
+
 | C-6 | Fix Vertex AI sync in `/admin/corpora` | backend | `#sync` `#bug` `#admin` | "Sync with Vertex AI" produces stale results — deleted corpora still appear in the list, and some lists update while others do not. Diagnose whether the issue is in the sync service, the DB query, or the frontend cache. |
+
 | C-7 | Fix save button in `/admin/corpora` edit field | frontend, backend | `#bug` `#admin` `#corpus` | The save button in the corpus metadata edit panel does not persist changes. Determine whether the issue is in the API call, the request payload, or the UI state management. |
+
 | C-8 | Handle Vertex AI 429 RESOURCE_EXHAUSTED errors | backend, frontend | `#error-handling` `#resilience` | Implement graceful handling for `429 RESOURCE_EXHAUSTED` errors from Vertex AI. Add retry with exponential backoff on the backend and show a user-friendly message on the frontend instead of a raw JSON error. |
 
 ---
@@ -57,7 +62,9 @@ Core experience and architectural work that directly impacts daily use.
 | # | Task | Classification | Tags | Description |
 |---|------|---------------|------|-------------|
 | H-1 | Set a default corpus for new sessions | backend, frontend | `#corpus` `#ux` `#session` | Automatically select one corpus as the default when a user starts a chat session so the conversation can begin without requiring manual corpus selection first. |
+
 | H-2 | Live-update corpora list on access changes | frontend, backend | `#corpus` `#access-control` `#realtime` | When an admin adds, removes, activates, or deactivates corpus access for a group, the affected users' available corpora list should update without requiring a page refresh or re-login. |
+
 | H-3 | Assign default group on user creation | backend, frontend | `#users` `#groups` `#onboarding` | When creating a new user, automatically assign them to a default group and provide a multi-select option to add them to additional groups during creation. |
 | H-4 | Add corpus metadata on creation | frontend, backend | `#corpus` `#metadata` `#admin` | When a corpus is created, capture structured metadata: owning group, data source, data type, creation date, author, and purpose. Expose this via a dialog accessible from the corpus management UI. This enables reporting and data governance. |
 | H-5 | Manage corpora and bucket inventory | backend, frontend | `#corpus` `#buckets` `#inventory` | Build an inventory view of all GCS buckets used by corpora, showing which teams/groups use each bucket. Supports the case where multiple teams share a bucket or a single team uses multiple buckets. |
