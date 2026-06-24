@@ -73,12 +73,33 @@ export default function Home() {
         setIsLoadingAgents(false);
       }
       
-      // Load saved corpus preferences
+      // Load saved corpus preferences (with auto-default fallback)
       try {
         const profile = await apiClient.getMyProfile();
-        if (profile.profile?.preferences?.selected_corpora && Array.isArray(profile.profile.preferences.selected_corpora)) {
-          setSelectedCorpora(profile.profile.preferences.selected_corpora as string[]);
-          console.log('✅ Loaded saved corpus preferences:', profile.profile.preferences.selected_corpora);
+        const saved = profile.profile?.preferences?.selected_corpora;
+        if (Array.isArray(saved) && saved.length > 0) {
+          setSelectedCorpora(saved as string[]);
+          console.log('✅ Loaded saved corpus preferences:', saved);
+        } else {
+          // No saved selection — auto-select a sensible default so chat works out-of-the-box.
+          // Prefer the first accessible corpus that has documents; otherwise the first accessible one.
+          try {
+            const corpora = await apiClient.getAllCorporaWithAccess();
+            const accessible = corpora.filter(c => c.has_access);
+            const fallback = accessible.find(c => (c.document_count ?? 0) > 0) || accessible[0];
+            if (fallback) {
+              setSelectedCorpora([fallback.name]);
+              console.log('✅ Auto-selected default corpus:', fallback.name);
+              // Persist so it sticks for next login
+              try {
+                await apiClient.updateProfile({ preferences: { selected_corpora: [fallback.name] } });
+              } catch (e) {
+                console.error('Failed to persist auto-selected corpus:', e);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to auto-select default corpus:', e);
+          }
         }
       } catch (err) {
         console.error('Failed to load corpus preferences:', err);
