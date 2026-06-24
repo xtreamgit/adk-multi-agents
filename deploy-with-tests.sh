@@ -5,12 +5,19 @@
 
 set -e  # Exit on any error
 
-# Configuration
-PROJECT_ID="adk-rag-ma"
-REGION="us-west1"
-BACKEND_IMAGE="us-west1-docker.pkg.dev/adk-rag-ma/cloud-run-repo1/backend"
-FRONTEND_IMAGE="us-west1-docker.pkg.dev/adk-rag-ma/cloud-run-repo1/frontend"
-LOAD_BALANCER_URL="https://34.49.46.115.nip.io"
+# Configuration — sourced from deployment.config (single source of truth for the
+# target environment). Previously these were hardcoded to develom (adk-rag-ma),
+# which silently sent every deploy to the wrong project regardless of config.
+source ./deployment.config
+: "${PROJECT_ID:?PROJECT_ID not set — regenerate deployment.config from your environment YAML}"
+: "${REGION:?REGION not set — regenerate deployment.config from your environment YAML}"
+REPO="${REPO:-cloud-run-repo1}"
+# Untagged image bases (this script appends :${image_tag} later)
+BACKEND_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/backend"
+FRONTEND_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/frontend"
+# Environment-specific frontend target. Override per environment via LOAD_BALANCER_URL
+# in deployment.config or the calling shell; the default below is develom's URL.
+LOAD_BALANCER_URL="${LOAD_BALANCER_URL:-https://34.49.46.115.nip.io}"
 
 # Colors for output
 RED='\033[0;31m'

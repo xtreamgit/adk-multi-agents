@@ -4,11 +4,16 @@
 
 set -e
 
-# Load configuration
+# Load configuration — deployment.config is the single source of truth for the
+# target environment (PROJECT_ID, REGION, BACKEND_IMAGE, ...). Do NOT hardcode
+# the project here; that previously pinned every deploy to develom (adk-rag-ma).
 source ./deployment.config
 
-PROJECT_ID="adk-rag-ma"
-REGION="us-west1"
+# Fail loudly if the config didn't provide a target, instead of silently
+# defaulting to the wrong project.
+: "${PROJECT_ID:?PROJECT_ID not set — regenerate deployment.config from your environment YAML}"
+: "${REGION:?REGION not set — regenerate deployment.config from your environment YAML}"
+: "${BACKEND_IMAGE:?BACKEND_IMAGE not set — regenerate deployment.config from your environment YAML}"
 SERVICES=("backend" "backend-agent1" "backend-agent2" "backend-agent3")
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

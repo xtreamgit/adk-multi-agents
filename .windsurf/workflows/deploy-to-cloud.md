@@ -4,6 +4,13 @@ description: Manual deploy from local repo to Google Cloud Run (backend + fronte
 
 # Deploy to Cloud (Manual Hotfix Path)
 
+> ⚠️ **DEVELOM ONLY.** Every command in this runbook is hardcoded to the develom
+> project `adk-rag-ma`. It does **NOT** read `deployment.config` and will **NOT**
+> deploy to TechTrend (`adk-rag-tt-488718`) or any other environment. To deploy a
+> different environment, use `infrastructure/deploy-all.sh` (which sources
+> `deployment.config`) or `deploy-single-region.sh` / `deploy-with-tests.sh`
+> (now config-driven). Do not use this runbook for TechTrend.
+
 Deploys the current local code to Cloud Run without going through the CI/CD pipeline.
 Use this for hotfixes or quick iterations. For production releases, prefer merging to `main` and letting GitHub Actions handle it.
 
