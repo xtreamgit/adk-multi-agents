@@ -204,8 +204,10 @@ fi
 export GOOGLE_CLOUD_LOCATION="$REGION"
 
 # Cloud SQL Configuration
-# Get Cloud SQL instance connection name
-CLOUD_SQL_INSTANCE=$(gcloud sql instances list --project="$PROJECT_ID" --format="value(name)" --limit=1 2>/dev/null || echo "")
+# Get Cloud SQL instance connection name if not already loaded from deployment.config
+if [[ -z "${CLOUD_SQL_INSTANCE:-}" ]]; then
+    CLOUD_SQL_INSTANCE=$(gcloud sql instances list --project="$PROJECT_ID" --format="value(name)" --limit=1 2>/dev/null || echo "")
+fi
 if [[ -n "$CLOUD_SQL_INSTANCE" ]]; then
     export CLOUD_SQL_CONNECTION="${PROJECT_ID}:${REGION}:${CLOUD_SQL_INSTANCE}"
     export DB_NAME="${DB_NAME:-adk_agents_db}"
