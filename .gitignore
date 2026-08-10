@@ -16,6 +16,13 @@ frontend/frontend.log
 # Database backups
 backups/
 
+backend/.gcloudignore
+backend/.env*
+backend/config*
+backend/src/database*
+cascade-logs*
+deployment.config.bak*
+
 # Temporary deployment/migration files
 apply_missing_schema.sql
 cloud_schema_updates.sql
