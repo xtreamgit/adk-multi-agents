@@ -2,15 +2,15 @@
 # USFS (U.S. Forest Service) Environment Configuration
 # =============================================================================
 # Client: U.S. Forest Service
-# Project: usfs-gcp-arch-testing | Region: us-east4
+# Project: usfs-cio-rag-poc | Region: us-east4
 # =============================================================================
 
 client_name: "usfs"
 account_env: "usfs"
 
 # Google Cloud Project
-project_id: "usfs-gcp-arch-testing"
-project_number: "41078795448"
+project_id: "usfs-cio-rag-poc"
+project_number: "590843549046"
 region: "us-east4"
 organization_domain: "usda.gov"
 
@@ -18,13 +18,13 @@ organization_domain: "usda.gov"
 iap_admin_user: "hector.dejesus@usda.gov"  # TODO: Fill in USFS admin email
 
 # Repository
-repo: "cloud-run-repo1"
+repo: "adk-cloud-repo1"
 
 # ---- Database Configuration ----
 
 database:
-  cloud_sql_instance: "usfs-multi-agents-db"
-  cloud_sql_connection: "usfs-gcp-arch-testing:us-east4:usfs-multi-agents-db"
+  cloud_sql_instance: "adk-usfs-cio-rag-db"
+  cloud_sql_connection: "usfs-cio-rag-poc:us-east4:adk-usfs-cio-rag-db"
   name: "adk_agents_db"
   user: "adk_app_user"
   password: ""
@@ -58,6 +58,7 @@ corpus_to_bucket_mapping:
   "forest-policies": "usfs-forest-policies"
   "environmental-reports": "usfs-environmental-reports"
   "fire-management": "usfs-fire-management-docs"
+  "usfs-forest-service": "east4-usfs-cio-adk-rag-default-corpus-bucket"
 
 default_corpus_name: "usfs-forest-service"
 
