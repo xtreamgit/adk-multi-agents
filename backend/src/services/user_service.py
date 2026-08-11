@@ -300,15 +300,15 @@ class UserService:
     def update_google_id(user_id: int, google_id: str) -> bool:
         """
         Update user's Google ID.
-        
+
         Args:
             user_id: User ID
             google_id: Google ID to set
-            
+
         Returns:
             True if successful, False otherwise
         """
-        user_dict = UserRepository.update(user_id, google_id=google_id, auth_provider='iap')
+        user_dict = UserRepository.update(user_id, google_id=google_id)
         if user_dict:
             logger.info(f"Updated google_id for user {user_id}")
             return True

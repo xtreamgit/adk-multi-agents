@@ -209,3 +209,8 @@ async def get_current_user_optional_iap(request: Request) -> Optional[User]:
         return None
 
 
+# Alias for backward compatibility and test migration
+get_current_user_hybrid = get_current_user_iap
+
+
+

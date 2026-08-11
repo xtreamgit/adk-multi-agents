@@ -4,7 +4,7 @@ User data models and schemas.
 
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, computed_field
 
 
 class UserBase(BaseModel):
@@ -39,6 +39,18 @@ class User(UserBase):
     created_at: datetime
     updated_at: datetime
     last_login: Optional[datetime] = None
+
+    @computed_field
+    @property
+    def username(self) -> str:
+        """Get username from email prefix (for backward compatibility)."""
+        return self.email.split('@')[0] if self.email else "user"
+
+    @computed_field
+    @property
+    def auth_provider(self) -> str:
+        """Get auth provider (for backward compatibility)."""
+        return "iap"
 
     class Config:
         from_attributes = True
