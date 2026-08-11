@@ -100,7 +100,7 @@ configure_cors() {
     echo -e "${YELLOW}  - Ingress restricts to LB only                              - Ingress restricts to LB only${NC}"
     echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────────────────┘${NC}"
 
-    read -p "Press Enter to continue... "
+    # read -p "Press Enter to continue... "
 
     # Detect org policy to auto-select posture (keep this exact echo line)
     DETECTED_MODE="B"
