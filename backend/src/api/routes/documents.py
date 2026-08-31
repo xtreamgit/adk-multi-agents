@@ -142,27 +142,19 @@ async def retrieve_document(
         logger.info(f"[DEBUG] Generated signed_url={'<url>' if signed_url else 'None'}, expires_at={expires_at}")
         
         if not signed_url:
-            logger.error(f"Failed to generate signed URL for {document['source_uri']}")
-            
-            # Log failed access attempt
-            DocumentService.log_access(
-                user_id=current_user.id,
-                corpus_id=corpus_id,
-                document_name=document_name,
-                document_file_id=document.get('file_id'),
-                source_uri=document.get('source_uri'),
-                success=False,
-                error_message="Failed to generate signed URL",
-                ip_address=request.client.host if request else None,
-                user_agent=request.headers.get('user-agent') if request else None
+            # Signing unavailable (e.g. local dev with user ADC — no SA key / no
+            # metadata server). Fall back to our own streaming proxy endpoint,
+            # which serves the bytes without needing a signed URL.
+            from urllib.parse import quote
+            base = str(request.base_url).rstrip('/') if request else ''
+            signed_url = f"{base}/api/documents/proxy/{corpus_id}/{quote(document_name)}"
+            expires_at = None
+            valid_for_seconds = None
+            logger.warning(
+                f"Signed URL unavailable; returning proxy URL for {document['source_uri']}"
             )
-            
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to generate access URL for document"
-            )
-        
-        valid_for_seconds = 1800  # 30 minutes
+        else:
+            valid_for_seconds = 1800  # 30 minutes
     
     # Step 6: Log successful access
     DocumentService.log_access(
@@ -346,23 +338,33 @@ async def proxy_document(
         document_source_uri = document['source_uri']
         file_id = document.get('file_id')
     
-    # Generate signed URL
+    response_headers = {
+        "Content-Disposition": f'inline; filename="{document_name}"',
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+    }
+
+    # Try signed URL first (works in cloud); fall back to direct streaming
+    # when signing isn't available (e.g. local dev with user ADC).
     signed_url, _ = DocumentService.generate_signed_url(
         document_source_uri,
         expiration_minutes=30
     )
-    
-    if not signed_url:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate access URL for document"
-        )
-    
+
     try:
-        # Fetch PDF from GCS signed URL
-        response = requests.get(signed_url, stream=True, timeout=30)
-        response.raise_for_status()
-        
+        if signed_url:
+            # Fetch PDF from GCS signed URL and stream it
+            response = requests.get(signed_url, stream=True, timeout=30)
+            response.raise_for_status()
+            content_iter = response.iter_content(chunk_size=8192)
+        else:
+            # Fallback: stream the blob bytes directly via ADC (no signing needed)
+            logger.warning(
+                f"Signed URL unavailable; streaming {document_source_uri} directly"
+            )
+            content_iter = DocumentService.stream_blob(document_source_uri)
+
         # Log successful access
         DocumentService.log_access(
             user_id=current_user.id,
@@ -375,25 +377,19 @@ async def proxy_document(
             ip_address=request.client.host if request else None,
             user_agent=request.headers.get('user-agent') if request else None
         )
-        
+
         logger.info(
             f"Proxying document: user={current_user.email}, "
             f"corpus={corpus.name}, document={document_name}"
         )
-        
-        # Stream the PDF content with proper headers
+
         return StreamingResponse(
-            response.iter_content(chunk_size=8192),
+            content_iter,
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'inline; filename="{document_name}"',
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, OPTIONS",
-                "Access-Control-Allow-Headers": "*",
-            }
+            headers=response_headers,
         )
-    except requests.RequestException as e:
-        logger.error(f"Error fetching document from GCS: {e}")
+    except (requests.RequestException, ValueError, Exception) as e:
+        logger.error(f"Error fetching document from GCS: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch document from storage"

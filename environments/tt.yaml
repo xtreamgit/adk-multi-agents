@@ -2,20 +2,20 @@
 # TechTrend Environment Configuration
 # =============================================================================
 # Client: TechTrend
-# Project: adk-rag-tt | Region: us-west1
+# Project: adk-rag-tt-488718 | Region: us-west1
 # =============================================================================
 
 client_name: "tt"
 account_env: "tt"
 
 # Google Cloud Project
-project_id: "adk-rag-tt"
-project_number: ""  # TODO: Fill in actual project number
+project_id: "adk-rag-tt-488718"
+project_number: "980453997632"
 region: "us-west1"
-organization_domain: "techtrend.com"
+organization_domain: "techtrend.us"
 
 # IAP / Admin
-iap_admin_user: ""  # TODO: Fill in TechTrend admin email
+iap_admin_user: "hdejesus@techtrend.us"
 
 # Repository
 repo: "cloud-run-repo1"
@@ -24,11 +24,11 @@ repo: "cloud-run-repo1"
 
 database:
   cloud_sql_instance: "tt-multi-agents-db"
-  cloud_sql_connection: "adk-rag-tt:us-west1:tt-multi-agents-db"
+  cloud_sql_connection: "adk-rag-tt-488718:us-west1:tt-multi-agents-db"
   name: "adk_agents_db"
   user: "adk_app_user"
   password: ""
-  password_secret_name: ""
+  password_secret_name: "tt-db-password"
 
   local:
     host: "localhost"
@@ -59,7 +59,7 @@ corpus_to_bucket_mapping:
   "product-docs": "techtrend-product-documentation"
   "research-papers": "techtrend-research"
 
-default_corpus_name: "techtrend-general"
+default_corpus_name: "tech-articles"
 
 # ---- Frontend Configuration ----
 
@@ -69,8 +69,8 @@ frontend:
 # ---- Secrets ----
 
 secrets:
-  secret_key_source: "file"
-  secret_key_secret_name: ""
+  secret_key_source: "gcp"
+  secret_key_secret_name: "tt-app-secret-key"
 
 # ---- Service Accounts ----
 
@@ -78,3 +78,109 @@ service_accounts:
   backend_sa: ""
   frontend_sa: ""
   rag_agent_sa: ""
+
+# ---- Seed Data ----
+# Baseline defaults for a fresh deployment.
+# Authentication: Google IAP (no passwords needed)
+# Authorization: Google Groups Bridge (maps Google Groups -> chatbot groups + corpus access)
+# Corpora: NOT seeded here -- synced from Vertex AI on startup via CorpusSyncService.
+
+seed_data:
+
+  # -- Chatbot Groups -----------------------------------------------------------
+  chatbot_groups:
+    - name: "viewer-group"
+      description: "Read-only access group with Viewer Agent capabilities"
+
+    - name: "contributor-group"
+      description: "Content contributor group with ability to add documents"
+
+    - name: "content-manager-group"
+      description: "Content management group with document lifecycle control"
+
+    - name: "admin-group"
+      description: "Administrative group with full corpus and document control"
+
+  # -- Chatbot Agents -----------------------------------------------------------
+  chatbot_agents:
+    - name: "viewer-agent"
+      display_name: "Viewer Agent"
+      agent_type: "viewer"
+      description: "Read-only access for general users. Can query documents and browse corpora but cannot modify any data."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+
+    - name: "contributor-agent"
+      display_name: "Contributor Agent"
+      agent_type: "contributor"
+      description: "Users who can add content. Has all viewer capabilities plus the ability to add documents to corpora."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+        - "add_data"
+
+    - name: "content-manager-agent"
+      display_name: "Content Manager Agent"
+      agent_type: "content-manager"
+      description: "Manage documents within existing corpora. Can add and delete documents but cannot create or delete corpora."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+        - "add_data"
+        - "delete_document"
+
+    - name: "admin-agent"
+      display_name: "Admin Agent"
+      agent_type: "admin"
+      description: "Full corpus lifecycle management. Complete control over corpora and documents. For administrators only."
+      tools:
+        - "rag_query"
+        - "list_corpora"
+        - "get_corpus_info"
+        - "browse_documents"
+        - "add_data"
+        - "create_corpus"
+        - "delete_document"
+        - "delete_corpus"
+
+  # -- Group -> Agent Assignments -----------------------------------------------
+  chatbot_group_agents:
+    viewer-group: "viewer-agent"
+    contributor-group: "contributor-agent"
+    content-manager-group: "content-manager-agent"
+    admin-group: "admin-agent"
+
+  # -- Google Group -> Chatbot Group Mappings (Agent Type Dimension) ------------
+  google_group_agent_mappings:
+    - google_group_email: "rag-viewers@techtrend.us"
+      chatbot_group: "viewer-group"
+      priority: 0
+
+    - google_group_email: "rag-contributors@techtrend.us"
+      chatbot_group: "contributor-group"
+      priority: 0
+
+    - google_group_email: "rag-content-managers@techtrend.us"
+      chatbot_group: "content-manager-group"
+      priority: 0
+
+    - google_group_email: "rag-admins@techtrend.us"
+      chatbot_group: "admin-group"
+      priority: 1
+
+  # -- Google Group -> Corpus Mappings (Corpus Access Dimension) ----------------
+  google_group_corpus_mappings: []
+
+  # -- Initial Users ------------------------------------------------------------
+  # Bootstrap admin user. Additional users are created automatically via IAP login.
+  users:
+    - email: "hdejesus@techtrend.us"
+      full_name: "Hector DeJesus"
+      is_admin: true

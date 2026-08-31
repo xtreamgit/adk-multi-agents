@@ -284,6 +284,38 @@ class DocumentService:
             return None, None
     
     @staticmethod
+    def stream_blob(source_uri: str, chunk_size: int = 8192):
+        """
+        Stream a GCS object's bytes directly using ADC credentials.
+
+        Fallback for environments where signed-URL generation isn't available
+        (e.g. local dev with user ADC: no sign_bytes, no SA email, no metadata
+        server). Works in cloud too, since the runtime SA has storage read access.
+
+        Args:
+            source_uri: GCS URI (gs://bucket/path/to/file)
+            chunk_size: Read chunk size in bytes
+
+        Yields:
+            Chunks of the object's bytes.
+        """
+        match = re.match(r'gs://([^/]+)/(.+)', source_uri or '')
+        if not match:
+            raise ValueError(f"Invalid GCS URI: {source_uri}")
+
+        bucket_name, object_path = match.group(1), match.group(2)
+        storage_client = storage.Client()
+        blob = storage_client.bucket(bucket_name).blob(object_path)
+
+        logger.info(f"Streaming blob directly (no signed URL) for {source_uri}")
+        with blob.open("rb") as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+
+    @staticmethod
     def get_document_metadata(source_uri: str) -> Dict:
         """
         Extract metadata from GCS document.
